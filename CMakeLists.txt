@@ -18,10 +18,13 @@ add_subdirectory(thirdparty/glm)
 include_directories(include)
 
 aux_source_directory(./include/spatial_partitioning/ header_files)
-aux_source_directory(./src source_files)
+aux_source_directory(./src/ source_files)
 
 add_library(spatial_partitioning STATIC
 	${header_files}
 	${source_files}
 )
 target_link_libraries(spatial_partitioning glm)
+
+add_executable(test1 tests/Test1.cpp)
+target_link_libraries(test1 spatial_partitioning)

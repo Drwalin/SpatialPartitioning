@@ -10,7 +10,7 @@
 
 namespace spp
 {
-struct AABB {
+struct Aabb {
 	glm::vec3 min;
 	glm::vec3 max;
 
@@ -25,17 +25,26 @@ public:
 		const glm::vec3 v = max - min;
 		return (v.x * v.y + v.x * v.z + v.y * v.z) * 2.f;
 	}
+	
+	inline glm::vec3 GetCenter() const
+	{
+		return min + (max-min)*0.5f;
+	}
+	inline glm::vec3 GetSizes() const
+	{
+		return max-min;
+	}
 
-	inline bool HasIntersection(const AABB &r) const
+	inline bool HasIntersection(const Aabb &r) const
 	{
 		return glm::all(glm::lessThanEqual(min, r.max) &&
 						glm::lessThanEqual(r.min, max));
 	}
-	inline AABB Intersection(const AABB &r) const
+	inline Aabb Intersection(const Aabb &r) const
 	{
 		return {glm::max(min, r.min), glm::min(max, r.max)};
 	}
-	inline AABB Sum(const AABB &r) const
+	inline Aabb Sum(const Aabb &r) const
 	{
 		return {glm::min(min, r.min), glm::max(max, r.max)};
 	}
@@ -79,8 +88,8 @@ public:
 	}
 
 public:
-	inline bool operator&&(const AABB &r) const { return HasIntersection(r); }
-	inline AABB operator*(const AABB &r) const { return Intersection(r); }
-	inline AABB operator+(const AABB &r) const { return Sum(r); }
+	inline bool operator&&(const Aabb &r) const { return HasIntersection(r); }
+	inline Aabb operator*(const Aabb &r) const { return Intersection(r); }
+	inline Aabb operator+(const Aabb &r) const { return Sum(r); }
 };
 } // namespace spp

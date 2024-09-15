@@ -6,49 +6,57 @@
 
 namespace spp
 {
-void BruteForce::Clear() { entities.clear(); }
+BruteForce::BruteForce() {}
+BruteForce::~BruteForce() {}
+
+void BruteForce::Clear() { entitiesData.clear(); }
 
 size_t BruteForce::GetMemoryUsage() const
 {
-	return entities.bucket_count() * sizeof(void *) +
-		   entities.size() *
+	return entitiesData.bucket_count() * sizeof(void *) +
+		   entitiesData.size() *
 			   (sizeof(void *) * 2lu + sizeof(Data) + sizeof(EntityType));
 }
 
-void BruteForce::Add(EntityType entity, AABB aabb, MaskType mask)
+void BruteForce::ShrinkToFit() {}
+
+void BruteForce::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
-	entities[entity] = Data{entity, aabb, mask};
+	entitiesData[entity] = Data{aabb, entity, mask};
 }
 
-void BruteForce::Update(EntityType entity, AABB aabb)
+void BruteForce::Update(EntityType entity, Aabb aabb)
 {
-	entities[entity].aabb = aabb;
+	entitiesData[entity].aabb = aabb;
 }
 
-void BruteForce::Remove(EntityType entity) { entities.erase(entity); }
+void BruteForce::Remove(EntityType entity) { entitiesData.erase(entity); }
 
 void BruteForce::SetMask(EntityType entity, MaskType mask)
 {
-	entities[entity].mask = mask;
+	entitiesData[entity].mask = mask;
 }
 
-void BruteForce::IntersectAABB(IntersectionCallback &callback) const
+void BruteForce::Rebuild() {}
+
+void BruteForce::IntersectAabb(IntersectionCallback &callback)
 {
 	if (callback.callback == nullptr) {
 		return;
 	}
-	
-	for (const auto &it : entities) {
+
+	for (const auto &it : entitiesData) {
 		if (it.second.mask & callback.mask) {
 			if (it.second.aabb && callback.aabb) {
 				callback.callback(&callback, it.first);
 				++callback.testedCount;
 			}
+			++callback.nodesTestedCount;
 		}
 	}
 }
 
-void BruteForce::IntersectRay(RayCallback &callback) const
+void BruteForce::IntersectRay(RayCallback &callback)
 {
 	if (callback.callback == nullptr) {
 		return;
@@ -59,7 +67,7 @@ void BruteForce::IntersectRay(RayCallback &callback) const
 	callback.dirNormalized = callback.dir / callback.length;
 	callback.invDir = glm::vec3(1.f, 1.f, 1.f) / callback.dirNormalized;
 
-	for (const auto &it : entities) {
+	for (const auto &it : entitiesData) {
 		if (it.second.mask & callback.mask) {
 			float n, f;
 			if (it.second.aabb.FastRayTest(
@@ -75,6 +83,7 @@ void BruteForce::IntersectRay(RayCallback &callback) const
 					++callback.hitCount;
 				}
 				++callback.testedCount;
+				++callback.nodesTestedCount;
 			}
 		}
 	}

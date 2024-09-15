@@ -37,7 +37,7 @@ public:
 
 	inline bool HasIntersection(const Aabb &r) const
 	{
-		return glm::all(glm::lessThanEqual(min, r.max) &&
+		return glm::all(glm::lessThanEqual(min, r.max) &
 						glm::lessThanEqual(r.min, max));
 	}
 	inline Aabb Intersection(const Aabb &r) const

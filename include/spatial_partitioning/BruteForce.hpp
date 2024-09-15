@@ -31,7 +31,7 @@ public:
 	virtual void IntersectAabb(IntersectionCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
 
-private:
+public: // private:
 	struct Data {
 		Aabb aabb;
 		EntityType entity;

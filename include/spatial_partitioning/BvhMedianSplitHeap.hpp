@@ -21,6 +21,8 @@ namespace spp
  * Removing object does not need to rebuild whole tree but shuld be needed
  * 
  * Limit is 268435456 (2^28-1)
+ * 
+ * Tree is perfectly balanced due to heap use as nodes storage
  */
 class BvhMedianSplitHeap final : public BroadphaseBase
 {
@@ -52,7 +54,7 @@ public:
 	
 	virtual void Rebuild() override;
 	
-private:
+public: // private:
 	void PruneEmptyEntitiesAtEnd();
 	void UpdateAabb(int32_t entityOffset);
 	void RebuildNode(int32_t nodeId);
@@ -60,7 +62,7 @@ private:
 	void _Internal_IntersectAabb(IntersectionCallback &cb, const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 
-private:
+public: // private:
 	struct alignas(64) Data {
 		Aabb aabb;
 		EntityType entity;

@@ -83,10 +83,18 @@ void BvhMedianSplitHeap::Remove(EntityType entity)
 	PruneEmptyEntitiesAtEnd();
 
 	if (updatePolicy == ON_UPDATE_EXTEND_AABB) {
-		UpdateAabb(offset);
+		offset = (offset | 1) ^ 1;
+		if (offset < entitiesData.size()) {
+			UpdateAabb(offset);
+		}
 	} else {
 		if (entitiesCount != entitiesData.size()) {
 			rebuildTree = true;
+		} else {
+			offset = (offset | 1) ^ 1;
+			if (offset < entitiesData.size()) {
+				UpdateAabb(offset);
+			}
 		}
 	}
 }
@@ -94,26 +102,24 @@ void BvhMedianSplitHeap::Remove(EntityType entity)
 void BvhMedianSplitHeap::SetMask(EntityType entity, MaskType mask)
 {
 	uint32_t offset = entitiesOffsets[entity];
-
 	entitiesData[offset].mask = mask;
-
-	if (offset + 1 < entitiesData.size()) {
-		if (entitiesData[offset + 1].entity != EMPTY_ENTITY) {
-			mask |= entitiesData[offset + 1].mask;
+	if ((offset ^ 1) < entitiesData.size()) {
+		if (entitiesData[offset ^ 1].entity != EMPTY_ENTITY) {
+			mask |= entitiesData[offset ^ 1].mask;
 		}
 	}
 
 	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> 1; n > 0; n >>= 1) {
 		nodesHeapAabb[n].mask = mask;
-		if (n + 1 < nodesHeapAabb.size()) {
-			mask |= nodesHeapAabb[n + 1].mask;
+		if ((n ^ 1) < nodesHeapAabb.size()) {
+			mask |= nodesHeapAabb[n ^ 1].mask;
 		}
 	}
 }
 
-void BvhMedianSplitHeap::IntersectAabb(IntersectionCallback &callback)
+void BvhMedianSplitHeap::IntersectAabb(IntersectionCallback &cb)
 {
-	if (callback.callback == nullptr) {
+	if (cb.callback == nullptr) {
 		return;
 	}
 
@@ -121,7 +127,7 @@ void BvhMedianSplitHeap::IntersectAabb(IntersectionCallback &callback)
 		Rebuild();
 	}
 
-	_Internal_IntersectAabb(callback, 1);
+	_Internal_IntersectAabb(cb, 1);
 }
 
 void BvhMedianSplitHeap::_Internal_IntersectAabb(IntersectionCallback &cb,
@@ -140,21 +146,20 @@ void BvhMedianSplitHeap::_Internal_IntersectAabb(IntersectionCallback &cb,
 			}
 		}
 	} else {
-		for (int i = n; i <= n + 1; ++i) {
-			if (nodesHeapAabb[nodeId].mask & cb.mask) {
+		for (int i = 0; i <= 1; ++i) {
+			if (nodesHeapAabb[n + i].mask & cb.mask) {
 				++cb.nodesTestedCount;
-				if (nodesHeapAabb[nodeId].aabb && cb.aabb) {
-					_Internal_IntersectAabb(cb, i);
-				} else {
+				if (nodesHeapAabb[n + i].aabb && cb.aabb) {
+					_Internal_IntersectAabb(cb, n + i);
 				}
 			}
 		}
 	}
 }
 
-void BvhMedianSplitHeap::IntersectRay(RayCallback &callback)
+void BvhMedianSplitHeap::IntersectRay(RayCallback &cb)
 {
-	if (callback.callback == nullptr) {
+	if (cb.callback == nullptr) {
 		return;
 	}
 
@@ -162,73 +167,76 @@ void BvhMedianSplitHeap::IntersectRay(RayCallback &callback)
 		Rebuild();
 	}
 
-	callback.dir = callback.end - callback.start;
-	callback.length = glm::length(callback.dir);
-	callback.dirNormalized = callback.dir / callback.length;
-	callback.invDir = glm::vec3(1.f, 1.f, 1.f) / callback.dirNormalized;
+	cb.dir = cb.end - cb.start;
+	cb.length = glm::length(cb.dir);
+	cb.dirNormalized = cb.dir / cb.length;
+	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
 
-	int32_t n = 2;
-
-	while (n < entitiesPowerOfTwoCount &&
-		   n < ((entitiesPowerOfTwoCount + entitiesData.size()) >> 1)) {
-		if (n >= nodesHeapAabb.size()) {
-			break;
-		}
-
-		float _n, _f;
-		// TODO choose closest to ray origin first instead of by index
-		if ((nodesHeapAabb[n].mask & callback.mask) &&
-			(nodesHeapAabb[n].aabb.FastRayTest(
-				callback.start, callback.dirNormalized, callback.invDir,
-				callback.length, _n, _f))) {
-			++callback.nodesTestedCount;
-			n <<= 1;
-		} else {
-			if (n & 1) {
-				n >>= 1;
-				while (n & 1) {
-					n >>= 1;
-				}
-				n |= 1;
-			} else {
-				++n;
-			}
-		}
-
-		if (n >= entitiesPowerOfTwoCount) {
-			int32_t o = n - entitiesPowerOfTwoCount;
-			for (int i = 0; i < 2 && o + i < entitiesData.size(); ++i, ++o) {
-				float _n, _f;
-				if ((entitiesData[o].mask & callback.mask) &&
-					(entitiesData[o].aabb.FastRayTest(
-						callback.start, callback.dirNormalized, callback.invDir,
-						callback.length, _n, _f))) {
-					auto res =
-						callback.callback(&callback, entitiesData[o].entity);
-					if (res.intersection) {
-						if (callback.length + 0.00000001f < 1.0f) {
-							callback.length *= res.dist;
-							callback.dir *= res.dist;
-							callback.end = callback.start + callback.dir;
-						}
-						++callback.hitCount;
-					}
-					++callback.testedCount;
-					++callback.nodesTestedCount;
-				}
-			}
-			++n;
-			while (n & 1) {
-				n >>= 1;
-			}
-			n |= 1;
-		}
-	}
+	_Internal_IntersectRay(cb, 1);
 }
 
 void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 												const int32_t nodeId)
 {
+	const int32_t n = nodeId << 1;
+	if (n >= entitiesPowerOfTwoCount) {
+		int32_t o = n - entitiesPowerOfTwoCount;
+		for (int i = o; i <= o + 1 && i < entitiesData.size(); ++i) {
+			if (entitiesData[i].mask & cb.mask) {
+				++cb.nodesTestedCount;
+				float _n, _f;
+				if (entitiesData[o].aabb.FastRayTest(cb.start, cb.dirNormalized,
+													 cb.invDir, cb.length, _n,
+													 _f)) {
+					++cb.testedCount;
+					auto res = cb.callback(&cb, entitiesData[i].entity);
+					if (res.intersection) {
+						if (cb.length + 0.00000001f < 1.0f) {
+							cb.length *= res.dist;
+							cb.dir *= res.dist;
+							cb.end = cb.start + cb.dir;
+						}
+						++cb.hitCount;
+					}
+				}
+			}
+		}
+	} else {
+		float __n[2], __f[2];
+		int __has = 0;
+		for (int i = 0; i <= 1; ++i) {
+			if (nodesHeapAabb[n + i].mask & cb.mask) {
+				++cb.nodesTestedCount;
+				if (nodesHeapAabb[n + i].aabb.FastRayTest(
+						cb.start, cb.dirNormalized, cb.invDir, cb.length,
+						__n[i], __f[i])) {
+					__has |= 1 << i;
+				}
+			}
+			switch (__has) {
+			case 1:
+				_Internal_IntersectRay(cb, n);
+				break;
+			case 2:
+				_Internal_IntersectRay(cb, n + 1);
+				break;
+			case 3: {
+				float l = cb.length;
+				if (__n[1] < __n[0]) {
+					_Internal_IntersectRay(cb, n + 1);
+					if (__n[0] * l < cb.length) {
+						_Internal_IntersectRay(cb, n);
+					}
+				} else {
+					_Internal_IntersectRay(cb, n);
+					if (__n[1] * l < cb.length) {
+						_Internal_IntersectRay(cb, n + 1);
+					}
+				}
+			} break;
+			}
+		}
+	}
 }
 
 void BvhMedianSplitHeap::Rebuild()
@@ -257,8 +265,7 @@ void BvhMedianSplitHeap::Rebuild()
 		PruneEmptyEntitiesAtEnd();
 		for (int32_t i = 0; i + 1 < entitiesData.size(); ++i) {
 			if (entitiesData[i].entity == EMPTY_ENTITY) {
-				entitiesData[i] = entitiesData.back();
-				entitiesData.back().entity = EMPTY_ENTITY;
+				std::swap(entitiesData[i], entitiesData.back());
 				PruneEmptyEntitiesAtEnd();
 			}
 		}
@@ -266,10 +273,9 @@ void BvhMedianSplitHeap::Rebuild()
 
 	RebuildNode(1);
 
-	{ // set entitiesOffsets
-		for (int32_t i = 0; i < entitiesData.size(); ++i) {
-			entitiesOffsets[entitiesData[i].entity] = i;
-		}
+	// set entitiesOffsets
+	for (int32_t i = 0; i < entitiesData.size(); ++i) {
+		entitiesOffsets[entitiesData[i].entity] = i;
 	}
 }
 
@@ -285,6 +291,7 @@ void BvhMedianSplitHeap::RebuildNode(int32_t nodeId)
 	if (offset >= entitiesData.size()) {
 		return;
 	}
+	int32_t orgCount = count;
 	count = std::min<int32_t>(count, entitiesData.size() - offset);
 
 	if (count == 0) {
@@ -329,8 +336,11 @@ void BvhMedianSplitHeap::RebuildNode(int32_t nodeId)
 	const static CompareTypeFunc sortFuncs[] = {
 		SortFunctions::SortX, SortFunctions::SortY, SortFunctions::SortZ};
 
-	std::sort(entitiesData.data() + offset,
-			  entitiesData.data() + offset + count, sortFuncs[axis]);
+	int32_t mid = orgCount >> 1;
+	if (mid < count) {
+		auto beg = entitiesData.data() + offset;
+		std::nth_element(beg, beg + mid, beg + count, sortFuncs[axis]);
+	}
 
 	nodeId <<= 1;
 	RebuildNode(nodeId);
@@ -351,14 +361,16 @@ void BvhMedianSplitHeap::UpdateAabb(int32_t offset)
 {
 	MaskType mask = 0;
 	Aabb aabb = {{0, 0, 0}, {-1, -1, -1}};
-	offset = offset & (~(int32_t)1);
-	for (int32_t i = offset; i <= offset + 1 && i < entitiesData.size(); ++i) {
-		if (entitiesData[i].entity != EMPTY_ENTITY && entitiesData[i].mask) {
-			mask |= entitiesData[i].mask;
-			if (mask) {
-				aabb = aabb + entitiesData[i].aabb;
-			} else {
-				aabb = entitiesData[i].aabb;
+	for (int i = 0; i <= 1; ++i, offset ^= 1) {
+		if (offset < entitiesData.size()) {
+			if (entitiesData[offset].entity != EMPTY_ENTITY &&
+				entitiesData[offset].mask) {
+				if (mask) {
+					aabb = aabb + entitiesData[offset].aabb;
+				} else {
+					aabb = entitiesData[offset].aabb;
+				}
+				mask |= entitiesData[offset].mask;
 			}
 		}
 	}

@@ -1,8 +1,8 @@
 #include <cstdio>
 
+#include <algorithm>
 #include <random>
 #include <vector>
-#include <set>
 #include <chrono>
 
 #include "../include/spatial_partitioning/BroadPhaseBase.hpp"
@@ -17,7 +17,8 @@ std::mt19937_64 mt(12345);
 
 std::vector<spp::Aabb> aabbsToTest;
 auto SingleTest(spp::BroadphaseBase *broadphase,
-const std::vector<spp::Aabb> &aabbsToTest, size_t testsCount)
+				const std::vector<spp::Aabb> &aabbsToTest, size_t testsCount,
+				std::vector<uint64_t> &offsetOfPatch)
 {
 	struct _Cb : public spp::IntersectionCallback {
 		std::vector<uint64_t> entities;
@@ -29,7 +30,8 @@ const std::vector<spp::Aabb> &aabbsToTest, size_t testsCount)
 		cb->entities.push_back(entity);
 	};
 	testsCount = std::min(testsCount, aabbsToTest.size());
-	for (size_t i=0; i<testsCount; ++i) {
+	for (size_t i = 0; i < testsCount; ++i) {
+		offsetOfPatch.push_back(cb.entities.size());
 		cb.aabb = aabbsToTest[i];
 		broadphase->IntersectAabb(cb);
 	}
@@ -38,37 +40,51 @@ const std::vector<spp::Aabb> &aabbsToTest, size_t testsCount)
 }
 
 std::vector<spp::Aabb> globalAabbs;
-std::vector<std::set<uint64_t>>
+std::vector<std::vector<uint64_t>>
 Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount)
 {
 	std::uniform_real_distribution<float> distPos(-300, 300);
-	std::uniform_real_distribution<float> distSize(pow(0.2,1.0/3.0),1.0);
+	std::uniform_real_distribution<float> distSize(pow(2.0 / 16.0, 1.0 / 3.0),
+												   1.0);
 	std::vector<spp::Aabb> &aabbs = globalAabbs;
 	size_t i = aabbs.size();
 	aabbs.resize(testsCount);
-	for (; i<aabbs.size(); ++i) {
+	for (; i < aabbs.size(); ++i) {
 		spp::Aabb &aabb = aabbs[i];
 		glm::vec3 p = {distPos(mt), distPos(mt) / 8.0f, distPos(mt)};
 		glm::vec3 s = {distSize(mt), distSize(mt), distSize(mt)};
-		s = s * s * 10.0f;
-		aabb = {p, p+s};
+		s = s * s * 16.0f;
+		aabb = {p, p + s};
 	}
-	
-	std::vector<std::set<uint64_t>> ents;
+
+	std::vector<std::vector<uint64_t>> ents;
+	std::vector<uint64_t> offsetOfPatch;
+	offsetOfPatch.reserve(testsCount);
 	for (int i = 0; i < broadphases.size(); ++i) {
+		offsetOfPatch.clear();
 		auto &it = broadphases[i];
-		size_t tC = i?aabbs.size():aabbs.size()/BRUTE_FROCE_TESTS_COUNT_DIVISOR;
+		size_t tC =
+			i ? aabbs.size() : aabbs.size() / BRUTE_FROCE_TESTS_COUNT_DIVISOR;
 		auto beg = std::chrono::steady_clock::now();
-		auto vec = SingleTest(it, aabbs, tC);
+		auto vec = SingleTest(it, aabbs, tC, offsetOfPatch);
 		auto end = std::chrono::steady_clock::now();
+		for (size_t i = 0; i < offsetOfPatch.size(); ++i) {
+			size_t of = offsetOfPatch[i];
+			size_t en = vec.entities.size();
+			if (i + 1 < offsetOfPatch.size()) {
+				en = offsetOfPatch[i + 1];
+			}
+			std::sort(vec.entities.begin() + of, vec.entities.begin() + en);
+		}
 		ents.push_back(
-			std::set<uint64_t>(vec.entities.begin(), vec.entities.end()));
+			std::vector<uint64_t>(vec.entities.begin(), vec.entities.end()));
 		auto diff = end - beg;
 		int64_t ns =
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%i intersection test [count: %lu]: %.3f us/op\n", i, tC, us/double(tC));
+		printf("%i intersection test [count: %lu]: %.3f us/op\n", i, tC,
+			   us / double(tC));
 		printf("    nodesTested: %lu,   testedCount: %lu     [count = %lu]:\n ",
 			   vec.nodesTestedCount, vec.testedCount, ents.back().size());
 		fflush(stdout);
@@ -94,7 +110,7 @@ int main()
 	std::vector<EntityData> entities;
 	entities.resize(TOTAL_ENTITIES);
 	std::uniform_real_distribution<float> distPos(-300, 300);
-	std::uniform_real_distribution<float> distSize(0.2, 10);
+	std::uniform_real_distribution<float> distSize(0.4, 10);
 	uint64_t id = 1;
 	for (auto &e : entities) {
 		e.aabb.min = {distPos(mt), distPos(mt) / 8.0f, distPos(mt)};
@@ -103,8 +119,14 @@ int main()
 		e.id = id;
 		++id;
 	}
-	entities[0].aabb = {{-200, -10, -200}, {200, 100, 200}};
+	entities[0].aabb = {{-400, -10, -400}, {400, 100, 400}};
 	entities[1].aabb = {{150, 190, 150}, {200, 200, 200}};
+	for (int i = 2; i < 50; ++i) {
+		auto &e = entities[i];
+		e.aabb.min = {distPos(mt), distPos(mt) / 16.0f, distPos(mt)};
+		e.aabb.max = {distSize(mt) * 6, distSize(mt) * 2, distSize(mt) * 6};
+		e.aabb.max += e.aabb.min;
+	}
 
 	spp::BvhMedianSplitHeap bvh;
 	spp::BruteForce bf;
@@ -148,7 +170,7 @@ int main()
 
 	std::uniform_real_distribution<float> distDisp(-50, 50);
 	for (int i = 0; i < 300; ++i) {
-		auto & e = entities[mt()%entities.size()];
+		auto &e = entities[mt() % entities.size()];
 		glm::vec3 disp = {distPos(mt), distPos(mt) / 4.0f, distPos(mt)};
 		e.aabb.min += disp;
 		e.aabb.max += disp;
@@ -188,22 +210,24 @@ int main()
 
 	printf("\nAfter rebuild:\n\n");
 
-	std::vector<std::set<uint64_t>> ents = Test(broadphases, TOTAL_AABB_TESTS);
+	auto ents = Test(broadphases, TOTAL_AABB_TESTS);
+
+	bvh.SetAabbUpdatePolicy(spp::BvhMedianSplitHeap::ON_UPDATE_EXTEND_AABB);
 
 	std::vector<uint64_t> ee;
 	std::vector<glm::vec3> vv;
-	const size_t CCC = 300000;
-	ee.resize(CCC);
-	vv.resize(CCC);
+	const size_t CCC = 1000;
+	ee.reserve(CCC);
+	vv.reserve(CCC);
 	for (size_t i = 0; i < CCC; ++i) {
-		ee[i] = (mt()%entities.size())%700;
-		vv[i] = {distPos(mt), distPos(mt) / 4.0f, distPos(mt)};
+		ee.push_back((mt() % 700) % entities.size());
+		vv.push_back({distPos(mt), distPos(mt) / 4.0f, distPos(mt)});
 	}
-	
-	bvh.SetAabbUpdatePolicy(spp::BvhMedianSplitHeap::ON_UPDATE_EXTEND_AABB);
 
+	auto old = entities;
 	broadphaseId = 1;
 	for (auto bp : broadphases) {
+		entities = old;
 		auto beg = std::chrono::steady_clock::now();
 		for (size_t i = 0; i < ee.size(); ++i) {
 			spp::Aabb &a = entities[ee[i]].aabb;
@@ -217,10 +241,25 @@ int main()
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%i update data: %.3f us/op\n", broadphaseId, us/double(CCC));
+		printf("%i update data: %.3f us/op\n", broadphaseId, us / double(CCC));
 		fflush(stdout);
 		++broadphaseId;
 	}
+
+	printf("Test differences --------------------------------\n");
+	int cccccc = 0;
+	for (int i = 0; i < bvh.entitiesData.size(); ++i) {
+		auto a = bvh.entitiesData[i];
+		auto b = bf.entitiesData[a.entity];
+
+		float sum = glm::length(a.aabb.min - b.aabb.min) +
+					glm::length(a.aabb.max - b.aabb.max);
+		if (sum > 0.0000001) {
+			++cccccc;
+			printf("entity %lu is different with diff: %f\n", a.entity, sum);
+		}
+	}
+	printf("End test differences ----------------------------: %i\n", cccccc);
 
 	printf("\nAfter updated without rebuild:\n\n");
 

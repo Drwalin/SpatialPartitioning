@@ -39,51 +39,51 @@ void BruteForce::SetMask(EntityType entity, MaskType mask)
 
 void BruteForce::Rebuild() {}
 
-void BruteForce::IntersectAabb(IntersectionCallback &callback)
+void BruteForce::IntersectAabb(IntersectionCallback &cb)
 {
-	if (callback.callback == nullptr) {
+	if (cb.callback == nullptr) {
 		return;
 	}
 
 	for (const auto &it : entitiesData) {
-		if (it.second.mask & callback.mask) {
-			if (it.second.aabb && callback.aabb) {
-				callback.callback(&callback, it.first);
-				++callback.testedCount;
+		if (it.second.mask & cb.mask) {
+			if (it.second.aabb && cb.aabb) {
+				cb.callback(&cb, it.first);
+				++cb.testedCount;
 			}
-			++callback.nodesTestedCount;
+			++cb.nodesTestedCount;
 		}
 	}
 }
 
-void BruteForce::IntersectRay(RayCallback &callback)
+void BruteForce::IntersectRay(RayCallback &cb)
 {
-	if (callback.callback == nullptr) {
+	if (cb.callback == nullptr) {
 		return;
 	}
 
-	callback.dir = callback.end - callback.start;
-	callback.length = glm::length(callback.dir);
-	callback.dirNormalized = callback.dir / callback.length;
-	callback.invDir = glm::vec3(1.f, 1.f, 1.f) / callback.dirNormalized;
+	cb.dir = cb.end - cb.start;
+	cb.length = glm::length(cb.dir);
+	cb.dirNormalized = cb.dir / cb.length;
+	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
 
 	for (const auto &it : entitiesData) {
-		if (it.second.mask & callback.mask) {
+		if (it.second.mask & cb.mask) {
 			float n, f;
 			if (it.second.aabb.FastRayTest(
-					callback.start, callback.dirNormalized, callback.invDir,
-					callback.length, n, f)) {
-				auto res = callback.callback(&callback, it.first);
+					cb.start, cb.dirNormalized, cb.invDir,
+					cb.length, n, f)) {
+				auto res = cb.callback(&cb, it.first);
 				if (res.intersection) {
-					if (callback.length + 0.00000001f < 1.0f) {
-						callback.length *= res.dist;
-						callback.dir *= res.dist;
-						callback.end = callback.start + callback.dir;
+					if (cb.length + 0.00000001f < 1.0f) {
+						cb.length *= res.dist;
+						cb.dir *= res.dist;
+						cb.end = cb.start + cb.dir;
 					}
-					++callback.hitCount;
+					++cb.hitCount;
 				}
-				++callback.testedCount;
-				++callback.nodesTestedCount;
+				++cb.testedCount;
+				++cb.nodesTestedCount;
 			}
 		}
 	}

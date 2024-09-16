@@ -52,19 +52,18 @@ public:
 	inline bool FastRayTest(glm::vec3 ro, glm::vec3 rd, const glm::vec3 invDir,
 							float length, float &near, float &far) const
 	{
-		const glm::vec3 rad = max - min;
-		const glm::vec3 center = min + (rad * 0.5f);
+		const glm::vec3 rad = (max - min) * 0.5f;
+		const glm::vec3 center = min + rad;
 		ro -= center;
 
-		const glm::vec3 m = invDir;
-		glm::vec3 n = m * ro;
-		glm::vec3 k = abs(m) * rad;
+		glm::vec3 n = invDir * ro;
+		glm::vec3 k = abs(invDir) * rad;
 		glm::vec3 t1 = -n - k;
 		glm::vec3 t2 = -n + k;
 
 		float tN = near = glm::max(glm::max(t1.x, t1.y), t1.z);
 
-		if (near * near > length) {
+		if (near > length) {
 			return false;
 		}
 

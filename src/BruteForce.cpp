@@ -37,6 +37,24 @@ void BruteForce::SetMask(EntityType entity, MaskType mask)
 	entitiesData[entity].mask = mask;
 }
 
+Aabb BruteForce::GetAabb(EntityType entity) const
+{
+	auto it = entitiesData.find(entity);
+	if (it != entitiesData.end()) {
+		return it->second.aabb;
+	}
+	return {};
+}
+
+MaskType BruteForce::GetMask(EntityType entity) const
+{
+	auto it = entitiesData.find(entity);
+	if (it != entitiesData.end()) {
+		return it->second.mask;
+	}
+	return 0;
+}
+
 void BruteForce::Rebuild() {}
 
 void BruteForce::IntersectAabb(IntersectionCallback &cb)
@@ -44,6 +62,8 @@ void BruteForce::IntersectAabb(IntersectionCallback &cb)
 	if (cb.callback == nullptr) {
 		return;
 	}
+
+	cb.broadphase = this;
 
 	for (const auto &it : entitiesData) {
 		if (it.second.mask & cb.mask) {
@@ -62,29 +82,35 @@ void BruteForce::IntersectRay(RayCallback &cb)
 		return;
 	}
 
+	cb.broadphase = this;
 	cb.dir = cb.end - cb.start;
 	cb.length = glm::length(cb.dir);
-	cb.dirNormalized = cb.dir / cb.length;
+	cb.invLength = 1.0f * cb.length;
+	cb.dirNormalized = cb.dir * cb.invLength;
 	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
 
 	for (const auto &it : entitiesData) {
 		if (it.second.mask & cb.mask) {
 			float n, f;
-			if (it.second.aabb.FastRayTest(
-					cb.start, cb.dirNormalized, cb.invDir,
-					cb.length, n, f)) {
+			if (it.second.aabb.FastRayTest(cb.start, cb.dirNormalized,
+										   cb.invDir, cb.length, n, f)) {
 				auto res = cb.callback(&cb, it.first);
 				if (res.intersection) {
-					if (cb.length + 0.00000001f < 1.0f) {
+					if (res.dist + 0.00000001f < 1.0f) {
+						if (res.dist < 0.0f)
+							res.dist = 0.0f;
+						else
+							res.dist += 0.00000001f;
 						cb.length *= res.dist;
+						cb.invLength /= res.dist;
 						cb.dir *= res.dist;
 						cb.end = cb.start + cb.dir;
 					}
 					++cb.hitCount;
 				}
 				++cb.testedCount;
-				++cb.nodesTestedCount;
 			}
+			++cb.nodesTestedCount;
 		}
 	}
 }

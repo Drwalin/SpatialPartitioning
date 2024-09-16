@@ -18,6 +18,8 @@ struct IntersectionCallback {
 	Aabb aabb;
 	MaskType mask;
 	
+	class BroadphaseBase *broadphase = nullptr;
+	
 	size_t nodesTestedCount = 0;
 	size_t testedCount = 0;
 };
@@ -37,7 +39,7 @@ struct RayPartialResult {
 	/*
 	 * True if there is and intersection
 	 */
-	bool intersection;
+	bool intersection = false;
 };
 
 struct RayCallback {
@@ -49,13 +51,15 @@ struct RayCallback {
 	// end and dir can change during execution
 	glm::vec3 start;
 	glm::vec3 end;
+	MaskType mask;
 	
 	glm::vec3 dir;
 	glm::vec3 dirNormalized;
 	glm::vec3 invDir;
 	float length;
-
-	MaskType mask;
+	float invLength;
+	
+	class BroadphaseBase *broadphase = nullptr;
 	
 	size_t nodesTestedCount = 0;
 	size_t testedCount = 0;
@@ -66,9 +70,10 @@ struct RayCallbackFirstHit : public RayCallback {
 	RayCallbackFirstHit() = default;
 	~RayCallbackFirstHit() = default;
 
-	glm::vec3 normal;
+	glm::vec3 hitNormal;
 	glm::vec3 hitPoint;
-	EntityType entity;
-	bool hasHit;
+	EntityType hitEntity;
+	float hitDistance;
+	bool hasHit = false;
 };
 }

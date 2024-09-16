@@ -28,3 +28,6 @@ target_link_libraries(spatial_partitioning glm)
 
 add_executable(test1 tests/Test1.cpp)
 target_link_libraries(test1 spatial_partitioning)
+
+add_executable(testAabb tests/TestAabb.cpp)
+target_link_libraries(testAabb spatial_partitioning)

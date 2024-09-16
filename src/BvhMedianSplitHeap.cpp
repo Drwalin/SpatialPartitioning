@@ -190,7 +190,7 @@ void BvhMedianSplitHeap::IntersectRay(RayCallback &cb)
 	cb.broadphase = this;
 	cb.dir = cb.end - cb.start;
 	cb.length = glm::length(cb.dir);
-	cb.invLength = 1.0f * cb.length;
+	cb.invLength = 1.0f / cb.length;
 	cb.dirNormalized = cb.dir * cb.invLength;
 	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
 
@@ -230,15 +230,15 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 	const int32_t n = nodeId << 1;
 	if (n >= entitiesPowerOfTwoCount) {
 		int32_t o = n - entitiesPowerOfTwoCount;
-		for (int i = 0; i <= 1 && o + i < entitiesData.size(); ++i) {
-			if (entitiesData[o + i].mask & cb.mask) {
+		for (int i = 0; i <= 1 && (o ^ i) < entitiesData.size(); ++i) {
+			if (entitiesData[o ^ i].mask & cb.mask) {
 				++cb.nodesTestedCount;
 				float _n, _f;
-				if (entitiesData[o + i].aabb.FastRayTest(
+				if (entitiesData[o ^ i].aabb.FastRayTest(
 						cb.start, cb.dirNormalized, cb.invDir, cb.length, _n,
 						_f)) {
 					++cb.testedCount;
-					auto res = cb.callback(&cb, entitiesData[o + i].entity);
+					auto res = cb.callback(&cb, entitiesData[o ^ i].entity);
 					if (res.intersection) {
 						if (res.dist + 0.00000001f < 1.0f) {
 							if (res.dist < 0.0f)
@@ -257,40 +257,39 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 		float __n[2], __f[2];
 		int __has = 0;
 		for (int i = 0; i <= 1; ++i) {
-			if (nodesHeapAabb[n + i].mask & cb.mask) {
+			if (nodesHeapAabb[n ^ i].mask & cb.mask) {
 				++cb.nodesTestedCount;
-				if (nodesHeapAabb[n + i].aabb.FastRayTest(
+				if (nodesHeapAabb[n ^ i].aabb.FastRayTest(
 						cb.start, cb.dirNormalized, cb.invDir, cb.length,
 						__n[i], __f[i])) {
 					if (__n[i] < 0.0f)
 						__n[i] = 0.0f;
 					__has += i + 1;
-					_Internal_IntersectRay(cb, n + i);
-					;
+// 					_Internal_IntersectRay(cb, n ^ i);
 				}
 			}
-			return;
-			switch (__has) {
-			case 1:
-				_Internal_IntersectRay(cb, n);
-				break;
-			case 2:
+		}
+// 		return;
+		switch (__has) {
+		case 1:
+			_Internal_IntersectRay(cb, n);
+			break;
+		case 2:
+			_Internal_IntersectRay(cb, n + 1);
+			break;
+		case 3:
+			if (__n[1] < __n[0]) {
 				_Internal_IntersectRay(cb, n + 1);
-				break;
-			case 3:
-				if (__n[1] < __n[0]) {
-					_Internal_IntersectRay(cb, n + 1);
-					if (__n[0] < cb.length) {
-						_Internal_IntersectRay(cb, n);
-					}
-				} else {
+				if (__n[0] < cb.length) {
 					_Internal_IntersectRay(cb, n);
-					if (__n[1] < cb.length) {
-						_Internal_IntersectRay(cb, n + 1);
-					}
 				}
-				break;
+			} else {
+				_Internal_IntersectRay(cb, n);
+				if (__n[1] < cb.length) {
+					_Internal_IntersectRay(cb, n + 1);
+				}
 			}
+			break;
 		}
 	}
 }

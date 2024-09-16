@@ -10,7 +10,7 @@
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
 
 const int32_t TOTAL_ENTITIES = 16384 * 4;
-const size_t TOTAL_AABB_TESTS = 100;
+const size_t TOTAL_AABB_TESTS = 1000;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
@@ -123,7 +123,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 				if (cb->hasHit == false) {
 					cb->hitDistance = n;
 					// cb->hitPoint = cb->start + cb->dirNormalized * n;
-					cb->hitPoint = cb->start + cb->dir * n * cb->invLength;
+					cb->hitPoint = cb->start + (cb->dir * n) * cb->invLength;
 					cb->hitEntity = entity;
 					cb->hasHit = true;
 					return {n * cb->invLength, true};
@@ -223,7 +223,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 		fflush(stdout);
 	}
 
-	printf("\n Assumes bruteforce is valid\n");
+	printf("\n");
 	for (int i = 1; i < broadphases.size(); ++i) {
 		size_t errs = glm::abs<int64_t>(ents[i].size() - ents[0].size());
 		for (int j = 0; j < ents[i].size() && j < ents[0].size() &&
@@ -232,8 +232,8 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			auto p0 = hitPoints[0][j];
 			auto pi = hitPoints[i][j];
 			if (p0.e != pi.e) {
-				auto aabb0 = (*globalEntityData)[p0.e - 1].aabb;
-				auto aabbi = (*globalEntityData)[pi.e - 1].aabb;
+				auto aabb0 = p0.e ? (*globalEntityData)[p0.e - 1].aabb : spp::Aabb{};
+				auto aabbi = pi.e ? (*globalEntityData)[pi.e - 1].aabb : spp::Aabb{};
 
 				auto com = aabb0 * aabbi;
 				bool er = true;
@@ -245,6 +245,10 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 							}
 						}
 					}
+				}
+				
+				if (p0.e == 0 || pi.e == 0) {
+					er = true;
 				}
 
 				if (er == true) {
@@ -283,7 +287,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 				}
 			}
 		}
-		printf(" %i: errors count: %lu\n", i, errs);
+		printf(" %i: errors count: %lu ... %s\n", i, errs, errs ? "ERRORS" : "OK");
 	}
 
 	return ents;

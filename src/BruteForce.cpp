@@ -85,7 +85,7 @@ void BruteForce::IntersectRay(RayCallback &cb)
 	cb.broadphase = this;
 	cb.dir = cb.end - cb.start;
 	cb.length = glm::length(cb.dir);
-	cb.invLength = 1.0f * cb.length;
+	cb.invLength = 1.0f / cb.length;
 	cb.dirNormalized = cb.dir * cb.invLength;
 	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
 

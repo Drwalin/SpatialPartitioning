@@ -12,6 +12,11 @@ namespace spp
 BvhMedianSplitHeap::BvhMedianSplitHeap() {}
 BvhMedianSplitHeap::~BvhMedianSplitHeap() {}
 
+const char* BvhMedianSplitHeap::GetName() const
+{
+	return "BvhMedianSplitHeap";
+}
+
 void BvhMedianSplitHeap::SetAabbUpdatePolicy(AabbUpdatePolicy policy)
 {
 	updatePolicy = policy;
@@ -194,33 +199,6 @@ void BvhMedianSplitHeap::IntersectRay(RayCallback &cb)
 	cb.dirNormalized = cb.dir * cb.invLength;
 	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
 
-	if (false) {
-		for (const auto &it : entitiesData) {
-			if (it.mask & cb.mask) {
-				float n, f;
-				if (it.aabb.FastRayTest(cb.start, cb.dirNormalized, cb.invDir,
-										cb.length, n, f)) {
-					auto res = cb.callback(&cb, it.entity);
-					if (res.intersection) {
-						if (res.dist + 0.00000001f < 1.0f) {
-							if (res.dist < 0.0f)
-								res.dist = 0.0f;
-							else
-								res.dist += 0.00000001f;
-							cb.length *= res.dist;
-							cb.dir *= res.dist;
-							cb.end = cb.start + cb.dir;
-						}
-						++cb.hitCount;
-					}
-					++cb.testedCount;
-					++cb.nodesTestedCount;
-				}
-			}
-		}
-		return;
-	}
-
 	_Internal_IntersectRay(cb, 1);
 }
 
@@ -265,11 +243,9 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 					if (__n[i] < 0.0f)
 						__n[i] = 0.0f;
 					__has += i + 1;
-// 					_Internal_IntersectRay(cb, n ^ i);
 				}
 			}
 		}
-// 		return;
 		switch (__has) {
 		case 1:
 			_Internal_IntersectRay(cb, n);

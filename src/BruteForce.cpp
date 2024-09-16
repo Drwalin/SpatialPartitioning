@@ -9,6 +9,11 @@ namespace spp
 BruteForce::BruteForce() {}
 BruteForce::~BruteForce() {}
 
+const char* BruteForce::GetName() const
+{
+	return "BruteForce";
+}
+
 void BruteForce::Clear() { entitiesData.clear(); }
 
 size_t BruteForce::GetMemoryUsage() const

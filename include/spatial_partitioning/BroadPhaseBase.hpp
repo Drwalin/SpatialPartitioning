@@ -15,6 +15,8 @@ class BroadphaseBase
 public:
 	BroadphaseBase();
 	virtual ~BroadphaseBase();
+	
+	virtual const char* GetName() const = 0;
 
 public:
 	virtual void Clear() = 0;

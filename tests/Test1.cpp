@@ -9,7 +9,7 @@
 #include "../include/spatial_partitioning/BruteForce.hpp"
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
 
-const int32_t TOTAL_ENTITIES = 16384 * 4;
+const int32_t TOTAL_ENTITIES = 100000;
 const size_t TOTAL_AABB_TESTS = 1000;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
@@ -82,8 +82,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 		cb.callback =
 			(CbT) + [](_Cb *cb, uint64_t entity) -> spp::RayPartialResult {
 			float n, f;
-			spp::Aabb aabb = (*globalEntityData)[entity - 1]
-								 .aabb; // cb->broadphase->GetAabb(entity);
+			spp::Aabb aabb = (*globalEntityData)[entity - 1].aabb;
 			if (aabb.FastRayTest(cb->start, cb->dirNormalized, cb->invDir,
 								 cb->length, n, f)) {
 				cb->entities.push_back(entity);
@@ -113,8 +112,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 		cb.callback =
 			(CbT) + [](_Cb *cb, uint64_t entity) -> spp::RayPartialResult {
 			float n, f;
-			spp::Aabb aabb = (*globalEntityData)[entity - 1]
-								 .aabb; // cb->broadphase->GetAabb(entity);
+			spp::Aabb aabb = (*globalEntityData)[entity - 1].aabb;
 			if (aabb.FastRayTest(cb->start, cb->dirNormalized, cb->invDir,
 								 cb->length, n, f)) {
 				if (n < 0.0f) {
@@ -122,15 +120,13 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 				}
 				if (cb->hasHit == false) {
 					cb->hitDistance = n;
-					// cb->hitPoint = cb->start + cb->dirNormalized * n;
-					cb->hitPoint = cb->start + (cb->dir * n) * cb->invLength;
+					cb->hitPoint = cb->start + cb->dirNormalized * n;
 					cb->hitEntity = entity;
 					cb->hasHit = true;
 					return {n * cb->invLength, true};
 				} else if (n < cb->hitDistance) {
 					cb->hitDistance = n;
-					// cb->hitPoint = cb->start + cb->dirNormalized * n;
-					cb->hitPoint = cb->start + cb->dir * n * cb->invLength;
+					cb->hitPoint = cb->start + cb->dirNormalized * n;
 					cb->hitEntity = entity;
 					cb->hasHit = true;
 					return {n * cb->invLength, true};
@@ -216,7 +212,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%i intersection test [count: %lu]: %.3f us/op\n", i, tC,
+		printf("%s intersection test [count: %lu]: %.3f us/op\n", it->GetName(), tC,
 			   us / double(tC));
 		printf("    nodesTested: %lu,   testedCount: %lu     [count = %lu]:\n ",
 			   vec.nodesTestedCount, vec.testedCount, ents.back().size());
@@ -287,7 +283,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 				}
 			}
 		}
-		printf(" %i: errors count: %lu ... %s\n", i, errs, errs ? "ERRORS" : "OK");
+		printf(" %s: errors count: %lu ... %s\n", broadphases[i]->GetName(), errs, errs ? "ERRORS" : "OK");
 	}
 
 	return ents;

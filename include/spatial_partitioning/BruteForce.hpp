@@ -16,6 +16,8 @@ public:
 	BruteForce();
 	virtual ~BruteForce();
 	
+	virtual const char* GetName() const override;
+	
 	virtual void Clear() override;
 	virtual size_t GetMemoryUsage() const override;
 	virtual void ShrinkToFit() override;

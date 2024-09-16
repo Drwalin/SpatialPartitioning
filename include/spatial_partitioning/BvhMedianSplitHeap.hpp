@@ -20,7 +20,7 @@ namespace spp
  * Adding new object requires full rebuild
  * Removing object does not need to rebuild whole tree but shuld be needed
  * 
- * Limit is 268435456 (2^28-1)
+ * Limit of entities count is 268435456 (2^28-1)
  * 
  * Tree is perfectly balanced due to heap use as nodes storage
  */
@@ -29,6 +29,8 @@ class BvhMedianSplitHeap final : public BroadphaseBase
 public:
 	BvhMedianSplitHeap();
 	virtual ~BvhMedianSplitHeap();
+	
+	virtual const char* GetName() const override;
 	
 	virtual void Clear() override;
 	virtual size_t GetMemoryUsage() const override;

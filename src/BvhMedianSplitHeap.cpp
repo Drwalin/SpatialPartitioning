@@ -12,10 +12,7 @@ namespace spp
 BvhMedianSplitHeap::BvhMedianSplitHeap() {}
 BvhMedianSplitHeap::~BvhMedianSplitHeap() {}
 
-const char* BvhMedianSplitHeap::GetName() const
-{
-	return "BvhMedianSplitHeap";
-}
+const char *BvhMedianSplitHeap::GetName() const { return "BvhMedianSplitHeap"; }
 
 void BvhMedianSplitHeap::SetAabbUpdatePolicy(AabbUpdatePolicy policy)
 {
@@ -43,7 +40,7 @@ size_t BvhMedianSplitHeap::GetMemoryUsage() const
 	return entitiesOffsets.bucket_count() * sizeof(void *) +
 		   entitiesOffsets.size() *
 			   (sizeof(void *) * 2lu + sizeof(uint32_t) + sizeof(EntityType)) +
-		   nodesHeapAabb.capacity() * sizeof(Aabb) +
+		   nodesHeapAabb.capacity() * sizeof(NodeData) +
 		   entitiesData.capacity() * sizeof(Data);
 }
 
@@ -352,15 +349,15 @@ void BvhMedianSplitHeap::RebuildNode(int32_t nodeId)
 	struct SortFunctions {
 		inline static bool SortX(const Data &l, const Data &r)
 		{
-			return l.aabb.min.x < r.aabb.min.x;
+			return l.aabb.center.x < r.aabb.center.x;
 		}
 		inline static bool SortY(const Data &l, const Data &r)
 		{
-			return l.aabb.min.y < r.aabb.min.y;
+			return l.aabb.center.y < r.aabb.center.y;
 		}
 		inline static bool SortZ(const Data &l, const Data &r)
 		{
-			return l.aabb.min.z < r.aabb.min.z;
+			return l.aabb.center.z < r.aabb.center.z;
 		}
 	};
 	using CompareTypeFunc = bool (*)(const Data &, const Data &);

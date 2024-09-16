@@ -2,44 +2,64 @@
 // Copyright (c) 2024 Marek Zalewski aka Drwalin
 // You should have received a copy of the MIT License along with this program.
 
-#include "../include/spatial_partitioning/BruteForce.hpp"
+#include "../include/spatial_partitioning/LooseOctree.hpp"
 
 namespace spp
 {
-BruteForce::BruteForce() {}
-BruteForce::~BruteForce() {}
-
-const char *BruteForce::GetName() const { return "BruteForce"; }
-
-void BruteForce::Clear() { entitiesData.clear(); }
-
-size_t BruteForce::GetMemoryUsage() const
+LooseOctree::LooseOctree(spp::Aabb aabb, int32_t depth, float cellExtensionFactor) : aabb(aabb), depth(depth), cellExtensionFactor(cellExtensionFactor)
 {
-	return entitiesData.bucket_count() * sizeof(void *) +
-		   entitiesData.size() *
-			   (sizeof(void *) * 2lu + sizeof(Data) + sizeof(EntityType));
+}
+LooseOctree::~LooseOctree() {}
+
+const char *LooseOctree::GetName() const { return "LooseOctree"; }
+
+void LooseOctree::Clear() { entitiesData.clear(); }
+
+size_t LooseOctree::GetMemoryUsage() const
+{
+	return entitiesOffsets.bucket_count() * sizeof(void *) +
+		   entitiesOffsets.size() *
+			   (sizeof(void *) * 2lu + sizeof(uint32_t) + sizeof(EntityType)) +
+		   nodes.capacity() * sizeof(NodeData) +
+		   entitiesData.capacity() * sizeof(Data) +
+		   emptyNodesOffsets.capacity() * sizeof(int32_t);
 }
 
-void BruteForce::ShrinkToFit() {}
+void LooseOctree::ShrinkToFit() {}
 
-void BruteForce::Add(EntityType entity, Aabb aabb, MaskType mask)
+void LooseOctree::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	entitiesData[entity] = Data{aabb, entity, mask};
+	_Internal_Add(entity, aabb);
+	
+	
+	
+	
 }
 
-void BruteForce::Update(EntityType entity, Aabb aabb)
+void LooseOctree::Update(EntityType entity, Aabb aabb)
 {
+	// TODO: optimise movement of objects
+	_Internal_RemoveNodes(entity);
 	entitiesData[entity].aabb = aabb;
+	_Internal_Add(entity, aabb);
 }
 
-void BruteForce::Remove(EntityType entity) { entitiesData.erase(entity); }
+void LooseOctree::Remove(EntityType entity) {
+	_Internal_RemoveNodes(entity);
+	entitiesData.erase(entity);
+	
+	
+	
+	
+}
 
-void BruteForce::SetMask(EntityType entity, MaskType mask)
+void LooseOctree::SetMask(EntityType entity, MaskType mask)
 {
 	entitiesData[entity].mask = mask;
 }
 
-Aabb BruteForce::GetAabb(EntityType entity) const
+Aabb LooseOctree::GetAabb(EntityType entity) const
 {
 	auto it = entitiesData.find(entity);
 	if (it != entitiesData.end()) {
@@ -48,7 +68,7 @@ Aabb BruteForce::GetAabb(EntityType entity) const
 	return {};
 }
 
-MaskType BruteForce::GetMask(EntityType entity) const
+MaskType LooseOctree::GetMask(EntityType entity) const
 {
 	auto it = entitiesData.find(entity);
 	if (it != entitiesData.end()) {
@@ -57,9 +77,9 @@ MaskType BruteForce::GetMask(EntityType entity) const
 	return 0;
 }
 
-void BruteForce::Rebuild() {}
+void LooseOctree::Rebuild() {}
 
-void BruteForce::IntersectAabb(IntersectionCallback &cb)
+void LooseOctree::IntersectAabb(IntersectionCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -78,7 +98,7 @@ void BruteForce::IntersectAabb(IntersectionCallback &cb)
 	}
 }
 
-void BruteForce::IntersectRay(RayCallback &cb)
+void LooseOctree::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;

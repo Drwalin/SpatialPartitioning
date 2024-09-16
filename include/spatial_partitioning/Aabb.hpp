@@ -10,6 +10,8 @@
 
 namespace spp
 {
+struct AabbCentered;
+
 struct Aabb {
 	glm::vec3 min;
 	glm::vec3 max;
@@ -23,17 +25,11 @@ public:
 	inline float GetSurface() const
 	{
 		const glm::vec3 v = max - min;
-		return (v.x * v.y + v.x * v.z + v.y * v.z) * 2.f;
+		return (v.x * v.y + v.x * v.z + v.y * v.z) * 2.0f;
 	}
-	
-	inline glm::vec3 GetCenter() const
-	{
-		return min + (max-min)*0.5f;
-	}
-	inline glm::vec3 GetSizes() const
-	{
-		return max-min;
-	}
+
+	inline glm::vec3 GetCenter() const { return min + (max - min) * 0.5f; }
+	inline glm::vec3 GetSizes() const { return max - min; }
 
 	inline bool HasIntersection(const Aabb &r) const
 	{
@@ -50,10 +46,59 @@ public:
 	}
 
 	inline bool FastRayTest(glm::vec3 ro, glm::vec3 rd, const glm::vec3 invDir,
+							float length, float &near, float &far) const;
+	inline bool SlowRayTest(const glm::vec3 &start, const glm::vec3 &end,
+							float &near, float &far) const;
+
+	inline operator AabbCentered() const;
+
+public:
+	inline bool operator&&(const Aabb &r) const { return HasIntersection(r); }
+	inline Aabb operator*(const Aabb &r) const { return Intersection(r); }
+	inline Aabb operator+(const Aabb &r) const { return Sum(r); }
+};
+
+struct AabbCentered {
+	glm::vec3 center;
+	glm::vec3 halfSize;
+
+	inline operator Aabb() const { return Aabb{GetMin(), GetMax()}; }
+
+public:
+	inline float GetVolume() const
+	{
+		const glm::vec3 v = halfSize;
+		return v.x * v.y * v.z * 2.0f;
+	}
+	inline float GetSurface() const
+	{
+		const glm::vec3 v = halfSize;
+		return (v.x * v.y + v.x * v.z + v.y * v.z) * 2.0f * 4.0f;
+	}
+
+	inline glm::vec3 GetCenter() const { return center; }
+	inline glm::vec3 GetSizes() const { return halfSize * 2.0f; }
+	inline glm::vec3 GetMin() const { return center - halfSize; }
+	inline glm::vec3 GetMax() const { return center + halfSize; }
+
+	inline bool HasIntersection(const AabbCentered &r) const
+	{
+		return glm::all(glm::lessThanEqual(GetMin(), r.GetMax()) &
+						glm::lessThanEqual(r.GetMin(), GetMax()));
+	}
+	inline Aabb Intersection(const AabbCentered &r) const
+	{
+		return {glm::max(GetMin(), r.GetMin()), glm::min(GetMax(), r.GetMax())};
+	}
+	inline Aabb Sum(const AabbCentered &r) const
+	{
+		return {glm::min(GetMin(), r.GetMin()), glm::max(GetMax(), r.GetMax())};
+	}
+
+	inline bool FastRayTest(glm::vec3 ro, glm::vec3 rd, const glm::vec3 invDir,
 							float length, float &near, float &far) const
 	{
-		const glm::vec3 rad = (max - min) * 0.5f;
-		const glm::vec3 center = min + rad;
+		const glm::vec3 rad = halfSize;
 		ro -= center;
 
 		glm::vec3 n = invDir * ro;
@@ -69,7 +114,7 @@ public:
 
 		float tF = far = glm::min(glm::min(t2.x, t2.y), t2.z);
 
-		if (tN > tF || tF < 0.f) {
+		if (tN > tF || tF < 0.0f) {
 			return false;
 		}
 
@@ -77,12 +122,12 @@ public:
 	}
 
 	inline bool SlowRayTest(const glm::vec3 &start, const glm::vec3 &end,
-						float &near, float &far) const
+							float &near, float &far) const
 	{
 		const glm::vec3 dir = end - start;
 		const float len = glm::length(dir);
 		const glm::vec3 dirNorm = dir / len;
-		const glm::vec3 invDir = glm::vec3(1.f, 1.f, 1.f) / dirNorm;
+		const glm::vec3 invDir = glm::vec3(1.0f, 1.0f, 1.0f) / dirNorm;
 		return FastRayTest(start, dirNorm, invDir, len, near, far);
 	}
 
@@ -91,4 +136,22 @@ public:
 	inline Aabb operator*(const Aabb &r) const { return Intersection(r); }
 	inline Aabb operator+(const Aabb &r) const { return Sum(r); }
 };
+
+inline Aabb::operator AabbCentered() const
+{
+	return {GetCenter(), GetSizes() * 0.5f};
+}
+
+inline bool Aabb::FastRayTest(glm::vec3 ro, glm::vec3 rd,
+							  const glm::vec3 invDir, float length, float &near,
+							  float &far) const
+{
+	return ((AabbCentered)*this).FastRayTest(ro, rd, invDir, length, near, far);
+}
+
+inline bool Aabb::SlowRayTest(const glm::vec3 &start, const glm::vec3 &end,
+							  float &near, float &far) const
+{
+	return ((AabbCentered)*this).SlowRayTest(start, end, near, far);
+}
 } // namespace spp

@@ -212,8 +212,8 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%s intersection test [count: %lu]: %.3f us/op\n", it->GetName(), tC,
-			   us / double(tC));
+		printf("%s intersection test [count: %lu]: %.3f us/op\n", it->GetName(),
+			   tC, us / double(tC));
 		printf("    nodesTested: %lu,   testedCount: %lu     [count = %lu]:\n ",
 			   vec.nodesTestedCount, vec.testedCount, ents.back().size());
 		fflush(stdout);
@@ -228,8 +228,10 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			auto p0 = hitPoints[0][j];
 			auto pi = hitPoints[i][j];
 			if (p0.e != pi.e) {
-				auto aabb0 = p0.e ? (*globalEntityData)[p0.e - 1].aabb : spp::Aabb{};
-				auto aabbi = pi.e ? (*globalEntityData)[pi.e - 1].aabb : spp::Aabb{};
+				auto aabb0 =
+					p0.e ? (*globalEntityData)[p0.e - 1].aabb : spp::Aabb{};
+				auto aabbi =
+					pi.e ? (*globalEntityData)[pi.e - 1].aabb : spp::Aabb{};
 
 				auto com = aabb0 * aabbi;
 				bool er = true;
@@ -242,7 +244,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 						}
 					}
 				}
-				
+
 				if (p0.e == 0 || pi.e == 0) {
 					er = true;
 				}
@@ -255,11 +257,11 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 					c = aabbi.min;
 					d = aabbi.max;
 					printf("  %7i: %7lu == %7lu  ", j, p0.e, pi.e);
-					printf(
-						"%7.2f %7.2f %7.2f .. %7.2f %7.2f %7.2f <-> %7.2f %7.2f "
-						"%7.2f .. %7.2f %7.2f %7.2f",
-						a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x, d.y,
-						d.z);
+					printf("%7.2f %7.2f %7.2f .. %7.2f %7.2f %7.2f <-> %7.2f "
+						   "%7.2f "
+						   "%7.2f .. %7.2f %7.2f %7.2f",
+						   a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x,
+						   d.y, d.z);
 
 					a = p0.point;
 					b = pi.point;
@@ -269,8 +271,9 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 
 					a = p0.start;
 					b = pi.start;
-					printf("     start: %7.2f %7.2f %7.2f <-> %7.2f %7.2f %7.2f",
-						   a.x, a.y, a.z, b.x, b.y, b.z);
+					printf(
+						"     start: %7.2f %7.2f %7.2f <-> %7.2f %7.2f %7.2f",
+						a.x, a.y, a.z, b.x, b.y, b.z);
 
 					a = p0.end;
 					b = pi.end;
@@ -283,7 +286,8 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 				}
 			}
 		}
-		printf(" %s: errors count: %lu ... %s\n", broadphases[i]->GetName(), errs, errs ? "ERRORS" : "OK");
+		printf(" %s: errors count: %lu ... %s\n", broadphases[i]->GetName(),
+			   errs, errs ? "ERRORS" : "OK");
 	}
 
 	return ents;
@@ -437,21 +441,6 @@ int main()
 		fflush(stdout);
 		++broadphaseId;
 	}
-
-	printf("Test differences --------------------------------\n");
-	int cccccc = 0;
-	for (int i = 0; i < bvh.entitiesData.size(); ++i) {
-		auto a = bvh.entitiesData[i];
-		auto b = bf.entitiesData[a.entity];
-
-		float sum = glm::length(a.aabb.min - b.aabb.min) +
-					glm::length(a.aabb.max - b.aabb.max);
-		if (sum > 0.0000001) {
-			++cccccc;
-			printf("entity %lu is different with diff: %f\n", a.entity, sum);
-		}
-	}
-	printf("End test differences ----------------------------: %i\n", cccccc);
 
 	printf("\nAfter updated without rebuild:\n\n");
 

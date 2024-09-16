@@ -14,21 +14,17 @@
 namespace spp
 {
 /*
- * Split policy:
- * 	Split between power-of-two median points
- * 	Sort against longest axis
- * Adding new object requires full rebuild
- * Removing object does not need to rebuild whole tree but shuld be needed
- *
  * Limit of entities count is 268435456 (2^28-1)
  *
  * Tree is perfectly balanced due to heap use as nodes storage
  */
-class BvhMedianSplitHeap final : public BroadphaseBase
+class LooseOctree final : public BroadphaseBase
 {
 public:
-	BvhMedianSplitHeap();
-	virtual ~BvhMedianSplitHeap();
+	LooseOctree(spp::Aabb aabb, int32_t depth, float cellExtensionFactor);
+	virtual ~LooseOctree();
+
+	void Resize(spp::Aabb aabb, int32_t depth, float cellExtensionFactor);
 
 	virtual const char *GetName() const override;
 
@@ -47,20 +43,11 @@ public:
 	virtual void IntersectAabb(IntersectionCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
 
-	enum AabbUpdatePolicy : uint8_t {
-		ON_UPDATE_EXTEND_AABB,
-		ON_UPDATE_QUEUE_FULL_REBUILD_ON_NEXT_READ,
-	};
-
-	void SetAabbUpdatePolicy(AabbUpdatePolicy policy);
-	AabbUpdatePolicy GetAabbUpdatePolicy() const;
-
 	virtual void Rebuild() override;
 
 private:
 	void PruneEmptyEntitiesAtEnd();
-	void UpdateAabb(int32_t entityOffset);
-	void RebuildNode(int32_t nodeId);
+	void UpdateAabb(int32_t entityId);
 
 	void _Internal_IntersectAabb(IntersectionCallback &cb,
 								 const int32_t nodeId);
@@ -68,24 +55,32 @@ private:
 
 private:
 	struct alignas(64) Data {
-		AabbCentered aabb;
-		EntityType entity;
-		MaskType mask;
+		Aabb aabb;
+		int32_t nextEntity = -1;
+		EntityType entity = 0;
+		MaskType mask = 0;
+	};
+
+	struct alignas(32) NodePartialData {
+		Aabb aabb;
+		MaskType mask = 0;
 	};
 
 	struct alignas(32) NodeData {
-		AabbCentered aabb;
-		MaskType mask;
+		NodePartialData children[8];
+		int32_t childrenNodesOrEntitiesOffsets[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 	};
 
 	std::unordered_map<EntityType, int32_t> entitiesOffsets;
 	// [0] - ignored, because heap works faster starting from 1
-	std::vector<NodeData> nodesHeapAabb;
+	std::vector<NodeData> nodes;
 	std::vector<Data> entitiesData;
+	std::vector<int32_t> emptyNodesOffsets;
 
 	int32_t entitiesCount = 0;
-	int32_t entitiesPowerOfTwoCount = 0;
-	bool rebuildTree = false;
-	AabbUpdatePolicy updatePolicy = ON_UPDATE_EXTEND_AABB;
+
+	Aabb aabb;
+	int32_t depth;
+	float cellExtensionFactor;
 };
 } // namespace spp

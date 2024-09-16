@@ -27,6 +27,9 @@ public:
 	virtual void Remove(EntityType entity) = 0;
 	virtual void SetMask(EntityType entity, MaskType mask) = 0;
 	
+	virtual Aabb GetAabb(EntityType entity) const = 0;
+	virtual MaskType GetMask(EntityType entity) const = 0;
+	
 	virtual void Rebuild() = 0;
 
 	// returns number of tested entities

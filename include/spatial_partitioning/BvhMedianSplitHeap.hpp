@@ -39,6 +39,9 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
+	
+	virtual Aabb GetAabb(EntityType entity) const override;
+	virtual MaskType GetMask(EntityType entity) const override;
 
 	virtual void IntersectAabb(IntersectionCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;

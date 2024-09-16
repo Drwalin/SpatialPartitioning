@@ -9,41 +9,168 @@
 #include "../include/spatial_partitioning/BruteForce.hpp"
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
 
-const int32_t TOTAL_ENTITIES = 100000;
-const size_t TOTAL_AABB_TESTS = 10000;
+const int32_t TOTAL_ENTITIES = 16384 * 4;
+const size_t TOTAL_AABB_TESTS = 100;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
 
+enum TestType {
+	TEST_AABB = 1,
+	TEST_RAY = 2,
+	TEST_RAY_FIRST = 3,
+};
+
+struct EntityData {
+	spp::Aabb aabb;
+	uint64_t id = 0;
+	uint32_t mask = ~0;
+};
+
+std::vector<EntityData> *globalEntityData = nullptr;
+
+struct SingleTestResult {
+	std::vector<uint64_t> entities;
+	size_t nodesTestedCount = 0;
+	size_t testedCount = 0;
+	size_t hitCount = 0;
+};
+
+struct StartEndPoint {
+	glm::vec3 start, end, point;
+	float n;
+	uint64_t e;
+};
+
 std::vector<spp::Aabb> aabbsToTest;
-auto SingleTest(spp::BroadphaseBase *broadphase,
-				const std::vector<spp::Aabb> &aabbsToTest, size_t testsCount,
-				std::vector<uint64_t> &offsetOfPatch)
+SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
+							const std::vector<spp::Aabb> &aabbsToTest,
+							size_t testsCount,
+							std::vector<uint64_t> &offsetOfPatch,
+							TestType testType,
+							std::vector<StartEndPoint> &hitPoints)
 {
-	struct _Cb : public spp::IntersectionCallback {
-		std::vector<uint64_t> entities;
+	SingleTestResult ret;
+	switch (testType) {
+	case TEST_AABB: {
+		struct _Cb : public spp::IntersectionCallback {
+			std::vector<uint64_t> entities;
+		} cb;
+		cb.mask = ~(uint32_t)0;
+		typedef void (*CbT)(spp::IntersectionCallback *, uint64_t);
+		cb.callback = (CbT) + [](_Cb *cb, uint64_t entity) {
+			cb->entities.push_back(entity);
+		};
+		testsCount = std::min(testsCount, aabbsToTest.size());
+		for (size_t i = 0; i < testsCount; ++i) {
+			offsetOfPatch.push_back(cb.entities.size());
+			cb.aabb = aabbsToTest[i];
+			broadphase->IntersectAabb(cb);
+		}
 
-	} cb;
-	cb.mask = ~(uint32_t)0;
-	typedef void (*CbT)(spp::IntersectionCallback *, uint64_t);
-	cb.callback = (CbT) + [](_Cb *cb, uint64_t entity) {
-		cb->entities.push_back(entity);
-	};
-	testsCount = std::min(testsCount, aabbsToTest.size());
-	for (size_t i = 0; i < testsCount; ++i) {
-		offsetOfPatch.push_back(cb.entities.size());
-		cb.aabb = aabbsToTest[i];
-		broadphase->IntersectAabb(cb);
+		std::swap(ret.entities, cb.entities);
+		ret.nodesTestedCount = cb.nodesTestedCount;
+		ret.testedCount = cb.testedCount;
+		return ret;
+	} break;
+	case TEST_RAY: {
+		struct _Cb : public spp::RayCallback {
+			std::vector<uint64_t> entities;
+		} cb;
+		cb.mask = ~(uint32_t)0;
+		typedef spp::RayPartialResult (*CbT)(spp::RayCallback *, uint64_t);
+		cb.callback =
+			(CbT) + [](_Cb *cb, uint64_t entity) -> spp::RayPartialResult {
+			float n, f;
+			spp::Aabb aabb = (*globalEntityData)[entity - 1]
+								 .aabb; // cb->broadphase->GetAabb(entity);
+			if (aabb.FastRayTest(cb->start, cb->dirNormalized, cb->invDir,
+								 cb->length, n, f)) {
+				cb->entities.push_back(entity);
+				return {1.0f, true};
+			}
+			return {1.0f, false};
+		};
+		testsCount = std::min(testsCount, aabbsToTest.size());
+		for (size_t i = 0; i < testsCount; ++i) {
+			offsetOfPatch.push_back(cb.entities.size());
+			cb.start = aabbsToTest[i].GetCenter();
+			cb.end = aabbsToTest[(i + 1) % testsCount].GetCenter();
+			broadphase->IntersectRay(cb);
+		}
+
+		std::swap(ret.entities, cb.entities);
+		ret.nodesTestedCount = cb.nodesTestedCount;
+		ret.testedCount = cb.testedCount;
+		ret.hitCount = cb.hitCount;
+		return ret;
+	} break;
+	case TEST_RAY_FIRST: {
+		struct _Cb : public spp::RayCallbackFirstHit {
+		} cb;
+		cb.mask = ~(uint32_t)0;
+		typedef spp::RayPartialResult (*CbT)(spp::RayCallback *, uint64_t);
+		cb.callback =
+			(CbT) + [](_Cb *cb, uint64_t entity) -> spp::RayPartialResult {
+			float n, f;
+			spp::Aabb aabb = (*globalEntityData)[entity - 1]
+								 .aabb; // cb->broadphase->GetAabb(entity);
+			if (aabb.FastRayTest(cb->start, cb->dirNormalized, cb->invDir,
+								 cb->length, n, f)) {
+				if (n < 0.0f) {
+					n = 0.0f;
+				}
+				if (cb->hasHit == false) {
+					cb->hitDistance = n;
+					// cb->hitPoint = cb->start + cb->dirNormalized * n;
+					cb->hitPoint = cb->start + cb->dir * n * cb->invLength;
+					cb->hitEntity = entity;
+					cb->hasHit = true;
+					return {n * cb->invLength, true};
+				} else if (n < cb->hitDistance) {
+					cb->hitDistance = n;
+					// cb->hitPoint = cb->start + cb->dirNormalized * n;
+					cb->hitPoint = cb->start + cb->dir * n * cb->invLength;
+					cb->hitEntity = entity;
+					cb->hasHit = true;
+					return {n * cb->invLength, true};
+				}
+			}
+			return {1.0f, false};
+		};
+		testsCount = std::min(testsCount, aabbsToTest.size());
+		for (size_t i = 0; i < testsCount; ++i) {
+			cb.hasHit = false;
+			offsetOfPatch.push_back(ret.entities.size());
+			cb.start = aabbsToTest[i].GetCenter();
+			glm::vec3 end = cb.end =
+				aabbsToTest[(i + 1) % testsCount].GetCenter();
+			broadphase->IntersectRay(cb);
+			if (cb.hasHit) {
+				ret.entities.push_back(cb.hitEntity);
+				hitPoints.push_back(
+					{cb.start, end, cb.hitPoint, cb.hitDistance, cb.hitEntity});
+			} else {
+				ret.entities.push_back(0);
+				hitPoints.push_back({cb.start, end, {}, -1, 0});
+			}
+		}
+
+		ret.nodesTestedCount = cb.nodesTestedCount;
+		ret.testedCount = cb.testedCount;
+		ret.hitCount = cb.hitCount;
+		return ret;
+	} break;
 	}
-
-	return cb;
+	return {};
 }
 
 std::vector<spp::Aabb> globalAabbs;
 std::vector<std::vector<uint64_t>>
-Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount)
+Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
+	 TestType testType)
 {
-	std::uniform_real_distribution<float> distPos(-300, 300);
+	std::uniform_real_distribution<float> distPos(-1000, 1000);
 	std::uniform_real_distribution<float> distSize(pow(2.0 / 16.0, 1.0 / 3.0),
 												   1.0);
 	std::vector<spp::Aabb> &aabbs = globalAabbs;
@@ -57,16 +184,20 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount)
 		aabb = {p, p + s};
 	}
 
+	std::vector<std::vector<StartEndPoint>> hitPoints;
 	std::vector<std::vector<uint64_t>> ents;
 	std::vector<uint64_t> offsetOfPatch;
 	offsetOfPatch.reserve(testsCount);
 	for (int i = 0; i < broadphases.size(); ++i) {
 		offsetOfPatch.clear();
+		hitPoints.push_back({});
+		hitPoints.back().reserve(testsCount);
 		auto &it = broadphases[i];
 		size_t tC =
 			i ? aabbs.size() : aabbs.size() / BRUTE_FROCE_TESTS_COUNT_DIVISOR;
 		auto beg = std::chrono::steady_clock::now();
-		auto vec = SingleTest(it, aabbs, tC, offsetOfPatch);
+		auto vec = SingleTest(it, aabbs, tC, offsetOfPatch, testType,
+							  hitPoints.back());
 		auto end = std::chrono::steady_clock::now();
 		for (size_t i = 0; i < offsetOfPatch.size(); ++i) {
 			size_t of = offsetOfPatch[i];
@@ -74,7 +205,9 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount)
 			if (i + 1 < offsetOfPatch.size()) {
 				en = offsetOfPatch[i + 1];
 			}
-			std::sort(vec.entities.begin() + of, vec.entities.begin() + en);
+			if (testType != TEST_RAY_FIRST) {
+				std::sort(vec.entities.begin() + of, vec.entities.begin() + en);
+			}
 		}
 		ents.push_back(
 			std::vector<uint64_t>(vec.entities.begin(), vec.entities.end()));
@@ -92,22 +225,74 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount)
 
 	printf("\n Assumes bruteforce is valid\n");
 	for (int i = 1; i < broadphases.size(); ++i) {
-		printf(" %i: result is: %s\n", i,
-			   ents[0] == ents[i] ? "valid" : "different ... ERROR!!!");
+		size_t errs = glm::abs<int64_t>(ents[i].size() - ents[0].size());
+		for (int j = 0; j < ents[i].size() && j < ents[0].size() &&
+						j < hitPoints[0].size() && j < hitPoints[i].size();
+			 ++j) {
+			auto p0 = hitPoints[0][j];
+			auto pi = hitPoints[i][j];
+			if (p0.e != pi.e) {
+				auto aabb0 = (*globalEntityData)[p0.e - 1].aabb;
+				auto aabbi = (*globalEntityData)[pi.e - 1].aabb;
+
+				auto com = aabb0 * aabbi;
+				bool er = true;
+				if (aabb0 && aabbi) {
+					if (com && spp::Aabb{p0.point, p0.point}) {
+						if (com && spp::Aabb{pi.point, pi.point}) {
+							if (glm::length(pi.point - p0.point) < 0.001) {
+								er = false;
+							}
+						}
+					}
+				}
+
+				if (er == true) {
+					++errs;
+					glm::vec3 a, b, c, d;
+					a = aabb0.min;
+					b = aabb0.max;
+					c = aabbi.min;
+					d = aabbi.max;
+					printf("  %7i: %7lu == %7lu  ", j, p0.e, pi.e);
+					printf(
+						"%7.2f %7.2f %7.2f .. %7.2f %7.2f %7.2f <-> %7.2f %7.2f "
+						"%7.2f .. %7.2f %7.2f %7.2f",
+						a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x, d.y,
+						d.z);
+
+					a = p0.point;
+					b = pi.point;
+					printf("     hit points: %7.2f %7.2f %7.2f <-> %7.2f %7.2f "
+						   "%7.2f",
+						   a.x, a.y, a.z, b.x, b.y, b.z);
+
+					a = p0.start;
+					b = pi.start;
+					printf("     start: %7.2f %7.2f %7.2f <-> %7.2f %7.2f %7.2f",
+						   a.x, a.y, a.z, b.x, b.y, b.z);
+
+					a = p0.end;
+					b = pi.end;
+					printf("     end: %7.2f %7.2f %7.2f <-> %7.2f %7.2f %7.2f",
+						   a.x, a.y, a.z, b.x, b.y, b.z);
+
+					printf("     dist: %7.2f <-> %7.2f", p0.n, pi.n);
+
+					printf("\n");
+				}
+			}
+		}
+		printf(" %i: errors count: %lu\n", i, errs);
 	}
 
 	return ents;
 }
 
-struct EntityData {
-	spp::Aabb aabb;
-	uint64_t id = 0;
-	uint32_t mask = ~0;
-};
-
 int main()
 {
 	std::vector<EntityData> entities;
+	globalEntityData = &entities;
 	entities.resize(TOTAL_ENTITIES);
 	std::uniform_real_distribution<float> distPos(-300, 300);
 	std::uniform_real_distribution<float> distSize(0.4, 10);
@@ -120,7 +305,7 @@ int main()
 		++id;
 	}
 	entities[0].aabb = {{-400, -10, -400}, {400, 100, 400}};
-	entities[1].aabb = {{150, 190, 150}, {200, 200, 200}};
+	entities[1].aabb = {{150, 0, 150}, {200, 10, 200}};
 	for (int i = 2; i < 50; ++i) {
 		auto &e = entities[i];
 		e.aabb.min = {distPos(mt), distPos(mt) / 16.0f, distPos(mt)};
@@ -168,6 +353,7 @@ int main()
 		++broadphaseId;
 	}
 
+	/*
 	std::uniform_real_distribution<float> distDisp(-50, 50);
 	for (int i = 0; i < 300; ++i) {
 		auto &e = entities[mt() % entities.size()];
@@ -192,6 +378,7 @@ int main()
 		fflush(stdout);
 		++broadphaseId;
 	}
+	*/
 
 	broadphaseId = 1;
 	for (auto bp : broadphases) {
@@ -210,7 +397,12 @@ int main()
 
 	printf("\nAfter rebuild:\n\n");
 
-	auto ents = Test(broadphases, TOTAL_AABB_TESTS);
+	for (int i = 1; i <= 3; ++i) {
+		printf("\n     TestType: %s\n", i == 1	 ? "AABB"
+										: i == 2 ? "RAY"
+												 : "RAY_FIRST");
+		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
+	}
 
 	bvh.SetAabbUpdatePolicy(spp::BvhMedianSplitHeap::ON_UPDATE_EXTEND_AABB);
 
@@ -220,17 +412,17 @@ int main()
 	ee.reserve(CCC);
 	vv.reserve(CCC);
 	for (size_t i = 0; i < CCC; ++i) {
-		ee.push_back((mt() % 700) % entities.size());
+		ee.push_back(((mt() % 700) % entities.size()) + 1);
 		vv.push_back({distPos(mt), distPos(mt) / 4.0f, distPos(mt)});
 	}
 
-	auto old = entities;
+	const auto old = entities;
 	broadphaseId = 1;
 	for (auto bp : broadphases) {
 		entities = old;
 		auto beg = std::chrono::steady_clock::now();
 		for (size_t i = 0; i < ee.size(); ++i) {
-			spp::Aabb &a = entities[ee[i]].aabb;
+			spp::Aabb &a = entities[ee[i] - 1].aabb;
 			a.min += vv[i];
 			a.max += vv[i];
 			bp->Update(ee[i], a);
@@ -263,7 +455,12 @@ int main()
 
 	printf("\nAfter updated without rebuild:\n\n");
 
-	ents = Test(broadphases, TOTAL_AABB_TESTS);
+	for (int i = 1; i <= 3; ++i) {
+		printf("\n     TestType: %s\n", i == 1	 ? "AABB"
+										: i == 2 ? "RAY"
+												 : "RAY_FIRST");
+		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
+	}
 
 	return 0;
 }

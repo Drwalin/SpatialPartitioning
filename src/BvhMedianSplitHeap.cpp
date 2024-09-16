@@ -117,6 +117,24 @@ void BvhMedianSplitHeap::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
+Aabb BvhMedianSplitHeap::GetAabb(EntityType entity) const
+{
+	auto it = entitiesOffsets.find(entity);
+	if (it != entitiesOffsets.end()) {
+		return entitiesData[it->second].aabb;
+	}
+	return {};
+}
+
+MaskType BvhMedianSplitHeap::GetMask(EntityType entity) const
+{
+	auto it = entitiesOffsets.find(entity);
+	if (it != entitiesOffsets.end()) {
+		return entitiesData[it->second].mask;
+	}
+	return 0;
+}
+
 void BvhMedianSplitHeap::IntersectAabb(IntersectionCallback &cb)
 {
 	if (cb.callback == nullptr) {
@@ -127,13 +145,15 @@ void BvhMedianSplitHeap::IntersectAabb(IntersectionCallback &cb)
 		Rebuild();
 	}
 
+	cb.broadphase = this;
+
 	_Internal_IntersectAabb(cb, 1);
 }
 
 void BvhMedianSplitHeap::_Internal_IntersectAabb(IntersectionCallback &cb,
 												 const int32_t nodeId)
 {
-	int32_t n = nodeId << 1;
+	const int32_t n = nodeId << 1;
 	if (n >= entitiesPowerOfTwoCount) {
 		int32_t o = n - entitiesPowerOfTwoCount;
 		for (int i = o; i <= o + 1 && i < entitiesData.size(); ++i) {
@@ -167,10 +187,39 @@ void BvhMedianSplitHeap::IntersectRay(RayCallback &cb)
 		Rebuild();
 	}
 
+	cb.broadphase = this;
 	cb.dir = cb.end - cb.start;
 	cb.length = glm::length(cb.dir);
-	cb.dirNormalized = cb.dir / cb.length;
+	cb.invLength = 1.0f * cb.length;
+	cb.dirNormalized = cb.dir * cb.invLength;
 	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
+
+	if (false) {
+		for (const auto &it : entitiesData) {
+			if (it.mask & cb.mask) {
+				float n, f;
+				if (it.aabb.FastRayTest(cb.start, cb.dirNormalized, cb.invDir,
+										cb.length, n, f)) {
+					auto res = cb.callback(&cb, it.entity);
+					if (res.intersection) {
+						if (res.dist + 0.00000001f < 1.0f) {
+							if (res.dist < 0.0f)
+								res.dist = 0.0f;
+							else
+								res.dist += 0.00000001f;
+							cb.length *= res.dist;
+							cb.dir *= res.dist;
+							cb.end = cb.start + cb.dir;
+						}
+						++cb.hitCount;
+					}
+					++cb.testedCount;
+					++cb.nodesTestedCount;
+				}
+			}
+		}
+		return;
+	}
 
 	_Internal_IntersectRay(cb, 1);
 }
@@ -181,18 +230,21 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 	const int32_t n = nodeId << 1;
 	if (n >= entitiesPowerOfTwoCount) {
 		int32_t o = n - entitiesPowerOfTwoCount;
-		for (int i = o; i <= o + 1 && i < entitiesData.size(); ++i) {
-			if (entitiesData[i].mask & cb.mask) {
+		for (int i = 0; i <= 1 && o + i < entitiesData.size(); ++i) {
+			if (entitiesData[o + i].mask & cb.mask) {
 				++cb.nodesTestedCount;
 				float _n, _f;
-				if (entitiesData[o].aabb.FastRayTest(cb.start, cb.dirNormalized,
-													 cb.invDir, cb.length, _n,
-													 _f)) {
+				if (entitiesData[o + i].aabb.FastRayTest(
+						cb.start, cb.dirNormalized, cb.invDir, cb.length, _n,
+						_f)) {
 					++cb.testedCount;
-					auto res = cb.callback(&cb, entitiesData[i].entity);
+					auto res = cb.callback(&cb, entitiesData[o + i].entity);
 					if (res.intersection) {
-						if (cb.length + 0.00000001f < 1.0f) {
+						if (res.dist + 0.00000001f < 1.0f) {
+							if (res.dist < 0.0f)
+								res.dist = 0.0f;
 							cb.length *= res.dist;
+							cb.invLength /= res.dist;
 							cb.dir *= res.dist;
 							cb.end = cb.start + cb.dir;
 						}
@@ -210,9 +262,14 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 				if (nodesHeapAabb[n + i].aabb.FastRayTest(
 						cb.start, cb.dirNormalized, cb.invDir, cb.length,
 						__n[i], __f[i])) {
-					__has |= 1 << i;
+					if (__n[i] < 0.0f)
+						__n[i] = 0.0f;
+					__has += i + 1;
+					_Internal_IntersectRay(cb, n + i);
+					;
 				}
 			}
+			return;
 			switch (__has) {
 			case 1:
 				_Internal_IntersectRay(cb, n);
@@ -220,20 +277,19 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 			case 2:
 				_Internal_IntersectRay(cb, n + 1);
 				break;
-			case 3: {
-				float l = cb.length;
+			case 3:
 				if (__n[1] < __n[0]) {
 					_Internal_IntersectRay(cb, n + 1);
-					if (__n[0] * l < cb.length) {
+					if (__n[0] < cb.length) {
 						_Internal_IntersectRay(cb, n);
 					}
 				} else {
 					_Internal_IntersectRay(cb, n);
-					if (__n[1] * l < cb.length) {
+					if (__n[1] < cb.length) {
 						_Internal_IntersectRay(cb, n + 1);
 					}
 				}
-			} break;
+				break;
 			}
 		}
 	}

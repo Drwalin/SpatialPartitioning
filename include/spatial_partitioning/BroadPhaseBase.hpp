@@ -32,6 +32,7 @@ public:
 	virtual Aabb GetAabb(EntityType entity) const = 0;
 	virtual MaskType GetMask(EntityType entity) const = 0;
 	
+	// maybe rename/add Optimize() function
 	virtual void Rebuild() = 0;
 
 	// returns number of tested entities

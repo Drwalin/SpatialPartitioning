@@ -44,6 +44,12 @@ public:
 	{
 		return {glm::min(min, r.min), glm::max(max, r.max)};
 	}
+	
+	inline bool IsFullyIn(const Aabb &r) const
+	{
+		return glm::all(glm::lessThanEqual(min, r.min) &
+						glm::lessThanEqual(r.max, max));
+	}
 
 	inline bool FastRayTest(glm::vec3 ro, glm::vec3 rd, const glm::vec3 invDir,
 							float length, float &near, float &far) const;

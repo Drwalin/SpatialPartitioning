@@ -9,6 +9,30 @@
 
 namespace spp
 {
+template <class T, class S, class C>
+S &GetContainer(std::priority_queue<T, S, C> &q)
+{
+	struct HackedQueue : private std::priority_queue<T, S, C> {
+		static S &Container(std::priority_queue<T, S, C> &q)
+		{
+			return q.*&HackedQueue::c;
+		}
+	};
+	return HackedQueue::Container(q);
+}
+
+template <class T, class S, class C>
+const S &GetContainer(const std::priority_queue<T, S, C> &q)
+{
+	struct HackedQueue : private std::priority_queue<T, S, C> {
+		static const S &Container(const std::priority_queue<T, S, C> &q)
+		{
+			return q.*&HackedQueue::c;
+		}
+	};
+	return HackedQueue::Container(q);
+}
+
 /*
  * Offsets start from 1
  */
@@ -48,15 +72,14 @@ public:
 
 	inline void Clear()
 	{
-		data.clear();
-		freeOffsets.clear();
+		GetContainer(freeOffsets).clear();
 		data.resize(1);
 	}
 
 	inline void ShrinkToFit()
 	{
 		data.shrink_to_fit();
-		freeOffsets.shrink_to_fit();
+		GetContainer(freeOffsets).shrink_to_fit();
 	}
 
 	inline void Reserve(OffsetType capacity) { data.reserve(capacity); }
@@ -67,11 +90,23 @@ public:
 	}
 
 	inline ValueType &operator[](OffsetType offset) { return data[offset]; }
+	inline const ValueType &operator[](OffsetType offset) const
+	{
+		return data[offset];
+	}
 
 	inline size_t GetMemoryUsage() const
 	{
 		return data.capacity() * sizeof(ValueType) +
-			   freeOffsets.capacity() * sizeof(OffsetType);
+			   GetContainer(freeOffsets).capacity() * sizeof(OffsetType);
+	}
+
+	std::vector<ValueType> &_Data() { return data; }
+	std::priority_queue<OffsetType, std::vector<OffsetType>,
+						std::greater<OffsetType>> &
+	_FreeOffsets()
+	{
+		return freeOffsets;
 	}
 
 private:

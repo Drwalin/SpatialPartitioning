@@ -47,13 +47,13 @@ public:
 
 	inline void Clear()
 	{
-		data.Clear();
 		offsets.clear();
+		data.Clear();
 	}
 
 	inline void ShrinkToFit()
 	{
-		offsets.shrink_to_fit();
+		offsets.rehash(0);
 		data.ShrinkToFit();
 	}
 
@@ -73,7 +73,16 @@ public:
 		return it->second;
 	}
 
+	inline void UpdateKeyOffset(KeyType key, OffsetType newOffset)
+	{
+		offsets[key] = newOffset;
+	}
+
 	inline ValueType &operator[](OffsetType offset) { return data[offset]; }
+	inline const ValueType &operator[](OffsetType offset) const
+	{
+		return data[offset];
+	}
 
 	inline size_t GetMemoryUsage() const
 	{
@@ -82,6 +91,9 @@ public:
 								 sizeof(KeyType)) +
 			   data.GetMemoryUsage();
 	}
+
+	std::unordered_map<KeyType, OffsetType> &_Offsets() { return offsets; }
+	NodesArray<OffsetType, ValueType> &_Data() { return data; };
 
 private:
 	std::unordered_map<KeyType, OffsetType> offsets;

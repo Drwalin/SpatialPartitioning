@@ -76,6 +76,8 @@ private:
 	AssociativeArray<EntityType, int32_t, Data> data;
 	NodesArray<int32_t, NodeData> nodes;
 	
-	int32_t rootNode = -1;
+	size_t modificationsSinceLastRebuild = 0;
+	
+	int32_t rootNode = 0;
 };
 } // namespace spp

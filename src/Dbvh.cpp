@@ -33,16 +33,72 @@ void Dbvh::ShrinkToFit()
 
 void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
-	/*
-	entitiesOffsets[entity] = entitiesData.size();
-	entitiesData.push_back({aabb, entity, mask});
-	rebuildTree = true;
-	++entitiesCount;
-	*/
+	assert(rootNode != 0);
+	int32_t offset = data.Add(entity, {aabb, entity, mask});
+	
+	for (int32_t i=0; i<2; ++i) {
+		if (nodes[rootNode].children[i] <= 0) {
+			nodes[rootNode].children[i] = offset + OFFSET;
+			nodes[rootNode].aabb[i] = aabb;
+			nodes[rootNode].mask |= mask;
+			return;
+		}
+	}
+	
+	++modificationsSinceLastRebuild;
+
+	static void (*fun)(Dbvh &, int32_t, Aabb, MaskType, int32_t) =
+		+[](Dbvh &self, int32_t node, Aabb aabb,
+			MaskType mask, int32_t entityOffset) -> void {
+		float dv[2] = {0.0f, 0.0f};
+
+		for (int i = 0; i < 2; ++i) {
+			Aabb ab = self.nodes[node].aabb[i];
+			dv[i] = (ab + aabb).GetVolume() - ab.GetVolume();
+		}
+		
+		int c = 0;
+		if (dv[1] < dv[0]) {
+			c = 1;
+		}
+		
+		const int32_t n = self.nodes[node].children[c];
+		
+		if (n < OFFSET) {
+			self.nodes[node].mask |= mask;
+			self.nodes[node].aabb[c] = self.nodes[node].aabb[c] + aabb;
+			fun(self, n, aabb, mask, entityOffset);
+			return;
+		} else {
+			const int32_t parentNodeId = node;
+			NodeData &parentNode = self.nodes[parentNodeId];
+			const int32_t newNodeId = self.nodes.Add({});
+			NodeData &newNode = self.nodes[newNodeId];
+			const int32_t otherNodeId = n;
+			
+			parentNode.mask |= mask;
+			newNode.mask = parentNode.mask;
+			
+			newNode.parent = parentNodeId;
+			
+			newNode.children[0] = otherNodeId;
+			newNode.aabb[0] = parentNode.aabb[c];
+			
+			parentNode.aabb[c] = parentNode.aabb[c] + aabb;
+			parentNode.children[c] = newNodeId;
+			
+			newNode.children[1] = entityOffset;
+			newNode.aabb[1] = aabb;
+			return;
+		}
+	};
+	fun(*this, rootNode, aabb, mask, offset);
 }
 
 void Dbvh::Update(EntityType entity, Aabb aabb)
 {
+	++modificationsSinceLastRebuild;
+	
 	int32_t offset = data.GetOffset(entity);
 	data[offset].aabb = aabb;
 	UpdateAabb(offset);
@@ -50,6 +106,10 @@ void Dbvh::Update(EntityType entity, Aabb aabb)
 
 void Dbvh::Remove(EntityType entity)
 {
+	assert(!"Not implemented");
+	
+	++modificationsSinceLastRebuild;
+	
 	const int32_t offset = data.GetOffset(entity);
 	const int32_t id = data[offset].parent;
 	data.RemoveByKey(entity);
@@ -105,6 +165,7 @@ void Dbvh::Remove(EntityType entity)
 
 void Dbvh::SetMask(EntityType entity, MaskType mask)
 {
+	assert(!"Not implemented");
 	/*
 	uint32_t offset = entitiesOffsets[entity];
 	entitiesData[offset].mask = mask;
@@ -143,45 +204,32 @@ MaskType Dbvh::GetMask(EntityType entity) const
 
 void Dbvh::IntersectAabb(IntersectionCallback &cb)
 {
-	/*
 	if (cb.callback == nullptr) {
 		return;
 	}
-
-	if (rebuildTree) {
-		Rebuild();
-	}
-
 	cb.broadphase = this;
-
-	_Internal_IntersectAabb(cb, 1);
-	*/
+	_Internal_IntersectAabb(cb, rootNode);
 }
 
-/*
 void Dbvh::_Internal_IntersectAabb(IntersectionCallback &cb,
-												 const int32_t nodeId)
+												 const int32_t node)
 {
-	const int32_t n = nodeId << 1;
-	if (n >= entitiesPowerOfTwoCount) {
-		int32_t o = n - entitiesPowerOfTwoCount;
-		for (int i = o; i <= o + 1 && i < entitiesData.size(); ++i) {
-			if (entitiesData[i].mask & cb.mask) {
-				++cb.nodesTestedCount;
-				if (entitiesData[i].aabb && cb.aabb) {
-					++cb.testedCount;
-					cb.callback(&cb, entitiesData[i].entity);
+	if (node <= 0) {
+		return;
+	} else if (node <= OFFSET) {
+		if (nodes[node].mask & cb.mask) {
+			++cb.nodesTestedCount;
+			for (int i=0; i<2; ++i) {
+				if (nodes[node].aabb[i] && cb.aabb) {
+					_Internal_IntersectAabb(cb, nodes[node].children[i]);
 				}
 			}
 		}
 	} else {
-		for (int i = 0; i <= 1; ++i) {
-			if (nodesHeapAabb[n + i].mask & cb.mask) {
-				++cb.nodesTestedCount;
-				if (nodesHeapAabb[n + i].aabb && cb.aabb) {
-					_Internal_IntersectAabb(cb, n + i);
-				}
-			}
+		if (data[node-OFFSET].mask & cb.mask) {
+			++cb.nodesTestedCount;
+			++cb.testedCount;
+			cb.callback(&cb, data[node-OFFSET].entity);
 		}
 	}
 }
@@ -192,9 +240,7 @@ void Dbvh::IntersectRay(RayCallback &cb)
 		return;
 	}
 
-	if (rebuildTree) {
-		Rebuild();
-	}
+	Rebuild();
 
 	cb.broadphase = this;
 	cb.dir = cb.end - cb.start;
@@ -203,45 +249,20 @@ void Dbvh::IntersectRay(RayCallback &cb)
 	cb.dirNormalized = cb.dir * cb.invLength;
 	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
 
-	_Internal_IntersectRay(cb, 1);
+	_Internal_IntersectRay(cb, rootNode);
 }
 
-void Dbvh::_Internal_IntersectRay(RayCallback &cb,
-												const int32_t nodeId)
+void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 {
-	const int32_t n = nodeId << 1;
-	if (n >= entitiesPowerOfTwoCount) {
-		int32_t o = n - entitiesPowerOfTwoCount;
-		for (int i = 0; i <= 1 && (o ^ i) < entitiesData.size(); ++i) {
-			if (entitiesData[o ^ i].mask & cb.mask) {
+	if (node <= 0) {
+		return;
+	} else if(node <= OFFSET) {
+		if (nodes[node].mask & cb.mask) {
+			float __n[2], __f[2];
+			int __has = 0;
+			for (int i = 0; i < 2; ++i) {
 				++cb.nodesTestedCount;
-				float _n, _f;
-				if (entitiesData[o ^ i].aabb.FastRayTest(
-						cb.start, cb.dirNormalized, cb.invDir, cb.length, _n,
-						_f)) {
-					++cb.testedCount;
-					auto res = cb.callback(&cb, entitiesData[o ^ i].entity);
-					if (res.intersection) {
-						if (res.dist + 0.00000001f < 1.0f) {
-							if (res.dist < 0.0f)
-								res.dist = 0.0f;
-							cb.length *= res.dist;
-							cb.invLength /= res.dist;
-							cb.dir *= res.dist;
-							cb.end = cb.start + cb.dir;
-						}
-						++cb.hitCount;
-					}
-				}
-			}
-		}
-	} else {
-		float __n[2], __f[2];
-		int __has = 0;
-		for (int i = 0; i <= 1; ++i) {
-			if (nodesHeapAabb[n ^ i].mask & cb.mask) {
-				++cb.nodesTestedCount;
-				if (nodesHeapAabb[n ^ i].aabb.FastRayTest(
+				if (nodes[node].aabb[i].FastRayTest(
 						cb.start, cb.dirNormalized, cb.invDir, cb.length,
 						__n[i], __f[i])) {
 					if (__n[i] < 0.0f)
@@ -249,31 +270,60 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb,
 					__has += i + 1;
 				}
 			}
-		}
 		switch (__has) {
 		case 1:
-			_Internal_IntersectRay(cb, n);
+			_Internal_IntersectRay(cb, nodes[node].children[0]);
 			break;
 		case 2:
-			_Internal_IntersectRay(cb, n + 1);
+			_Internal_IntersectRay(cb, nodes[node].children[1]);
 			break;
 		case 3:
 			if (__n[1] < __n[0]) {
-				_Internal_IntersectRay(cb, n + 1);
+				_Internal_IntersectRay(cb, nodes[node].children[1]);
 				if (__n[0] < cb.length) {
-					_Internal_IntersectRay(cb, n);
+					_Internal_IntersectRay(cb, nodes[node].children[0]);
 				}
 			} else {
-				_Internal_IntersectRay(cb, n);
+				_Internal_IntersectRay(cb, nodes[node].children[0]);
 				if (__n[1] < cb.length) {
-					_Internal_IntersectRay(cb, n + 1);
+					_Internal_IntersectRay(cb, nodes[node].children[1]);
 				}
 			}
 			break;
 		}
 	}
+	} else {
+		const int32_t offset = node - OFFSET;
+		if (data[offset].mask & cb.mask) {
+			++cb.nodesTestedCount;
+			float _n, _f;
+			if (data[offset].aabb.FastRayTest(
+						cb.start, cb.dirNormalized, cb.invDir, cb.length, _n,
+						_f)) {
+				++cb.testedCount;
+				auto res = cb.callback(&cb, data[offset].entity);
+				if (res.intersection) {
+					if (res.dist + 0.00000001f < 1.0f) {
+						if (res.dist < 0.0f)
+							res.dist = 0.0f;
+						cb.length *= res.dist;
+						cb.invLength /= res.dist;
+						cb.dir *= res.dist;
+						cb.end = cb.start + cb.dir;
+					}
+					++cb.hitCount;
+				}
+			}
+		}
+	}
 }
 
+
+void Dbvh::Rebuild()
+{
+}
+
+/*
 void Dbvh::Rebuild()
 {
 	rebuildTree = false;

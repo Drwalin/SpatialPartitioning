@@ -8,6 +8,7 @@
 #include "../include/spatial_partitioning/BroadPhaseBase.hpp"
 #include "../include/spatial_partitioning/BruteForce.hpp"
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
+#include "../include/spatial_partitioning/Dbvh.hpp"
 
 const int32_t TOTAL_ENTITIES = 100000;
 const size_t TOTAL_AABB_TESTS = 1000;
@@ -319,10 +320,12 @@ int main()
 
 	spp::BvhMedianSplitHeap bvh;
 	spp::BruteForce bf;
+	spp::Dbvh dbvh;
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
 		&bf,
 		&bvh,
+		&dbvh,
 	};
 
 	int broadphaseId = 1;

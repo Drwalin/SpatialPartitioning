@@ -6,25 +6,20 @@
 
 #include <cstdint>
 
-#include <unordered_map>
-#include <vector>
-
+#include "AssociativeArray.hpp"
 #include "BroadPhaseBase.hpp"
 
 namespace spp
 {
 /*
  * Limit of entities count is 268435456 (2^28-1)
- *
- * Tree is perfectly balanced due to heap use as nodes storage
  */
 class LooseOctree final : public BroadphaseBase
 {
 public:
-	LooseOctree(spp::Aabb aabb, int32_t depth, float cellExtensionFactor);
+	LooseOctree(glm::vec3 centerOffset, glm::vec3 sizeScale, int32_t depth,
+				float cellExtensionFactor);
 	virtual ~LooseOctree();
-
-	void Resize(spp::Aabb aabb, int32_t depth, float cellExtensionFactor);
 
 	virtual const char *GetName() const override;
 
@@ -53,34 +48,52 @@ private:
 								 const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 
+	glm::vec3 GetSizeOnDepth(int32_t depth) const;
+	int32_t GetChildIdFromCenter(glm::vec3 p) const;
+	glm::vec3 GetCenterOffset(int32_t depth);
+	// offset from parent node
+	glm::vec3 GetPosOffsetOfNodeAtDepth(int32_t depth, int32_t childId) const;
+
+private:
+	struct NodePath {
+		int8_t id[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		int32_t nodes[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+							 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		int depth = 0;
+	};
+
+	NodePath CalculatePathTo(Aabb aabb);
+
 private:
 	struct alignas(64) Data {
 		Aabb aabb;
-		int32_t nextEntity = -1;
 		EntityType entity = 0;
 		MaskType mask = 0;
+		int32_t nextOffset = -1;
 	};
 
 	struct alignas(32) NodePartialData {
 		Aabb aabb;
 		MaskType mask = 0;
+		int32_t offset = 0;
 	};
 
-	struct alignas(32) NodeData {
+	struct NodeData {
 		NodePartialData children[8];
-		int32_t childrenNodesOrEntitiesOffsets[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+		Aabb aabbOfLeafs;
+		MaskType maskOfLeafs = 0;
+		int32_t firstChildOffset = 0;
 	};
 
-	std::unordered_map<EntityType, int32_t> entitiesOffsets;
-	// [0] - ignored, because heap works faster starting from 1
-	std::vector<NodeData> nodes;
-	std::vector<Data> entitiesData;
-	std::vector<int32_t> emptyNodesOffsets;
+	AssociativeArray<EntityType, int32_t, Data> data;
+	NodesArray<int32_t, NodeData> nodes;
 
-	int32_t entitiesCount = 0;
-
-	Aabb aabb;
-	int32_t depth;
-	float cellExtensionFactor;
+	const glm::vec3 centerOffset;
+	const glm::vec3 sizeScale;
+	const int32_t depth;
+	const float cellExtensionFactor;
+	const int32_t halfTotalSize;
+	int32_t rootNode = 0;
 };
 } // namespace spp

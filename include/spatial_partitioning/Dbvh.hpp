@@ -52,11 +52,29 @@ private:
 	void RebuildNode(int32_t nodeId);
 
 	void FastRebalance();
-	void RebalanceNode(int32_t nodeId);
+	void RebalanceNodesRecursively(int32_t nodeId, int32_t depth);
+	void DoBestNodeRotation(int32_t nodeId);
+	void RebalanceUpToRoot(int32_t nodeId, int32_t rebalancingDepth);
+
+	bool GetRotationIntersectionVolume(int32_t parentNode, int32_t lId,
+									   int32_t rId, float *resultValue) const;
+	void DoRotation(int32_t parentNode, int32_t lId, int32_t rId);
+	bool GetNodeOffsetsAndInfo(int32_t rootNodeId, int32_t id, int32_t *nodeId,
+							   int32_t *parentNodeId,
+							   int32_t *childIdOfParent) const;
+	int32_t GetDirectMask(int32_t nodeId) const;
+	int32_t GetIndirectMask(int32_t nodeId) const;
+	Aabb GetDirectAabb(int32_t nodeId) const;
+	Aabb GetIndirectAabb(int32_t nodeId) const;
+	void SetParent(int32_t node, int32_t parent);
 
 	void _Internal_IntersectAabb(IntersectionCallback &cb,
 								 const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
+
+	int32_t CountDepth() const;
+	int32_t CountNodes() const;
+	int32_t CountEntities() const;
 
 private:
 	inline const static int32_t OFFSET = 0x10000000;

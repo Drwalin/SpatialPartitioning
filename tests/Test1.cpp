@@ -10,8 +10,10 @@
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
 #include "../include/spatial_partitioning/Dbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 100000;
-const size_t TOTAL_AABB_TESTS = 1000;
+const int32_t TOTAL_ENTITIES = 10000;
+const size_t TOTAL_AABB_TESTS = 100000;
+const size_t TOTAL_AABB_MOVEMENTS = 1000000;
+const size_t MAX_MOVING_ENTITIES = 1500;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
@@ -323,7 +325,7 @@ int main()
 	spp::Dbvh dbvh;
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
-		&bf,
+// 		&bf,
 		&bvh,
 		&dbvh,
 	};
@@ -419,11 +421,10 @@ int main()
 
 	std::vector<uint64_t> ee;
 	std::vector<glm::vec3> vv;
-	const size_t CCC = 1000;
-	ee.reserve(CCC);
-	vv.reserve(CCC);
-	for (size_t i = 0; i < CCC; ++i) {
-		ee.push_back(((mt() % 700) % entities.size()) + 1);
+	ee.reserve(TOTAL_AABB_MOVEMENTS);
+	vv.reserve(TOTAL_AABB_MOVEMENTS);
+	for (size_t i = 0; i < TOTAL_AABB_MOVEMENTS; ++i) {
+		ee.push_back(((mt() % MAX_MOVING_ENTITIES ) % entities.size()) + 1);
 		vv.push_back({distPos(mt), distPos(mt) / 4.0f, distPos(mt)});
 	}
 
@@ -444,7 +445,7 @@ int main()
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%s update data: %.3f us/op\n", bp->GetName(), us / double(CCC));
+		printf("%s update data: %.3f us/op\n", bp->GetName(), us / double(TOTAL_AABB_MOVEMENTS));
 		fflush(stdout);
 		++broadphaseId;
 	}

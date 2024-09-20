@@ -74,7 +74,7 @@ void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 		} else if (n < OFFSET) {
 			nodes[parentNodeId].mask |= mask;
 			nodes[parentNodeId].aabb[c] = nodes[parentNodeId].aabb[c] + aabb;
-			node = n;
+			node = nodes[parentNodeId].children[c];
 			continue;
 		} else {
 			const int32_t otherChildId = n;
@@ -176,7 +176,7 @@ void Dbvh::Update(EntityType entity, Aabb aabb)
 	int32_t offset = data.GetOffset(entity);
 	data[offset].aabb = aabb;
 	UpdateAabb(offset);
-	RebalanceNodesRecursively(data[offset].parent, 1);
+// 	RebalanceUpToRoot(data[offset].parent, 1);
 }
 
 void Dbvh::Remove(EntityType entity)
@@ -387,12 +387,10 @@ void Dbvh::Rebuild()
 {
 	printf(" Bdvh: depth of tree = %i\n", CountDepth());
 	FastRebalance();
-	printf(" Bdvh: depth of tree = %i\n", CountDepth());
 }
 
 void Dbvh::FastRebalance()
 {
-	printf(" Bdvh: depth of tree = %i\n", CountDepth());
 	fastRebalance = false;
 
 	RebalanceNodesRecursively(rootNode, -1);
@@ -424,114 +422,6 @@ void Dbvh::RebalanceNodesRecursively(int32_t node, int32_t depth)
 	for (int i = 0; i < 2; ++i) {
 		RebalanceNodesRecursively(nodes[node].children[i], depth - 1);
 	}
-
-	return;
-
-	/*
-
-	int grandchildrenNodeCount = 0;
-	int grandchildrenCount = 0;
-	int childrenCount = 0;
-	int childrenChildrenCount[2] = {0,0};
-
-	for (int i = 0; i < 2; ++i) {
-		const int32_t n = nodes[node].children[i];
-		if (n <= 0) {
-			// TODO: check
-			// should not happen!!!
-		} else {
-			if (n > OFFSET) {
-				childrenCount++;
-			} else {
-				childrenCount++;
-				for (int j = 0; j < 2; ++j) {
-					int32_t n = nodes[nodes[node].children[i]].children[j];
-					if (n <= 0) {
-					} else {
-						if (n < OFFSET) {
-							grandchildrenNodeCount++;
-						}
-						grandchildrenCount++;
-						childrenChildrenCount[i]++;
-					}
-				}
-			}
-		}
-	}
-
-	if (grandchildrenCount < 2 || childrenCount != 2) {
-		// leaf or impossible (due to algorithm assumptions) node
-		return;
-	}
-
-	// from here on, all 4 children of children of node are axistent
-
-	// try test for swap grandchildren
-	if (grandchildrenNodeCount == 4) {
-		Aabb aabbs[4];
-		for (int i = 0; i < 4; ++i) {
-			aabbs[i] = nodes[nodes[node].children[i >> 1]].aabb[i & 1];
-		}
-
-		float overlapsVolumes[3] = {-1.0f, -1.0f, -1.0f};
-
-		int smallest = 0;
-
-		for (int i = 0; i < 3; ++i) {
-			Aabb a, b;
-			a = aabbs[0] + aabbs[i + 1];
-			b = aabbs[((i + 1) % 3) + 1] + aabbs[((i + 2) % 3) + 1];
-
-			if (a && b) {
-				overlapsVolumes[i] = (a * b).GetVolume();
-			}
-
-			if (overlapsVolumes[smallest] > overlapsVolumes[i]) {
-				smallest = i;
-			}
-		}
-
-		if (smallest != 0) {
-			NodeData &parent = nodes[node];
-			NodeData &left = nodes[parent.children[0]];
-			NodeData &right = nodes[parent.children[1]];
-
-			if (smallest == 1) {
-				std::swap(left.aabb[0], right.aabb[1]);
-				std::swap(left.children[0], right.children[1]);
-			} else {
-				std::swap(left.aabb[0], right.aabb[0]);
-				std::swap(left.children[0], right.children[0]);
-			}
-
-			NodeData *ns[2] = {&left, &right};
-			for (int i = 0; i < 2; ++i) {
-				ns[i]->mask = nodes[ns[i]->children[0]].mask |
-							  nodes[ns[i]->children[1]].mask;
-			}
-
-			parent.aabb[0] = left.aabb[0] + left.aabb[1];
-			parent.aabb[1] = right.aabb[0] + right.aabb[1];
-		}
-	}
-
-	// try test for left/right rotation
-	{
-		NodeData &parent = nodes[node];
-		if (parent.aabb[0] && parent.aabb[1]) {
-			float rotationOverlaps[3] = {-1, -1, -1};
-			rotationOverlaps[0] = (parent.aabb[0] * parent.aabb[1]).GetVolume();
-
-
-
-		}
-	}
-
-	// go to children
-	for (int i = 0; i < 2; ++i) {
-		RebalanceNodesRecursively(nodes[node].children[i], depth-1);
-	}
-	*/
 }
 
 void Dbvh::DoBestNodeRotation(int32_t node)
@@ -912,10 +802,7 @@ void Dbvh::UpdateAabb(const int32_t offset)
 		const int i = nodes[id].children[0] == childId ? 0 : 1;
 		nodes[id].aabb[i] = aabb;
 		aabb = aabb + nodes[id].aabb[i^1];
-// 		nodes[id].aabb[i] = GetIndirectAabb(id);
-		
-// 		DoBestNodeRotation(id);
-		
+		RebalanceNodesRecursively(id, 2);
 		childId = id;
 		id = nodes[childId].parent;
 	}

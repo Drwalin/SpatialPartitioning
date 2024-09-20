@@ -10,12 +10,13 @@
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
 #include "../include/spatial_partitioning/Dbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 10000;
+const int32_t TOTAL_ENTITIES = 100000;
 const size_t TOTAL_AABB_TESTS = 100000;
-const size_t TOTAL_AABB_MOVEMENTS = 1000000;
+const size_t TOTAL_AABB_MOVEMENTS = 100;
 const size_t MAX_MOVING_ENTITIES = 1500;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
+std::random_device rd;
 std::mt19937_64 mt(12345);
 
 enum TestType {
@@ -325,12 +326,11 @@ int main()
 	spp::Dbvh dbvh;
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
-// 		&bf,
+		&bf,
 		&bvh,
 		&dbvh,
 	};
 
-	int broadphaseId = 1;
 	for (auto bp : broadphases) {
 		auto beg = std::chrono::steady_clock::now();
 		for (const auto &e : entities) {
@@ -344,11 +344,9 @@ int main()
 		double us = double(ns) / 1000.0;
 		printf("%s adding time: %.3f us\n", bp->GetName(), us);
 		fflush(stdout);
-		++broadphaseId;
 	}
 	printf("\n");
 
-	broadphaseId = 1;
 	for (auto bp : broadphases) {
 		auto beg = std::chrono::steady_clock::now();
 		bp->Rebuild();
@@ -360,7 +358,12 @@ int main()
 		double us = double(ns) / 1000.0;
 		printf("%s build: %.3f us\n", bp->GetName(), us);
 		fflush(stdout);
-		++broadphaseId;
+	}
+	printf("\n");
+	
+	for (auto bp : broadphases) {
+		printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(), bp->GetMemoryUsage(), bp->GetMemoryUsage()/(1024.0*1024.0));
+		fflush(stdout);
 	}
 	printf("\n");
 
@@ -373,7 +376,6 @@ int main()
 		e.aabb.max += disp;
 	}
 
-	broadphaseId = 1;
 	for (auto bp : broadphases) {
 		auto beg = std::chrono::steady_clock::now();
 		for (int i = 0; i < 300 && i < entities.size(); ++i) {
@@ -385,14 +387,12 @@ int main()
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%i update data: %.3f us\n", broadphaseId, us);
+		printf("%s update data: %.3f us\n", bp->GetName(), us);
 		fflush(stdout);
-		++broadphaseId;
 	}
 	printf("\n");
 	*/
 
-	broadphaseId = 1;
 	for (auto bp : broadphases) {
 		auto beg = std::chrono::steady_clock::now();
 		bp->Rebuild();
@@ -404,7 +404,6 @@ int main()
 		double us = double(ns) / 1000.0;
 		printf("%s rebuild: %.3f us\n", bp->GetName(), us);
 		fflush(stdout);
-		++broadphaseId;
 	}
 	printf("\n");
 
@@ -429,7 +428,6 @@ int main()
 	}
 
 	const auto old = entities;
-	broadphaseId = 1;
 	for (auto bp : broadphases) {
 		entities = old;
 		auto beg = std::chrono::steady_clock::now();
@@ -447,12 +445,54 @@ int main()
 		double us = double(ns) / 1000.0;
 		printf("%s update data: %.3f us/op\n", bp->GetName(), us / double(TOTAL_AABB_MOVEMENTS));
 		fflush(stdout);
-		++broadphaseId;
 	}
 	printf("\n");
 
 	printf("\nAfter updated without rebuild:\n\n");
 
+	for (int i = 1; i <= 3; ++i) {
+		printf("\n     TestType: %s\n", i == 1	 ? "AABB"
+										: i == 2 ? "RAY"
+												 : "RAY_FIRST");
+		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
+	}
+	
+	printf("\nAfter reconstruct and full rebuild:\n");
+	
+	for (auto bp : broadphases) {
+		bp->Clear();
+	}
+	
+	for (auto bp : broadphases) {
+		auto beg = std::chrono::steady_clock::now();
+		for (const auto &e : entities) {
+			bp->Add(e.id, e.aabb, e.mask);
+		}
+		auto end = std::chrono::steady_clock::now();
+		auto diff = end - beg;
+		int64_t ns =
+			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
+				.count();
+		double us = double(ns) / 1000.0;
+		printf("%s adding time: %.3f us\n", bp->GetName(), us);
+		fflush(stdout);
+	}
+	printf("\n");
+
+	for (auto bp : broadphases) {
+		auto beg = std::chrono::steady_clock::now();
+		bp->Rebuild();
+		auto end = std::chrono::steady_clock::now();
+		auto diff = end - beg;
+		int64_t ns =
+			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
+				.count();
+		double us = double(ns) / 1000.0;
+		printf("%s build: %.3f us\n", bp->GetName(), us);
+		fflush(stdout);
+	}
+	printf("\n");
+	
 	for (int i = 1; i <= 3; ++i) {
 		printf("\n     TestType: %s\n", i == 1	 ? "AABB"
 										: i == 2 ? "RAY"

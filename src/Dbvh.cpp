@@ -35,7 +35,7 @@ void Dbvh::ShrinkToFit()
 void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	assert(rootNode != 0);
-	
+
 	const int32_t offset = data.Add(entity, {aabb, entity, mask});
 
 	for (int32_t i = 0; i < 2; ++i) {
@@ -47,8 +47,6 @@ void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 			return;
 		}
 	}
-
-	++modificationsSinceLastRebuild;
 
 	int32_t node = rootNode;
 
@@ -99,28 +97,9 @@ void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 			SetParent(otherChildId, newNodeId);
 			data[offset].parent = newNodeId;
 
-			/*
-			if (int32_t c = CountEntities() - data.Size()) {
-				printf("                      $$$$$$$$$$$$$$$$$$$$$$$$$$$$ "
-					   "tree count after adding before rebalance %6i =?= %6i\n",
-					   c + data.Size(), data.Size());
-				printf("\n");
-				fflush(stdout);
+			if (_depth > 40) {
+				RebalanceUpToRoot(newNodeId, 1);
 			}
-			*/
-
-// 			if (_depth > 40) {
-// 				RebalanceUpToRoot(newNodeId, 1);
-// 			}
-
-			/*
-			if (int32_t c = CountEntities() - data.Size()) {
-				printf("                      $$$$$$$$$$$$$$$$$$$$$$$$$$$$ "
-					   "tree count after adding and rebalance    %6i =?= %6i\n",
-					   c + data.Size(), data.Size());
-				fflush(stdout);
-			}
-			*/
 
 			break;
 		}
@@ -171,86 +150,59 @@ int32_t Dbvh::CountDepth() const
 
 void Dbvh::Update(EntityType entity, Aabb aabb)
 {
-	++modificationsSinceLastRebuild;
-
 	int32_t offset = data.GetOffset(entity);
 	data[offset].aabb = aabb;
-	UpdateAabb(offset);
-// 	RebalanceUpToRoot(data[offset].parent, 1);
+	UpdateAabb(data[offset].parent);
+
+	// 	const MaskType mask = data[offset].mask;
+	// 	Remove(entity);
+	// 	Add(entity, aabb, mask);
 }
 
 void Dbvh::Remove(EntityType entity)
 {
-	assert(!"Not implemented");
-
-	++modificationsSinceLastRebuild;
-
 	const int32_t offset = data.GetOffset(entity);
 	const int32_t id = data[offset].parent;
-	data.RemoveByKey(entity);
 	const int32_t childId = offset + OFFSET;
 
-	const int i1 = nodes[id].children[0] == childId ? 1 : 0;
-
-	const Aabb aabb = nodes[id].aabb[i1];
-	const int32_t child2 = nodes[id].children[i1];
+	const int i = nodes[id].children[0] == childId ? 0 : 1;
 
 	if (id == rootNode) {
-
+		nodes[id].children[i] = 0;
+		nodes[id].mask = GetDirectMask(nodes[id].children[i ^ 1]);
 	} else {
+		const int32_t otherId = nodes[id].children[i ^ 1];
+		const Aabb aabb = nodes[id].aabb[i ^ 1];
+		MaskType mask = GetDirectMask(otherId);
+
+		const int32_t parentId = nodes[id].parent;
+		const int j = nodes[parentId].children[0] == id ? 0 : 1;
+		nodes[parentId].children[j] = otherId;
+		nodes[parentId].aabb[j] = aabb;
+		nodes[parentId].mask =
+			mask | GetDirectMask(nodes[parentId].children[j ^ 1]);
+		SetParent(otherId, parentId);
+		nodes.Remove(id);
+		UpdateAabbAndMask(parentId);
 	}
-
-	/*
-	--entitiesCount;
-
-	if (entitiesCount == 0) {
-		Clear();
-		return;
-	}
-
-	uint32_t offset = entitiesOffsets[entity];
-	entitiesOffsets.erase(entity);
-	entitiesData[offset].entity = EMPTY_ENTITY;
-
-	PruneEmptyEntitiesAtEnd();
-
-	if (updatePolicy == ON_UPDATE_EXTEND_AABB) {
-		offset = (offset | 1) ^ 1;
-		if (offset < entitiesData.size()) {
-			UpdateAabb(offset);
-		}
-	} else {
-		if (entitiesCount != entitiesData.size()) {
-			rebuildTree = true;
-		} else {
-			offset = (offset | 1) ^ 1;
-			if (offset < entitiesData.size()) {
-				UpdateAabb(offset);
-			}
-		}
-	}
-	*/
+	data.RemoveByKey(entity);
 }
 
 void Dbvh::SetMask(EntityType entity, MaskType mask)
 {
-	assert(!"Not implemented");
-	/*
-	uint32_t offset = entitiesOffsets[entity];
-	entitiesData[offset].mask = mask;
-	if ((offset ^ 1) < entitiesData.size()) {
-		if (entitiesData[offset ^ 1].entity != EMPTY_ENTITY) {
-			mask |= entitiesData[offset ^ 1].mask;
-		}
-	}
+	const int32_t offset = data.GetOffset(entity);
+	data[offset].mask = mask;
+	UpdateMask(data[offset].parent);
 
-	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> 1; n > 0; n >>= 1) {
-		nodesHeapAabb[n].mask = mask;
-		if ((n ^ 1) < nodesHeapAabb.size()) {
-			mask |= nodesHeapAabb[n ^ 1].mask;
-		}
+	int32_t node = data[offset].parent;
+	int32_t childId = offset + OFFSET;
+	while (node > 0) {
+		const int i = nodes[node].children[0] == childId ? 0 : 1;
+		mask |= GetDirectMask(nodes[node].children[i ^ 1]);
+		nodes[node].mask = mask;
+		childId = node;
+		node = nodes[childId].parent;
 	}
-	*/
 }
 
 Aabb Dbvh::GetAabb(EntityType entity) const
@@ -293,9 +245,9 @@ void Dbvh::_Internal_IntersectAabb(IntersectionCallback &cb, const int32_t node)
 				}
 			}
 		}
-	} else {
-		if (data[node - OFFSET].mask & cb.mask) {
-			++cb.nodesTestedCount;
+	} else if (data[node - OFFSET].mask & cb.mask) {
+		++cb.nodesTestedCount;
+		if (data[node-OFFSET].aabb && cb.aabb) {
 			++cb.testedCount;
 			cb.callback(&cb, data[node - OFFSET].entity);
 		}
@@ -385,7 +337,6 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 
 void Dbvh::Rebuild()
 {
-	printf(" Bdvh: depth of tree = %i\n", CountDepth());
 	FastRebalance();
 }
 
@@ -635,7 +586,9 @@ Aabb Dbvh::GetIndirectAabb(int32_t node) const
 		assert(!"cannot happen");
 		return {};
 	} else if (node > OFFSET) {
-		return data[node - OFFSET].aabb;
+		AabbCentered r = data[node - OFFSET].aabb;
+		r.halfSize += glm::vec3{1,1,1};
+		return r;
 	} else {
 		Aabb l = GetDirectAabb(nodes[node].children[0]);
 		Aabb r = GetDirectAabb(nodes[node].children[1]);
@@ -658,7 +611,9 @@ Aabb Dbvh::GetDirectAabb(int32_t node) const
 		assert(!"cannot happen");
 		return {};
 	} else if (node > OFFSET) {
-		return data[node - OFFSET].aabb;
+		AabbCentered r = data[node - OFFSET].aabb;
+		r.halfSize += glm::vec3{1,1,1};
+		return r;
 	} else {
 		if (nodes[node].children[0] > 0) {
 			if (nodes[node].children[1] > 0) {
@@ -793,16 +748,105 @@ void Dbvh::PruneEmptyEntitiesAtEnd()
 }
 */
 
-void Dbvh::UpdateAabb(const int32_t offset)
+void Dbvh::UpdateAabb(const int32_t nodeId)
 {
-	Aabb aabb = data[offset].aabb;
-	int32_t id = data[offset].parent;
-	int32_t childId = offset + OFFSET;
+	if (nodeId > OFFSET) {
+		UpdateAabb(data[nodeId - OFFSET].parent);
+		return;
+	}
+	for (int i = 0; i < 2; ++i) {
+		nodes[nodeId].aabb[i] = GetDirectAabb(nodes[nodeId].children[i]);
+	}
+	Aabb aabb = nodes[nodeId].aabb[0] + nodes[nodeId].aabb[1];
+	int32_t id = nodes[nodeId].parent;
+	int32_t childId = nodeId;
 	while (id > 0) {
 		const int i = nodes[id].children[0] == childId ? 0 : 1;
+		if (((Aabb)nodes[id].aabb[i]).ContainsAll(aabb)) {
+			return;
+		}
 		nodes[id].aabb[i] = aabb;
-		aabb = aabb + nodes[id].aabb[i^1];
-		RebalanceNodesRecursively(id, 2);
+		aabb = aabb + nodes[id].aabb[i ^ 1];
+		RebalanceNodesRecursively(id, 1);
+		childId = id;
+		id = nodes[childId].parent;
+	}
+}
+
+void Dbvh::UpdateAabbSimple(const int32_t nodeId)
+{
+	if (nodeId > OFFSET) {
+		UpdateAabbSimple(data[nodeId - OFFSET].parent);
+		return;
+	}
+	for (int i = 0; i < 2; ++i) {
+		nodes[nodeId].aabb[i] = GetDirectAabb(nodes[nodeId].children[i]);
+	}
+	Aabb aabb = nodes[nodeId].aabb[0] + nodes[nodeId].aabb[1];
+	int32_t id = nodes[nodeId].parent;
+	int32_t childId = nodeId;
+	while (id > 0) {
+		const int i = nodes[id].children[0] == childId ? 0 : 1;
+		if (((Aabb)nodes[id].aabb[i]).ContainsAll(aabb)) {
+			return;
+		}
+		nodes[id].aabb[i] = aabb;
+		aabb = aabb + nodes[id].aabb[i ^ 1];
+		childId = id;
+		id = nodes[childId].parent;
+	}
+}
+
+void Dbvh::UpdateMask(const int32_t nodeId)
+{
+	if (nodeId > OFFSET) {
+		UpdateMask(data[nodeId - OFFSET].parent);
+		return;
+	}
+	MaskType mask = 0;
+	for (int i = 0; i < 2; ++i) {
+		mask |= GetDirectMask(nodes[nodeId].children[i]);
+	}
+	int32_t id = nodes[nodeId].parent;
+	int32_t childId = nodeId;
+	while (id > 0) {
+		const int i = nodes[id].children[0] == childId ? 0 : 1;
+		MaskType m2 = GetDirectMask(nodes[id].children[i ^ 1]);
+		if (m2 == mask) {
+			break;
+		}
+		mask |= m2;
+		nodes[id].mask = mask;
+		childId = id;
+		id = nodes[childId].parent;
+	}
+}
+
+void Dbvh::UpdateAabbAndMask(const int32_t nodeId)
+{
+	if (nodeId > OFFSET) {
+		UpdateAabbAndMask(data[nodeId - OFFSET].parent);
+		return;
+	}
+	MaskType mask = 0;
+	for (int i = 0; i < 2; ++i) {
+		nodes[nodeId].aabb[i] = GetDirectAabb(nodes[nodeId].children[i]);
+		mask |= GetDirectMask(nodes[nodeId].children[i]);
+	}
+	Aabb aabb = nodes[nodeId].aabb[0] + nodes[nodeId].aabb[1];
+	int32_t id = nodes[nodeId].parent;
+	int32_t childId = nodeId;
+	while (id > 0) {
+		const int i = nodes[id].children[0] == childId ? 0 : 1;
+		MaskType m2 = GetDirectMask(nodes[id].children[i ^ 1]);
+		if (m2 == mask && ((Aabb)nodes[id].aabb[i]).ContainsAll(aabb)) {
+			return;
+		}
+		mask |= m2;
+		nodes[id].mask = mask;
+		nodes[id].aabb[i] = aabb;
+		aabb = aabb + nodes[id].aabb[i ^ 1];
+		RebalanceNodesRecursively(id, 1);
 		childId = id;
 		id = nodes[childId].parent;
 	}

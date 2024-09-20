@@ -47,7 +47,10 @@ public:
 	virtual void Rebuild() override;
 
 private:
-	void UpdateAabb(const int32_t entityOffset);
+	void UpdateAabb(const int32_t nodeId);
+	void UpdateAabbAndMask(const int32_t nodeId);
+	void UpdateAabbSimple(const int32_t nodeId);
+	void UpdateMask(const int32_t nodeId);
 	void RebuildNode(int32_t nodeId);
 
 	void FastRebalance();
@@ -95,8 +98,6 @@ private:
 
 	AssociativeArray<EntityType, int32_t, Data> data;
 	NodesArray<int32_t, NodeData> nodes;
-
-	size_t modificationsSinceLastRebuild = 0;
 
 	int32_t rootNode = 0;
 	bool fastRebalance = false;

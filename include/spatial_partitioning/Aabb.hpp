@@ -45,7 +45,7 @@ public:
 		return {glm::min(min, r.min), glm::max(max, r.max)};
 	}
 	
-	inline bool IsFullyIn(const Aabb &r) const
+	inline bool ContainsAll(const Aabb &r) const
 	{
 		return glm::all(glm::lessThanEqual(min, r.min) &
 						glm::lessThanEqual(r.max, max));
@@ -62,6 +62,10 @@ public:
 	inline bool operator&&(const Aabb &r) const { return HasIntersection(r); }
 	inline Aabb operator*(const Aabb &r) const { return Intersection(r); }
 	inline Aabb operator+(const Aabb &r) const { return Sum(r); }
+	inline bool operator==(const Aabb &r) const {
+		return min==r.min && max==r.max; }
+	inline bool operator!=(const Aabb &r) const {
+		return min!=r.min || max!=r.max; }
 };
 
 struct AabbCentered {
@@ -99,6 +103,12 @@ public:
 	inline Aabb Sum(const AabbCentered &r) const
 	{
 		return {glm::min(GetMin(), r.GetMin()), glm::max(GetMax(), r.GetMax())};
+	}
+	
+	inline bool ContainsAll(const AabbCentered &r) const
+	{
+		return glm::all(glm::lessThanEqual(glm::abs(center-r.center)+r.halfSize,
+					halfSize));
 	}
 
 	inline bool FastRayTest(glm::vec3 ro, glm::vec3 rd, const glm::vec3 invDir,
@@ -138,9 +148,13 @@ public:
 	}
 
 public:
-	inline bool operator&&(const Aabb &r) const { return HasIntersection(r); }
-	inline Aabb operator*(const Aabb &r) const { return Intersection(r); }
-	inline Aabb operator+(const Aabb &r) const { return Sum(r); }
+	inline bool operator&&(const AabbCentered &r) const { return HasIntersection(r); }
+	inline Aabb operator*(const AabbCentered &r) const { return Intersection(r); }
+	inline Aabb operator+(const AabbCentered &r) const { return Sum(r); }
+	inline bool operator==(const AabbCentered &r) const {
+		return center==r.center && halfSize==r.halfSize; }
+	inline bool operator!=(const AabbCentered &r) const {
+		return center!=r.center || halfSize!=r.halfSize; }
 };
 
 inline Aabb::operator AabbCentered() const

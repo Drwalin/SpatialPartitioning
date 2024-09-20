@@ -67,6 +67,7 @@ private:
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 
 private:
+	
 	struct alignas(64) Data {
 		AabbCentered aabb;
 		EntityType entity;

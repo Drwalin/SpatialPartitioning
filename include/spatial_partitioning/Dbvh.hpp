@@ -47,8 +47,7 @@ public:
 	virtual void Rebuild() override;
 
 private:
-	void UpdateAabb(int32_t entityOffset);
-	void UpdateNodeAabb(int32_t nodeId);
+	void UpdateAabb(const int32_t entityOffset);
 	void RebuildNode(int32_t nodeId);
 
 	void FastRebalance();

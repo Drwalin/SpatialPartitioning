@@ -34,19 +34,7 @@ void Dbvh::ShrinkToFit()
 
 void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
-	// 	if (fastRebalance == true) {
-	// 		FastRebalance();
-	// 	}
-
 	assert(rootNode != 0);
-	
-	
-	if (int32_t c = CountEntities() - data.Size()) {
-		printf("                      $$$$$$$$$$$$$$$$$$$$$$$$$$$$ "
-				"tree count before adding                 %6i =?= %6i\n",
-				c + data.Size(), data.Size());
-		fflush(stdout);
-	}
 	
 	const int32_t offset = data.Add(entity, {aabb, entity, mask});
 
@@ -64,10 +52,7 @@ void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 
 	int32_t node = rootNode;
 
-	for (size_t Q = 0;; ++Q) {
-		if (Q > 128) {
-			fastRebalance = true;
-		}
+	for (size_t _depth = 0;; ++_depth) {
 		float dv[2] = {0.0f, 0.0f};
 
 		const int32_t parentNodeId = node;
@@ -114,6 +99,7 @@ void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 			SetParent(otherChildId, newNodeId);
 			data[offset].parent = newNodeId;
 
+			/*
 			if (int32_t c = CountEntities() - data.Size()) {
 				printf("                      $$$$$$$$$$$$$$$$$$$$$$$$$$$$ "
 					   "tree count after adding before rebalance %6i =?= %6i\n",
@@ -121,10 +107,13 @@ void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 				printf("\n");
 				fflush(stdout);
 			}
+			*/
+
+// 			if (_depth > 40) {
+// 				RebalanceUpToRoot(newNodeId, 1);
+// 			}
 
 			/*
-			RebalanceUpToRoot(newNodeId, 1);
-
 			if (int32_t c = CountEntities() - data.Size()) {
 				printf("                      $$$$$$$$$$$$$$$$$$$$$$$$$$$$ "
 					   "tree count after adding and rebalance    %6i =?= %6i\n",
@@ -396,12 +385,14 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 
 void Dbvh::Rebuild()
 {
+	printf(" Bdvh: depth of tree = %i\n", CountDepth());
 	FastRebalance();
 	printf(" Bdvh: depth of tree = %i\n", CountDepth());
 }
 
 void Dbvh::FastRebalance()
 {
+	printf(" Bdvh: depth of tree = %i\n", CountDepth());
 	fastRebalance = false;
 
 	RebalanceNodesRecursively(rootNode, -1);
@@ -912,30 +903,19 @@ void Dbvh::PruneEmptyEntitiesAtEnd()
 }
 */
 
-void Dbvh::UpdateAabb(int32_t offset)
+void Dbvh::UpdateAabb(const int32_t offset)
 {
 	Aabb aabb = data[offset].aabb;
-
 	int32_t id = data[offset].parent;
 	int32_t childId = offset + OFFSET;
-	while (id != rootNode && id > 0) {
+	while (id > 0) {
 		const int i = nodes[id].children[0] == childId ? 0 : 1;
 		nodes[id].aabb[i] = aabb;
-		aabb = aabb + nodes[id].aabb[i ^ 1];
-		childId = id;
-		id = nodes[childId].parent;
-	}
-}
-
-void Dbvh::UpdateNodeAabb(int32_t nodeId)
-{
-	int32_t id = nodes[nodeId].parent;
-	int32_t childId = nodeId;
-	Aabb aabb = nodes[nodeId].aabb[0] + nodes[nodeId].aabb[1];
-	while (id != rootNode && id > 0) {
-		const int i = nodes[id].children[0] == childId ? 0 : 1;
-		nodes[id].aabb[i] = aabb;
-		aabb = aabb + nodes[id].aabb[i ^ 1];
+		aabb = aabb + nodes[id].aabb[i^1];
+// 		nodes[id].aabb[i] = GetIndirectAabb(id);
+		
+// 		DoBestNodeRotation(id);
+		
 		childId = id;
 		id = nodes[childId].parent;
 	}

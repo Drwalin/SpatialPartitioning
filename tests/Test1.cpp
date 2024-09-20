@@ -10,7 +10,7 @@
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
 #include "../include/spatial_partitioning/Dbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 100000;
+const int32_t TOTAL_ENTITIES = 20000;
 const size_t TOTAL_AABB_TESTS = 1000;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 

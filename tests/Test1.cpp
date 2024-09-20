@@ -10,7 +10,7 @@
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
 #include "../include/spatial_partitioning/Dbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 160;
+const int32_t TOTAL_ENTITIES = 100000;
 const size_t TOTAL_AABB_TESTS = 1000;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
@@ -340,10 +340,11 @@ int main()
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%i adding time: %.3f us\n", broadphaseId, us);
+		printf("%s adding time: %.3f us\n", bp->GetName(), us);
 		fflush(stdout);
 		++broadphaseId;
 	}
+	printf("\n");
 
 	broadphaseId = 1;
 	for (auto bp : broadphases) {
@@ -355,10 +356,11 @@ int main()
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%i build: %.3f us\n", broadphaseId, us);
+		printf("%s build: %.3f us\n", bp->GetName(), us);
 		fflush(stdout);
 		++broadphaseId;
 	}
+	printf("\n");
 
 	/*
 	std::uniform_real_distribution<float> distDisp(-50, 50);
@@ -385,6 +387,7 @@ int main()
 		fflush(stdout);
 		++broadphaseId;
 	}
+	printf("\n");
 	*/
 
 	broadphaseId = 1;
@@ -397,10 +400,11 @@ int main()
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%i rebuild: %.3f us\n", broadphaseId, us);
+		printf("%s rebuild: %.3f us\n", bp->GetName(), us);
 		fflush(stdout);
 		++broadphaseId;
 	}
+	printf("\n");
 
 	printf("\nAfter rebuild:\n\n");
 
@@ -440,10 +444,11 @@ int main()
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%i update data: %.3f us/op\n", broadphaseId, us / double(CCC));
+		printf("%s update data: %.3f us/op\n", bp->GetName(), us / double(CCC));
 		fflush(stdout);
 		++broadphaseId;
 	}
+	printf("\n");
 
 	printf("\nAfter updated without rebuild:\n\n");
 

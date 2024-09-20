@@ -18,6 +18,7 @@ void Dbvh::Clear()
 	data.Clear();
 	nodes.Clear();
 	rootNode = nodes.Add({});
+	fastRebalance = false;
 }
 
 size_t Dbvh::GetMemoryUsage() const
@@ -33,10 +34,14 @@ void Dbvh::ShrinkToFit()
 
 void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
+	if (fastRebalance == true) {
+		FastRebalance();
+	}
+
 	assert(rootNode != 0);
 	int32_t offset = data.Add(entity, {aabb, entity, mask});
-	
-	for (int32_t i=0; i<2; ++i) {
+
+	for (int32_t i = 0; i < 2; ++i) {
 		if (nodes[rootNode].children[i] <= 0) {
 			nodes[rootNode].children[i] = offset + OFFSET;
 			nodes[rootNode].aabb[i] = aabb;
@@ -44,61 +49,63 @@ void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 			return;
 		}
 	}
-	
+
 	++modificationsSinceLastRebuild;
 
-	static void (*fun)(Dbvh &, int32_t, Aabb, MaskType, int32_t) =
-		+[](Dbvh &self, int32_t node, Aabb aabb,
-			MaskType mask, int32_t entityOffset) -> void {
+	int32_t node = rootNode;
+
+	for (size_t Q = 0;; ++Q) {
+		if (Q > 128) {
+			fastRebalance = true;
+		}
 		float dv[2] = {0.0f, 0.0f};
 
 		for (int i = 0; i < 2; ++i) {
-			Aabb ab = self.nodes[node].aabb[i];
+			Aabb ab = nodes[node].aabb[i];
 			dv[i] = (ab + aabb).GetVolume() - ab.GetVolume();
 		}
-		
+
 		int c = 0;
 		if (dv[1] < dv[0]) {
 			c = 1;
 		}
-		
-		const int32_t n = self.nodes[node].children[c];
-		
-		if (n < OFFSET) {
-			self.nodes[node].mask |= mask;
-			self.nodes[node].aabb[c] = self.nodes[node].aabb[c] + aabb;
-			fun(self, n, aabb, mask, entityOffset);
-			return;
+
+		const int32_t n = nodes[node].children[c];
+
+		if (n <= 0) {
+			printf("Dupa\n");
+		} else if (n < OFFSET) {
+			nodes[node].mask |= mask;
+			nodes[node].aabb[c] = nodes[node].aabb[c] + aabb;
+			node = n;
+			continue;
 		} else {
 			const int32_t parentNodeId = node;
-			NodeData &parentNode = self.nodes[parentNodeId];
-			const int32_t newNodeId = self.nodes.Add({});
-			NodeData &newNode = self.nodes[newNodeId];
-			const int32_t otherNodeId = n;
-			
-			parentNode.mask |= mask;
-			newNode.mask = parentNode.mask;
-			
+			NodeData &parentNode = nodes[parentNodeId];
+			const int32_t newNodeId = nodes.Add({});
+			NodeData &newNode = nodes[newNodeId];
+
 			newNode.parent = parentNodeId;
-			
-			newNode.children[0] = otherNodeId;
+			newNode.mask = parentNode.mask | mask;
+
+			newNode.children[0] = parentNode.children[c];
 			newNode.aabb[0] = parentNode.aabb[c];
-			
+
+			newNode.children[1] = offset + OFFSET;
+			newNode.aabb[1] = aabb;
+
+			parentNode.mask |= mask;
 			parentNode.aabb[c] = parentNode.aabb[c] + aabb;
 			parentNode.children[c] = newNodeId;
-			
-			newNode.children[1] = entityOffset;
-			newNode.aabb[1] = aabb;
-			return;
+			break;
 		}
-	};
-	fun(*this, rootNode, aabb, mask, offset);
+	}
 }
 
 void Dbvh::Update(EntityType entity, Aabb aabb)
 {
 	++modificationsSinceLastRebuild;
-	
+
 	int32_t offset = data.GetOffset(entity);
 	data[offset].aabb = aabb;
 	UpdateAabb(offset);
@@ -107,30 +114,24 @@ void Dbvh::Update(EntityType entity, Aabb aabb)
 void Dbvh::Remove(EntityType entity)
 {
 	assert(!"Not implemented");
-	
+
 	++modificationsSinceLastRebuild;
-	
+
 	const int32_t offset = data.GetOffset(entity);
 	const int32_t id = data[offset].parent;
 	data.RemoveByKey(entity);
 	const int32_t childId = offset + OFFSET;
-	
+
 	const int i1 = nodes[id].children[0] == childId ? 1 : 0;
-	
+
 	const Aabb aabb = nodes[id].aabb[i1];
 	const int32_t child2 = nodes[id].children[i1];
-	
+
 	if (id == rootNode) {
-		
+
 	} else {
-		
 	}
-	
-	
-	
-	
-	
-	
+
 	/*
 	--entitiesCount;
 
@@ -211,25 +212,24 @@ void Dbvh::IntersectAabb(IntersectionCallback &cb)
 	_Internal_IntersectAabb(cb, rootNode);
 }
 
-void Dbvh::_Internal_IntersectAabb(IntersectionCallback &cb,
-												 const int32_t node)
+void Dbvh::_Internal_IntersectAabb(IntersectionCallback &cb, const int32_t node)
 {
 	if (node <= 0) {
 		return;
 	} else if (node <= OFFSET) {
 		if (nodes[node].mask & cb.mask) {
 			++cb.nodesTestedCount;
-			for (int i=0; i<2; ++i) {
+			for (int i = 0; i < 2; ++i) {
 				if (nodes[node].aabb[i] && cb.aabb) {
 					_Internal_IntersectAabb(cb, nodes[node].children[i]);
 				}
 			}
 		}
 	} else {
-		if (data[node-OFFSET].mask & cb.mask) {
+		if (data[node - OFFSET].mask & cb.mask) {
 			++cb.nodesTestedCount;
 			++cb.testedCount;
-			cb.callback(&cb, data[node-OFFSET].entity);
+			cb.callback(&cb, data[node - OFFSET].entity);
 		}
 	}
 }
@@ -239,8 +239,6 @@ void Dbvh::IntersectRay(RayCallback &cb)
 	if (cb.callback == nullptr) {
 		return;
 	}
-
-	Rebuild();
 
 	cb.broadphase = this;
 	cb.dir = cb.end - cb.start;
@@ -256,50 +254,49 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 {
 	if (node <= 0) {
 		return;
-	} else if(node <= OFFSET) {
+	} else if (node < OFFSET) {
 		if (nodes[node].mask & cb.mask) {
 			float __n[2], __f[2];
 			int __has = 0;
 			for (int i = 0; i < 2; ++i) {
 				++cb.nodesTestedCount;
-				if (nodes[node].aabb[i].FastRayTest(
-						cb.start, cb.dirNormalized, cb.invDir, cb.length,
-						__n[i], __f[i])) {
+				if (nodes[node].aabb[i].FastRayTest(cb.start, cb.dirNormalized,
+													cb.invDir, cb.length,
+													__n[i], __f[i])) {
 					if (__n[i] < 0.0f)
 						__n[i] = 0.0f;
 					__has += i + 1;
 				}
 			}
-		switch (__has) {
-		case 1:
-			_Internal_IntersectRay(cb, nodes[node].children[0]);
-			break;
-		case 2:
-			_Internal_IntersectRay(cb, nodes[node].children[1]);
-			break;
-		case 3:
-			if (__n[1] < __n[0]) {
-				_Internal_IntersectRay(cb, nodes[node].children[1]);
-				if (__n[0] < cb.length) {
-					_Internal_IntersectRay(cb, nodes[node].children[0]);
-				}
-			} else {
+			switch (__has) {
+			case 1:
 				_Internal_IntersectRay(cb, nodes[node].children[0]);
-				if (__n[1] < cb.length) {
+				break;
+			case 2:
+				_Internal_IntersectRay(cb, nodes[node].children[1]);
+				break;
+			case 3:
+				if (__n[1] < __n[0]) {
 					_Internal_IntersectRay(cb, nodes[node].children[1]);
+					if (__n[0] < cb.length) {
+						_Internal_IntersectRay(cb, nodes[node].children[0]);
+					}
+				} else {
+					_Internal_IntersectRay(cb, nodes[node].children[0]);
+					if (__n[1] < cb.length) {
+						_Internal_IntersectRay(cb, nodes[node].children[1]);
+					}
 				}
+				break;
 			}
-			break;
 		}
-	}
 	} else {
 		const int32_t offset = node - OFFSET;
 		if (data[offset].mask & cb.mask) {
 			++cb.nodesTestedCount;
 			float _n, _f;
-			if (data[offset].aabb.FastRayTest(
-						cb.start, cb.dirNormalized, cb.invDir, cb.length, _n,
-						_f)) {
+			if (data[offset].aabb.FastRayTest(cb.start, cb.dirNormalized,
+											  cb.invDir, cb.length, _n, _f)) {
 				++cb.testedCount;
 				auto res = cb.callback(&cb, data[offset].entity);
 				if (res.intersection) {
@@ -318,9 +315,138 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 	}
 }
 
+void Dbvh::Rebuild() {
+	static int32_t(*fun)(Dbvh *s, int32_t node) =
+		+[](Dbvh *s, int32_t node)->int32_t
+		{
+			if (node <= 0 || node >= OFFSET) {
+				return 1;
+			}
+			return 1+std::max(
+				fun(s, s->nodes[node].children[0]),
+				fun(s, s->nodes[node].children[1]));
+		};
+	printf(" depth of tree = %i\n", fun(this, rootNode));
+}
 
-void Dbvh::Rebuild()
+void Dbvh::FastRebalance()
 {
+	fastRebalance = false;
+
+	RebalanceNode(rootNode);
+}
+
+void Dbvh::RebalanceNode(int32_t node)
+{
+	if (node <= 0) { // leaf
+		assert(!"should not happen");
+		return;
+	} else if (node > OFFSET) { // leaf
+		return;
+	}
+
+	int grandchildrenNodeCount = 0;
+	int grandchildrenCount = 0;
+	int childrenCount = 0;
+	int childrenChildrenCount[2] = {0,0};
+
+	for (int i = 0; i < 2; ++i) {
+		const int32_t n = nodes[node].children[i];
+		if (n <= 0) {
+			// TODO: check
+			// should not happen!!!
+		} else {
+			if (n > OFFSET) {
+				childrenCount++;
+			} else {
+				childrenCount++;
+				for (int j = 0; j < 2; ++j) {
+					int32_t n = nodes[nodes[node].children[i]].children[j];
+					if (n <= 0) {
+					} else {
+						if (n < OFFSET) {
+							grandchildrenNodeCount++;
+						}
+						grandchildrenCount++;
+						childrenChildrenCount[i]++;
+					}
+				}
+			}
+		}
+	}
+
+	if (grandchildrenCount < 2 || childrenCount != 2) {
+		// leaf or impossible (due to algorithm assumptions) node
+		return;
+	}
+
+	// from here on, all 4 children of children of node are axistent
+
+	// try test for swap grandchildren
+	if (grandchildrenNodeCount == 4) {
+		Aabb aabbs[4];
+		for (int i = 0; i < 4; ++i) {
+			aabbs[i] = nodes[nodes[node].children[i >> 1]].aabb[i & 1];
+		}
+
+		float overlapsVolumes[3] = {-1.0f, -1.0f, -1.0f};
+
+		int smallest = 0;
+
+		for (int i = 0; i < 3; ++i) {
+			Aabb a, b;
+			a = aabbs[0] + aabbs[i + 1];
+			b = aabbs[((i + 1) % 3) + 1] + aabbs[((i + 2) % 3) + 1];
+
+			if (a && b) {
+				overlapsVolumes[i] = (a * b).GetVolume();
+			}
+
+			if (overlapsVolumes[smallest] > overlapsVolumes[i]) {
+				smallest = i;
+			}
+		}
+
+		if (smallest != 0) {
+			NodeData &parent = nodes[node];
+			NodeData &left = nodes[parent.children[0]];
+			NodeData &right = nodes[parent.children[1]];
+
+			if (smallest == 1) {
+				std::swap(left.aabb[0], right.aabb[1]);
+				std::swap(left.children[0], right.children[1]);
+			} else {
+				std::swap(left.aabb[0], right.aabb[0]);
+				std::swap(left.children[0], right.children[0]);
+			}
+
+			NodeData *ns[2] = {&left, &right};
+			for (int i = 0; i < 2; ++i) {
+				ns[i]->mask = nodes[ns[i]->children[0]].mask |
+							  nodes[ns[i]->children[1]].mask;
+			}
+
+			parent.aabb[0] = left.aabb[0] + left.aabb[1];
+			parent.aabb[1] = right.aabb[0] + right.aabb[1];
+		}
+	}
+
+	// try test for left/right rotation
+	{
+		NodeData &parent = nodes[node];
+		if (parent.aabb[0].HasIntersection(parent.aabb[1])) {
+			float rotationOverlaps[3] = {-1, -1, -1};
+			rotationOverlaps[0] = (parent.aabb[0] * parent.aabb[1]).GetVolume();
+			
+			
+			
+		} 
+	}
+
+	// go to children
+	for (int i = 0; i < 2; ++i) {
+		RebalanceNode(nodes[node].children[i]);
+	}
 }
 
 /*
@@ -446,13 +572,13 @@ void Dbvh::PruneEmptyEntitiesAtEnd()
 void Dbvh::UpdateAabb(int32_t offset)
 {
 	Aabb aabb = data[offset].aabb;
-	
+
 	int32_t id = data[offset].parent;
 	int32_t childId = offset + OFFSET;
-	while (id != rootNode) {
+	while (id != rootNode && id > 0) {
 		const int i = nodes[id].children[0] == childId ? 0 : 1;
 		nodes[id].aabb[i] = aabb;
-		aabb = aabb + nodes[id].aabb[i^1];
+		aabb = aabb + nodes[id].aabb[i ^ 1];
 		childId = id;
 		id = nodes[childId].parent;
 	}
@@ -463,10 +589,10 @@ void Dbvh::UpdateNodeAabb(int32_t nodeId)
 	int32_t id = nodes[nodeId].parent;
 	int32_t childId = nodeId;
 	Aabb aabb = nodes[nodeId].aabb[0] + nodes[nodeId].aabb[1];
-	while (id != rootNode) {
+	while (id != rootNode && id > 0) {
 		const int i = nodes[id].children[0] == childId ? 0 : 1;
 		nodes[id].aabb[i] = aabb;
-		aabb = aabb + nodes[id].aabb[i^1];
+		aabb = aabb + nodes[id].aabb[i ^ 1];
 		childId = id;
 		id = nodes[childId].parent;
 	}

@@ -18,7 +18,7 @@ namespace spp
  *    to find approximation of median split
  *
  * Limit of entities count is 268435456 (2^28-1)
- * 
+ *
  * Supports dynamically adding and removing entities
  */
 class Dbvh final : public BroadphaseBase
@@ -51,13 +51,16 @@ private:
 	void UpdateNodeAabb(int32_t nodeId);
 	void RebuildNode(int32_t nodeId);
 
+	void FastRebalance();
+	void RebalanceNode(int32_t nodeId);
+
 	void _Internal_IntersectAabb(IntersectionCallback &cb,
 								 const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 
 private:
 	inline const static int32_t OFFSET = 0x10000000;
-	
+
 	struct alignas(64) Data {
 		AabbCentered aabb;
 		EntityType entity = 0;
@@ -70,14 +73,15 @@ private:
 		MaskType mask = 0;
 		int32_t parent = 0;
 		// If (node > 0x10000000) than it is a leaf
-		int32_t children[2] = {0,0};
+		int32_t children[2] = {0, 0};
 	};
-	
+
 	AssociativeArray<EntityType, int32_t, Data> data;
 	NodesArray<int32_t, NodeData> nodes;
-	
+
 	size_t modificationsSinceLastRebuild = 0;
-	
+
 	int32_t rootNode = 0;
+	bool fastRebalance = false;
 };
 } // namespace spp

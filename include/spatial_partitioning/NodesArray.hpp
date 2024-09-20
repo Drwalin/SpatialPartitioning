@@ -48,16 +48,16 @@ public:
 
 	inline OffsetType Add(ValueType &&value)
 	{
+		OffsetType offset = -1;
 		if (freeOffsets.size() > 0) {
-			OffsetType offset = freeOffsets.top();
+			offset = freeOffsets.top();
 			freeOffsets.pop();
 			data[offset] = std::move(value);
-			return offset;
 		} else {
-			OffsetType offset = data.size();
+			offset = data.size();
 			data.push_back(value);
-			return offset;
 		}
+		return offset;
 	}
 
 	inline void Remove(OffsetType offset)

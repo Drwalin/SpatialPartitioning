@@ -34,18 +34,28 @@ void Dbvh::ShrinkToFit()
 
 void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
-	if (fastRebalance == true) {
-		FastRebalance();
-	}
+	// 	if (fastRebalance == true) {
+	// 		FastRebalance();
+	// 	}
 
 	assert(rootNode != 0);
-	int32_t offset = data.Add(entity, {aabb, entity, mask});
+	
+	
+	if (int32_t c = CountEntities() - data.Size()) {
+		printf("                      $$$$$$$$$$$$$$$$$$$$$$$$$$$$ "
+				"tree count before adding                 %6i =?= %6i\n",
+				c + data.Size(), data.Size());
+		fflush(stdout);
+	}
+	
+	const int32_t offset = data.Add(entity, {aabb, entity, mask});
 
 	for (int32_t i = 0; i < 2; ++i) {
 		if (nodes[rootNode].children[i] <= 0) {
 			nodes[rootNode].children[i] = offset + OFFSET;
 			nodes[rootNode].aabb[i] = aabb;
 			nodes[rootNode].mask |= mask;
+			data[offset].parent = rootNode;
 			return;
 		}
 	}
@@ -60,9 +70,11 @@ void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 		}
 		float dv[2] = {0.0f, 0.0f};
 
+		const int32_t parentNodeId = node;
+
 		for (int i = 0; i < 2; ++i) {
-			Aabb ab = nodes[node].aabb[i];
-			dv[i] = (ab + aabb).GetVolume() - ab.GetVolume();
+			Aabb ab = nodes[parentNodeId].aabb[i];
+			dv[i] = (ab + aabb).GetVolume();
 		}
 
 		int c = 0;
@@ -70,19 +82,20 @@ void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 			c = 1;
 		}
 
-		const int32_t n = nodes[node].children[c];
+		const int32_t n = nodes[parentNodeId].children[c];
 
 		if (n <= 0) {
-			printf("Dupa\n");
+			assert(!"Should not happen");
 		} else if (n < OFFSET) {
-			nodes[node].mask |= mask;
-			nodes[node].aabb[c] = nodes[node].aabb[c] + aabb;
+			nodes[parentNodeId].mask |= mask;
+			nodes[parentNodeId].aabb[c] = nodes[parentNodeId].aabb[c] + aabb;
 			node = n;
 			continue;
 		} else {
-			const int32_t parentNodeId = node;
-			NodeData &parentNode = nodes[parentNodeId];
+			const int32_t otherChildId = n;
+
 			const int32_t newNodeId = nodes.Add({});
+			NodeData &parentNode = nodes[parentNodeId];
 			NodeData &newNode = nodes[newNodeId];
 
 			newNode.parent = parentNodeId;
@@ -97,9 +110,74 @@ void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 			parentNode.mask |= mask;
 			parentNode.aabb[c] = parentNode.aabb[c] + aabb;
 			parentNode.children[c] = newNodeId;
+
+			SetParent(otherChildId, newNodeId);
+			data[offset].parent = newNodeId;
+
+			if (int32_t c = CountEntities() - data.Size()) {
+				printf("                      $$$$$$$$$$$$$$$$$$$$$$$$$$$$ "
+					   "tree count after adding before rebalance %6i =?= %6i\n",
+					   c + data.Size(), data.Size());
+				printf("\n");
+				fflush(stdout);
+			}
+
+			/*
+			RebalanceUpToRoot(newNodeId, 1);
+
+			if (int32_t c = CountEntities() - data.Size()) {
+				printf("                      $$$$$$$$$$$$$$$$$$$$$$$$$$$$ "
+					   "tree count after adding and rebalance    %6i =?= %6i\n",
+					   c + data.Size(), data.Size());
+				fflush(stdout);
+			}
+			*/
+
 			break;
 		}
 	}
+}
+
+int32_t Dbvh::CountNodes() const
+{
+	static int32_t (*fun)(const Dbvh *s, int32_t node) =
+		+[](const Dbvh *s, int32_t node) -> int32_t {
+		if (node <= 0 || node > OFFSET) {
+			return 0;
+		}
+		return 1 + fun(s, s->nodes[node].children[0]) +
+			   fun(s, s->nodes[node].children[1]);
+	};
+	return fun(this, rootNode);
+}
+
+int32_t Dbvh::CountEntities() const
+{
+	static int32_t (*fun)(const Dbvh *s, int32_t node) =
+		+[](const Dbvh *s, int32_t node) -> int32_t {
+		if (node <= 0) {
+			return 0;
+		} else if (node < OFFSET) {
+			return fun(s, s->nodes[node].children[0]) +
+				   fun(s, s->nodes[node].children[1]);
+		} else {
+			return 1;
+		}
+	};
+	return fun(this, rootNode);
+}
+
+int32_t Dbvh::CountDepth() const
+{
+	static int32_t (*fun)(const Dbvh *s, int32_t node) =
+		+[](const Dbvh *s, int32_t node) -> int32_t {
+		if (node <= 0 || node >= OFFSET) {
+			return 1;
+		}
+		return 1 + std::max(fun(s, s->nodes[node].children[0]),
+							fun(s, s->nodes[node].children[1]));
+	};
+	return fun(this, rootNode);
 }
 
 void Dbvh::Update(EntityType entity, Aabb aabb)
@@ -109,6 +187,7 @@ void Dbvh::Update(EntityType entity, Aabb aabb)
 	int32_t offset = data.GetOffset(entity);
 	data[offset].aabb = aabb;
 	UpdateAabb(offset);
+	RebalanceNodesRecursively(data[offset].parent, 1);
 }
 
 void Dbvh::Remove(EntityType entity)
@@ -315,35 +394,49 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 	}
 }
 
-void Dbvh::Rebuild() {
-	static int32_t(*fun)(Dbvh *s, int32_t node) =
-		+[](Dbvh *s, int32_t node)->int32_t
-		{
-			if (node <= 0 || node >= OFFSET) {
-				return 1;
-			}
-			return 1+std::max(
-				fun(s, s->nodes[node].children[0]),
-				fun(s, s->nodes[node].children[1]));
-		};
-	printf(" depth of tree = %i\n", fun(this, rootNode));
+void Dbvh::Rebuild()
+{
+	FastRebalance();
+	printf(" Bdvh: depth of tree = %i\n", CountDepth());
 }
 
 void Dbvh::FastRebalance()
 {
 	fastRebalance = false;
 
-	RebalanceNode(rootNode);
+	RebalanceNodesRecursively(rootNode, -1);
 }
 
-void Dbvh::RebalanceNode(int32_t node)
+void Dbvh::RebalanceUpToRoot(int32_t node, int32_t rebalancingDepth)
 {
+	while (node > 0 && node != rootNode) {
+		RebalanceNodesRecursively(node, rebalancingDepth);
+		node = nodes[node].parent;
+	}
+}
+
+void Dbvh::RebalanceNodesRecursively(int32_t node, int32_t depth)
+{
+	if (depth == 0) {
+		return;
+	}
+
 	if (node <= 0) { // leaf
 		assert(!"should not happen");
 		return;
 	} else if (node > OFFSET) { // leaf
 		return;
 	}
+
+	DoBestNodeRotation(node);
+
+	for (int i = 0; i < 2; ++i) {
+		RebalanceNodesRecursively(nodes[node].children[i], depth - 1);
+	}
+
+	return;
+
+	/*
 
 	int grandchildrenNodeCount = 0;
 	int grandchildrenCount = 0;
@@ -434,19 +527,269 @@ void Dbvh::RebalanceNode(int32_t node)
 	// try test for left/right rotation
 	{
 		NodeData &parent = nodes[node];
-		if (parent.aabb[0].HasIntersection(parent.aabb[1])) {
+		if (parent.aabb[0] && parent.aabb[1]) {
 			float rotationOverlaps[3] = {-1, -1, -1};
 			rotationOverlaps[0] = (parent.aabb[0] * parent.aabb[1]).GetVolume();
-			
-			
-			
-		} 
+
+
+
+		}
 	}
 
 	// go to children
 	for (int i = 0; i < 2; ++i) {
-		RebalanceNode(nodes[node].children[i]);
+		RebalanceNodesRecursively(nodes[node].children[i], depth-1);
 	}
+	*/
+}
+
+void Dbvh::DoBestNodeRotation(int32_t node)
+{
+	if (node <= 0) { // leaf
+		assert(!"should not happen");
+		return;
+	} else if (node > OFFSET) { // leaf
+		return;
+	}
+
+	const static int32_t rotations[7][2] = {
+		{0b0100, 0b1000}, {0b0100, 0b1010}, {0b0100, 0b1011}, {0b0110, 0b1000},
+		{0b0111, 0b1000}, {0b0111, 0b1010}, {0b0111, 0b1011}};
+	float minRotationValue;
+	GetRotationIntersectionVolume(node, rotations[0][0], rotations[0][1],
+								  &minRotationValue);
+	int32_t bestRotationId = 0;
+	for (int32_t i = 1; i < 7; ++i) {
+		float v = 100000.0f;
+		if (GetRotationIntersectionVolume(node, rotations[i][0],
+										  rotations[i][1], &v)) {
+			if (v < minRotationValue) {
+				bestRotationId = i;
+			}
+		}
+	}
+
+	if (bestRotationId > 0) {
+		DoRotation(node, rotations[bestRotationId][0],
+				   rotations[bestRotationId][1]);
+	}
+}
+
+bool Dbvh::GetRotationIntersectionVolume(int32_t parentNode, int32_t lId,
+										 int32_t rId, float *resultValue) const
+{
+	if ((lId | rId) == 0b1100 || lId == 0 || rId == 0) {
+		const NodeData &n = nodes[parentNode];
+		if (n.aabb[0] && n.aabb[1]) {
+			*resultValue = n.aabb[0].GetVolume() + n.aabb[1].GetVolume();
+		} else {
+			*resultValue = -1.0f;
+		}
+		return true;
+	}
+
+	int32_t leftId, leftParentId, leftOffset;
+	if (GetNodeOffsetsAndInfo(parentNode, lId, &leftId, &leftParentId,
+							  &leftOffset) == false) {
+		return false;
+	}
+	int32_t rightId, rightParentId, rightOffset;
+	if (GetNodeOffsetsAndInfo(parentNode, lId, &rightId, &rightParentId,
+							  &rightOffset) == false) {
+		return false;
+	}
+
+	const NodeData *root = &nodes[parentNode];
+	const NodeData *leftParent = &nodes[leftParentId];
+	const NodeData *rightParent = &nodes[rightParentId];
+
+	Aabb leftAabb = leftParent->aabb[leftOffset];
+	Aabb rightAabb = rightParent->aabb[rightOffset];
+
+	if (leftParent == root) {
+		Aabb otherAabb = rightParent->aabb[rightOffset ^ 1];
+		rightAabb = rightAabb + otherAabb;
+	} else if (rightParent == root) {
+		Aabb otherAabb = leftParent->aabb[leftOffset ^ 1];
+		rightAabb = leftAabb + otherAabb;
+	}
+
+	if (leftAabb && rightAabb) {
+		*resultValue = leftAabb.GetVolume() + rightAabb.GetVolume();
+	} else {
+		*resultValue = -1.0f;
+	}
+
+	return true;
+}
+
+void Dbvh::DoRotation(int32_t parentNode, int32_t lId, int32_t rId)
+{
+	if ((lId | rId) == 0b1100 || lId == 0 || rId == 0) {
+		return;
+	}
+
+	int32_t leftId, leftParentId, leftOffset;
+	if (GetNodeOffsetsAndInfo(parentNode, lId, &leftId, &leftParentId,
+							  &leftOffset) == false) {
+		assert(!"Should not happen");
+		return;
+	}
+	int32_t rightId, rightParentId, rightOffset;
+	if (GetNodeOffsetsAndInfo(parentNode, lId, &rightId, &rightParentId,
+							  &rightOffset) == false) {
+		assert(!"Should not happen");
+		return;
+	}
+
+	NodeData *const root = &nodes[parentNode];
+	NodeData *const leftParent = &nodes[leftParentId];
+	NodeData *const rightParent = &nodes[rightParentId];
+
+	std::swap(leftParent->children[leftOffset],
+			  rightParent->children[rightOffset]);
+	std::swap(leftParent->aabb[leftOffset], rightParent->aabb[rightOffset]);
+	SetParent(leftId, rightParentId);
+	SetParent(rightId, leftParentId);
+
+	if (leftParent == root) {
+		leftParent->aabb[leftOffset ^ 1] =
+			GetDirectAabb(leftParent->children[leftOffset ^ 1]);
+		rightParent->mask = GetIndirectMask(rightParentId);
+		leftParent->mask = GetIndirectMask(leftParentId);
+	} else if (rightParent == root) {
+		rightParent->aabb[rightOffset ^ 1] =
+			GetDirectAabb(rightParent->children[rightOffset ^ 1]);
+		leftParent->mask = GetIndirectMask(leftParentId);
+		rightParent->mask = GetIndirectMask(rightParentId);
+	} else {
+		leftParent->mask = GetIndirectMask(leftParentId);
+		rightParent->mask = GetIndirectMask(rightParentId);
+	}
+}
+
+void Dbvh::SetParent(int32_t node, int32_t parent)
+{
+	if (node <= 0) {
+		assert(!"Should not happen");
+	} else if (node < OFFSET) {
+		nodes[node].parent = parent;
+	} else {
+		data[node - OFFSET].parent = parent;
+	}
+}
+
+bool Dbvh::GetNodeOffsetsAndInfo(int32_t rootNodeId, int32_t id,
+								 int32_t *nodeId, int32_t *parentNodeId,
+								 int32_t *childIdOfParent) const
+{
+	NodeData const *root = &nodes[rootNodeId];
+	NodeData const *child = nullptr;
+
+	if (id & 0b0100) {
+		if (id == 0b0100) {
+			*parentNodeId = rootNodeId;
+			*nodeId = root->children[0];
+			*childIdOfParent = 0;
+			return true;
+		}
+		*parentNodeId = root->children[0];
+		if (*parentNodeId <= 0 || *parentNodeId > OFFSET) {
+			return false;
+		}
+		child = &nodes[*parentNodeId];
+	} else if (id & 0b1000) {
+		if (id == 0b1000) {
+			*parentNodeId = rootNodeId;
+			*nodeId = root->children[1];
+			*childIdOfParent = 1;
+			return true;
+		}
+		*parentNodeId = root->children[1];
+		if (*parentNodeId <= 0 || *parentNodeId > OFFSET) {
+			return false;
+		}
+		child = &nodes[*parentNodeId];
+	} else {
+		*nodeId = rootNodeId;
+		*parentNodeId = 0;
+		*childIdOfParent = 0;
+		return true;
+	}
+
+	*nodeId = child->children[id & 1];
+	*childIdOfParent = id & 1;
+	return true;
+}
+
+int32_t Dbvh::GetIndirectMask(int32_t node) const
+{
+	if (node <= 0) {
+		return 0;
+	} else if (node < OFFSET) {
+		int32_t mask = 0;
+		for (int i = 0; i < 2; ++i) {
+			mask |= GetDirectMask(nodes[node].children[i]);
+		}
+		return mask;
+	} else {
+		return data[node - OFFSET].mask;
+	}
+}
+
+int32_t Dbvh::GetDirectMask(int32_t node) const
+{
+	if (node <= 0) {
+		return 0;
+	} else if (node > OFFSET) {
+		return data[node - OFFSET].mask;
+	} else {
+		return nodes[node].mask;
+	}
+}
+
+Aabb Dbvh::GetIndirectAabb(int32_t node) const
+{
+	if (node <= 0) {
+		assert(!"cannot happen");
+		return {};
+	} else if (node > OFFSET) {
+		return data[node - OFFSET].aabb;
+	} else {
+		Aabb l = GetDirectAabb(nodes[node].children[0]);
+		Aabb r = GetDirectAabb(nodes[node].children[1]);
+		if (nodes[node].children[0] > 0) {
+			if (nodes[node].children[1] > 0) {
+				return l + r;
+			} else {
+				return l;
+			}
+		} else if (nodes[node].children[1] > 0) {
+			return r;
+		}
+	}
+	return {};
+}
+
+Aabb Dbvh::GetDirectAabb(int32_t node) const
+{
+	if (node <= 0) {
+		assert(!"cannot happen");
+		return {};
+	} else if (node > OFFSET) {
+		return data[node - OFFSET].aabb;
+	} else {
+		if (nodes[node].children[0] > 0) {
+			if (nodes[node].children[1] > 0) {
+				return nodes[node].aabb[0] + nodes[node].aabb[1];
+			} else {
+				return nodes[node].aabb[0];
+			}
+		} else if (nodes[node].children[1] > 0) {
+			return nodes[node].aabb[1];
+		}
+	}
+	return {};
 }
 
 /*

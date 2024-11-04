@@ -7,7 +7,7 @@
 #include "../../thirdparty/glm/glm/ext/vector_float3.hpp"
 #include "../../thirdparty/glm/glm/common.hpp"
 #include "../../thirdparty/glm/glm/geometric.hpp"
-#include "glm/vector_relational.hpp"
+#include "../../thirdparty/glm/glm/vector_relational.hpp"
 
 namespace spp
 {

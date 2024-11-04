@@ -10,9 +10,9 @@
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
 #include "../include/spatial_partitioning/Dbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 100000;
-const size_t TOTAL_AABB_TESTS = 100000;
-const size_t TOTAL_AABB_MOVEMENTS = 100;
+const int32_t TOTAL_ENTITIES = 10000;
+const size_t TOTAL_AABB_TESTS = 10000;
+const size_t TOTAL_AABB_MOVEMENTS = 10000;
 const size_t MAX_MOVING_ENTITIES = 1500;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
@@ -21,8 +21,8 @@ std::mt19937_64 mt(12345);
 
 enum TestType {
 	TEST_AABB = 1,
-	TEST_RAY = 2,
-	TEST_RAY_FIRST = 3,
+	TEST_RAY_FIRST = 2,
+	TEST_RAY = 3,
 };
 
 struct EntityData {
@@ -326,7 +326,7 @@ int main()
 	spp::Dbvh dbvh;
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
-		&bf,
+// 		&bf,
 		&bvh,
 		&dbvh,
 	};
@@ -411,7 +411,7 @@ int main()
 
 	for (int i = 1; i <= 3; ++i) {
 		printf("\n     TestType: %s\n", i == 1	 ? "AABB"
-										: i == 2 ? "RAY"
+										: i == 3 ? "RAY"
 												 : "RAY_FIRST");
 		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
 	}

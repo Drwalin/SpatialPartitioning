@@ -7,9 +7,11 @@
 #include "../../thirdparty/glm/glm/ext/vector_float3.hpp"
 #include "../../thirdparty/glm/glm/common.hpp"
 #include "../../thirdparty/glm/glm/geometric.hpp"
+#include "glm/vector_relational.hpp"
 
 namespace spp
 {
+inline static const float EPSILON = 0.000001f;
 struct AabbCentered;
 
 struct Aabb {
@@ -33,8 +35,8 @@ public:
 
 	inline bool HasIntersection(const Aabb &r) const
 	{
-		return glm::all(glm::lessThanEqual(min, r.max) &
-						glm::lessThanEqual(r.min, max));
+		return glm::all(glm::lessThanEqual(min-EPSILON, r.max) &
+						glm::lessThanEqual(r.min-EPSILON, max));
 	}
 	inline Aabb Intersection(const Aabb &r) const
 	{
@@ -47,8 +49,8 @@ public:
 	
 	inline bool ContainsAll(const Aabb &r) const
 	{
-		return glm::all(glm::lessThanEqual(min, r.min) &
-						glm::lessThanEqual(r.max, max));
+		return glm::all(glm::lessThanEqual(min-EPSILON, r.min) &
+						glm::lessThanEqual(r.max, max+EPSILON));
 	}
 
 	inline bool FastRayTest(glm::vec3 ro, glm::vec3 rd, const glm::vec3 invDir,
@@ -93,8 +95,9 @@ public:
 
 	inline bool HasIntersection(const AabbCentered &r) const
 	{
-		return glm::all(glm::lessThanEqual(GetMin(), r.GetMax()) &
-						glm::lessThanEqual(r.GetMin(), GetMax()));
+		return glm::all(glm::lessThanEqual(glm::abs(center-r.center), halfSize+r.halfSize+EPSILON));
+		return glm::all(glm::lessThanEqual(GetMin()-EPSILON, r.GetMax()) &
+						glm::lessThanEqual(r.GetMin()-EPSILON, GetMax()));
 	}
 	inline Aabb Intersection(const AabbCentered &r) const
 	{
@@ -108,7 +111,7 @@ public:
 	inline bool ContainsAll(const AabbCentered &r) const
 	{
 		return glm::all(glm::lessThanEqual(glm::abs(center-r.center)+r.halfSize,
-					halfSize));
+					halfSize+EPSILON));
 	}
 
 	inline bool FastRayTest(glm::vec3 ro, glm::vec3 rd, const glm::vec3 invDir,

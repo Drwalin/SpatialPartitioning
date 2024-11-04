@@ -8,7 +8,17 @@
 
 namespace spp
 {
+#ifndef SPP_ENTITY_TYPE
 using EntityType = uint64_t;
+#else
+using EntityType = SPP_ENTITY_TYPE
+#endif
+
+#ifndef SPP_MASK_TYPE
 using MaskType = uint32_t;
+#else
+using MaskType = SPP_MASK_TYPE
+#endif
+
 inline const EntityType EMPTY_ENTITY = 0;
 }

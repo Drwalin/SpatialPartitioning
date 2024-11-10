@@ -25,6 +25,10 @@ HashLooseOctree::HashLooseOctree(float resolution,
 }
 HashLooseOctree::~HashLooseOctree() {}
 
+void HashLooseOctree::Rebuild()
+{
+}
+
 const char *HashLooseOctree::GetName() const { return "HashLooseOctree"; }
 
 void HashLooseOctree::Clear()
@@ -63,7 +67,7 @@ int32_t HashLooseOctree::CalcHashMinLevel(Aabb aabb)
 
 #define ROT64(V, R) ((V<<R) | (V>>(64-R)))
 
-uint64_t HashLooseOctree::Hash(const glm::vec3 pos, int32_t level)
+uint64_t HashLooseOctree::Hash(const glm::vec3 pos, int32_t level) const
 {
 	if (level > levels) {
 		return 3141592653589793238lu;
@@ -73,7 +77,7 @@ uint64_t HashLooseOctree::Hash(const glm::vec3 pos, int32_t level)
 	return Hash(p, level);
 }
 
-uint64_t HashLooseOctree::Hash(const glm::ivec3 pos, int32_t level)
+uint64_t HashLooseOctree::Hash(const glm::ivec3 pos, int32_t level) const
 {
 	if (level > levels) {
 		return 3141592653589793238lu;
@@ -196,7 +200,7 @@ void HashLooseOctree::Remove(EntityType entity)
 {
 	const int32_t offset = data.GetOffset(entity);
 	const Aabb aabb = data[offset].aabb;
-	MaskType mask = data[offset].mask;
+// 	MaskType mask = data[offset].mask;
 	data[offset] = {};
 	int32_t level = CalcHashMinLevel(aabb);
 	
@@ -273,9 +277,14 @@ MaskType HashLooseOctree::GetMask(EntityType entity) const
 	return 0;
 }
 
-Aabb HashLooseOctree::CalcAabbOfNode(glm::ivec3 pos, int32_t level)
+Aabb HashLooseOctree::CalcLocalAabbOfNode(glm::ivec3 pos, int32_t level)
 {
-	
+	Aabb aabb;
+	pos &= ~((1<<level)-1);
+	aabb.min = pos;
+	int32_t size = 1<<level;
+	aabb.max = pos + glm::ivec3(size, size, size);
+	return aabb;
 }
 
 void HashLooseOctree::IntersectAabb(IntersectionCallback &cb)
@@ -285,41 +294,111 @@ void HashLooseOctree::IntersectAabb(IntersectionCallback &cb)
 	}
 	cb.broadphase = this;
 	
-	glm::ivec3 a = cb.aabb.min*
+	Aabb cbaabb = cb.aabb;
+	cbaabb.min *= invResolution;
+	cbaabb.max *= invResolution;
 	
-	_Internal_IntersectAabb(cb, rootNode);
-}
-
-void HashLooseOctree::_Internal_IntersectAabb(IntersectionCallback &cb,
-											  const int32_t node)
-{
-	if (node <= 0) {
-		return;
-	} else if (node <= OFFSET) {
-		if (nodes[node].mask & cb.mask) {
-			++cb.nodesTestedCount;
-			for (int i = 0; i < 2; ++i) {
-				if (nodes[node].aabb[i] && cb.aabb) {
-					_Internal_IntersectAabb(cb, nodes[node].children[i]);
-				}
+	// iterate over unfit objects
+	_Internal_IntersectAabb(cb, {0,0,0}, levels+1, cbaabb);
+	
+	/*
+	 * iterate over structured objects, usually up to 2 iterations in each
+	 * direction should happen
+	 */
+	const float topLevelBorder = ((1<<(levels-1)) * (loosenessFactor - 1.0));
+	glm::ivec3 a = CalcLocalAabbOfNode(cbaabb.min-topLevelBorder, levels).min;
+	glm::ivec3 b = CalcLocalAabbOfNode(cbaabb.max+topLevelBorder, levels).max;
+	const int32_t stride = 1<<levels;
+	for (glm::vec3 p=a; p.x <= b.x; p.x += stride) {
+		for (p.y=a.y; p.y <= b.y; p.y += stride) {
+			for (p.z=a.z; p.z <= b.z; p.z += stride) {
+				_Internal_IntersectAabb(cb, p, levels, cbaabb);
 			}
-		}
-	} else if (data[node - OFFSET].mask & cb.mask) {
-		++cb.nodesTestedCount;
-		if (data[node - OFFSET].aabb && cb.aabb) {
-			++cb.testedCount;
-			cb.callback(&cb, data[node - OFFSET].entity);
 		}
 	}
 }
 
-/*
+void HashLooseOctree::_Internal_IntersectAabb(IntersectionCallback &cb,
+											  glm::ivec3 pos, int32_t level, const Aabb &cbaabb)
+{
+	auto it = nodes.find(Key(this, pos, level));
+	if (it == nodes.end()) {
+		return;
+	}
+	
+	auto nodeData = it->second;
+	
+	_Inernal_IntersectAabbIterateOverData(cb, nodeData.firstChild, cbaabb);
+	
+	if (level == 0 || level > levels) {
+		return;
+	}
+	
+	const float halfSize = 1<<(level-1);
+	const int32_t isize = 1<<level;
+	const int32_t ihalfSize = 1<<(level-1);
+	const int32_t ihalf = ihalfSize;
+	const float overlap = (loosenessFactor)*halfSize;
+	
+	glm::ivec3 incl = {0,0,0};
+	
+	const Aabb totalAabb = {(glm::vec3)pos-overlap, (glm::vec3)(pos+isize)+overlap};
+	const glm::ivec3 mid = pos+ihalf;
+	
+	for (int32_t i=0; i<3; ++i) {
+		Aabb t = totalAabb;
+		t.max[i] = mid[i]+overlap;
+		if (t && cbaabb) {
+			incl[i] += 1;
+		}
+		t = totalAabb;
+		t.min[i] = mid[i]-overlap;
+		if (t && cbaabb) {
+			incl[i] += 2;
+		}
+	}
+	
+	for (int32_t i=0; i<8; ++i) {
+		if (nodeData.childrenInNodesCounts[i] == 0) {
+			continue;
+		}
+		
+		const glm::ivec3 is = {i&1,(i<<1)&1,(i<<2)&1};
+		const glm::ivec3 isd = is + 1;
+		
+		int32_t j = 0;
+		for (; j<3 && (incl[j] & isd[j]); ++j) {
+		};
+		if (j != 3) {
+			continue;
+		}
+		
+		_Internal_IntersectAabb(cb, pos + is * ihalf, level - 1, cbaabb);
+	}
+}
+
+void HashLooseOctree::_Inernal_IntersectAabbIterateOverData(IntersectionCallback &cb, int32_t firstNode, const Aabb &cbaabb)
+{
+	int32_t n = firstNode;
+	while (n >= 0) {
+		auto &N = data[n];
+		if (N.mask & cb.mask) {
+			++cb.nodesTestedCount;
+			if (N.aabb && cbaabb) {
+				++cb.testedCount;
+				cb.callback(&cb, N.entity);
+			}
+		}
+		n = data[n].next;
+	}
+}
+
 void HashLooseOctree::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
 	}
-
+	
 	cb.broadphase = this;
 	cb.dir = cb.end - cb.start;
 	cb.length = glm::length(cb.dir);
@@ -327,59 +406,140 @@ void HashLooseOctree::IntersectRay(RayCallback &cb)
 	cb.dirNormalized = cb.dir * cb.invLength;
 	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
 
-	_Internal_IntersectRay(cb, rootNode);
+	// iterate over unfit objects
+	_Internal_IntersectRay(cb, {0,0,0}, levels+1);
+	
+	glm::ivec3 dirs = glm::sign(cb.dir);
+	
+	const float topLevelBorder = ((1<<(levels-1)) * (loosenessFactor - 1.0));
+	glm::ivec3 p = CalcLocalAabbOfNode(glm::min(cb.start,cb.end)-topLevelBorder, levels).min;
+	glm::ivec3 b = CalcLocalAabbOfNode(glm::max(cb.start,cb.end)+topLevelBorder, levels).max;
+	glm::ivec3 strides = dirs * (1<<levels);
+	
+	const float size = 1<<levels;
+	const float margin = (size*(loosenessFactor-1.0f)*0.5);
+	
+	glm::vec3 d = glm::abs(cb.dir);
+	
+	glm::ivec3 axesImportance = {0,1,2};
+	{
+		int32_t _a=0, _b=0;
+		for (int32_t i=1; i<3; ++i) {
+			if (d[i] < d[_a]) {
+				_a = i;
+			} else if (d[i] > d[_b]) {
+				_b = i;
+			}
+		}
+		if (_a != _b) {
+			int32_t _c = 3 ^ _a ^ _b;
+			axesImportance = {_a, _c, _b};
+		}
+	}
+	const glm::ivec3 ai = axesImportance;
+	
+#define FOR(X) for (; dirs[X] > 0 ? p[X] <= b[X] : p[X] >= b[X]; p[X] += strides[X])
+	FOR(ai[0]) {
+		const float X = p[ai[0]];
+		const float t1 = (X - cb.start[ai[0]]) / cb.dirNormalized[ai[0]];
+		p[ai[1]] = cb.dirNormalized[ai[1]] * t1 + cb.start[ai[1]] - margin*dirs[ai[1]];
+		const float t2 = (X+strides[ai[0]] - cb.start[ai[0]]) / cb.dirNormalized[ai[0]];
+		b[ai[1]] = cb.dirNormalized[ai[1]] * t2 + cb.start[ai[1]] + margin*dirs[ai[1]];
+		FOR(ai[1]) {
+			float Y = p[ai[1]];
+			const float t1 = (Y - cb.start[ai[1]]) / cb.dirNormalized[ai[1]];
+			p[ai[2]] = cb.dirNormalized[ai[2]] * t1 + cb.start[ai[2]] - margin*dirs[ai[2]];
+			const float t2 = (X+strides[ai[1]] - cb.start[ai[1]]) / cb.dirNormalized[ai[1]];
+			b[ai[2]] = cb.dirNormalized[ai[2]] * t2 + cb.start[ai[2]] + margin*dirs[ai[2]];
+			FOR(ai[2]) {
+				Aabb aabb = CalcLocalAabbOfNode(p, levels);
+				float __n, __f;
+				if (aabb.FastRayTest(cb.start*invResolution, cb.dirNormalized,
+							cb.invDir, cb.length*invResolution,
+							__n, __f)) {
+					_Internal_IntersectRay(cb, p, levels);
+				}
+			}
+		}
+	}
 }
 
 void HashLooseOctree::_Internal_IntersectRay(RayCallback &cb,
-											 const int32_t node)
+											  glm::ivec3 pos, int32_t level)
 {
-	if (node <= 0) {
+	auto it = nodes.find(Key(this, pos, level));
+	if (it == nodes.end()) {
 		return;
-	} else if (node < OFFSET) {
-		if (nodes[node].mask & cb.mask) {
-			float __n[2], __f[2];
-			int __has = 0;
-			for (int i = 0; i < 2; ++i) {
-				++cb.nodesTestedCount;
-				if (nodes[node].aabb[i].FastRayTest(cb.start, cb.dirNormalized,
-													cb.invDir, cb.length,
-													__n[i], __f[i])) {
-					if (__n[i] < 0.0f)
-						__n[i] = 0.0f;
-					__has += i + 1;
-				}
-			}
-			switch (__has) {
-			case 1:
-				_Internal_IntersectRay(cb, nodes[node].children[0]);
-				break;
-			case 2:
-				_Internal_IntersectRay(cb, nodes[node].children[1]);
-				break;
-			case 3:
-				if (__n[1] < __n[0]) {
-					_Internal_IntersectRay(cb, nodes[node].children[1]);
-					if (__n[0] < cb.length) {
-						_Internal_IntersectRay(cb, nodes[node].children[0]);
-					}
-				} else {
-					_Internal_IntersectRay(cb, nodes[node].children[0]);
-					if (__n[1] < cb.length) {
-						_Internal_IntersectRay(cb, nodes[node].children[1]);
-					}
-				}
-				break;
-			}
+	}
+	
+	auto nodeData = it->second;
+	
+	_Inernal_IntersectRayIterateOverData(cb, nodeData.firstChild);
+	
+	if (level == 0 || level > levels) {
+		return;
+	}
+	
+	const int32_t ihalfSize = 1<<(level-1);
+	const int32_t ihalf = ihalfSize;
+	
+	struct Ords {
+		float near;
+		int32_t i;
+	} ords[8];
+	int32_t ordsCount = 0;
+	
+	for (int32_t i=0; i<8; ++i) {
+		if (nodeData.childrenInNodesCounts[i] == 0) {
+			continue;
 		}
-	} else {
-		const int32_t offset = node - OFFSET;
-		if (data[offset].mask & cb.mask) {
+		
+		const glm::ivec3 is = {i&1,(i<<1)&1,(i<<2)&1};
+		
+		glm::ivec3 p = pos + is * ihalfSize;
+		Aabb aabb = {p, p + ihalfSize};
+		float __n, __f;
+		if (aabb.FastRayTest(cb.start*invResolution, cb.dirNormalized,
+					cb.invDir, cb.length*invResolution,
+					__n, __f)) {
+			
+			int j=0;
+			for (; i<ordsCount; ++j) {
+				if (ords[j].near > __n) {
+					break;
+				}
+			}
+			if (ordsCount != j) {
+				memmove(ords+j+1, ords+j, (ordsCount-j)*sizeof(Ords));
+			}
+			ords[j] = {__n*cb.length, i};
+		}
+	}
+	
+	
+	for (int32_t _i=0; _i<ordsCount; ++_i) {
+		int32_t i = ords[_i].i;
+		const glm::ivec3 is = {i&1,(i<<1)&1,(i<<2)&1};
+		if (ords[_i].near < cb.length) {
+			_Internal_IntersectRay(cb, pos + is * ihalf, level - 1);
+		}
+	}
+}
+
+void HashLooseOctree::_Inernal_IntersectRayIterateOverData(RayCallback &cb, int32_t firstNode)
+{
+	int32_t n = firstNode;
+	while (n >= 0) {
+		auto &N = data[n];
+		if (N.mask & cb.mask) {
 			++cb.nodesTestedCount;
-			float _n, _f;
-			if (data[offset].aabb.FastRayTest(cb.start, cb.dirNormalized,
-											  cb.invDir, cb.length, _n, _f)) {
+			
+			float __n, __f;
+			if (N.aabb.FastRayTest(cb.start*invResolution, cb.dirNormalized,
+						cb.invDir, cb.length*invResolution,
+						__n, __f)) {
 				++cb.testedCount;
-				auto res = cb.callback(&cb, data[offset].entity);
+				auto res = cb.callback(&cb, N.entity);
 				if (res.intersection) {
 					if (res.dist + 0.00000001f < 1.0f) {
 						if (res.dist < 0.0f)
@@ -393,403 +553,7 @@ void HashLooseOctree::_Internal_IntersectRay(RayCallback &cb,
 				}
 			}
 		}
+		n = data[n].next;
 	}
 }
-
-void HashLooseOctree::Rebuild() { FastRebalance(); }
-
-void HashLooseOctree::FastRebalance()
-{
-	fastRebalance = false;
-
-	RebalanceNodesRecursively(rootNode, -1);
-}
-
-void HashLooseOctree::RebalanceUpToRoot(int32_t node, int32_t rebalancingDepth)
-{
-	while (node > 0 && node != rootNode) {
-		RebalanceNodesRecursively(node, rebalancingDepth);
-		node = nodes[node].parent;
-	}
-}
-
-void HashLooseOctree::RebalanceNodesRecursively(int32_t node, int32_t depth)
-{
-	if (depth == 0) {
-		return;
-	}
-
-	if (node <= 0) { // leaf
-		assert(!"should not happen");
-		return;
-	} else if (node > OFFSET) { // leaf
-		return;
-	}
-
-	DoBestNodeRotation(node);
-
-	for (int i = 0; i < 2; ++i) {
-		RebalanceNodesRecursively(nodes[node].children[i], depth - 1);
-	}
-}
-
-void HashLooseOctree::DoBestNodeRotation(int32_t node)
-{
-	if (node <= 0) { // leaf
-		assert(!"should not happen");
-		return;
-	} else if (node > OFFSET) { // leaf
-		return;
-	}
-
-	const static int32_t rotations[7][2] = {
-		{0b0100, 0b1000}, {0b0100, 0b1010}, {0b0100, 0b1011}, {0b0110, 0b1000},
-		{0b0111, 0b1000}, {0b0111, 0b1010}, {0b0111, 0b1011}};
-	float minRotationValue;
-	GetRotationIntersectionVolume(node, rotations[0][0], rotations[0][1],
-								  &minRotationValue);
-	int32_t bestRotationId = 0;
-	for (int32_t i = 1; i < 7; ++i) {
-		float v = 100000.0f;
-		if (GetRotationIntersectionVolume(node, rotations[i][0],
-										  rotations[i][1], &v)) {
-			if (v < minRotationValue) {
-				bestRotationId = i;
-			}
-		}
-	}
-
-	if (bestRotationId > 0) {
-		DoRotation(node, rotations[bestRotationId][0],
-				   rotations[bestRotationId][1]);
-	}
-}
-
-bool HashLooseOctree::GetRotationIntersectionVolume(int32_t parentNode,
-													int32_t lId, int32_t rId,
-													float *resultValue) const
-{
-	if ((lId | rId) == 0b1100 || lId == 0 || rId == 0) {
-		const NodeData &n = nodes[parentNode];
-		if (n.aabb[0] && n.aabb[1]) {
-			*resultValue = n.aabb[0].GetVolume() + n.aabb[1].GetVolume();
-		} else {
-			*resultValue = -1.0f;
-		}
-		return true;
-	}
-
-	int32_t leftId, leftParentId, leftOffset;
-	if (GetNodeOffsetsAndInfo(parentNode, lId, &leftId, &leftParentId,
-							  &leftOffset) == false) {
-		return false;
-	}
-	int32_t rightId, rightParentId, rightOffset;
-	if (GetNodeOffsetsAndInfo(parentNode, lId, &rightId, &rightParentId,
-							  &rightOffset) == false) {
-		return false;
-	}
-
-	const NodeData *root = &nodes[parentNode];
-	const NodeData *leftParent = &nodes[leftParentId];
-	const NodeData *rightParent = &nodes[rightParentId];
-
-	Aabb leftAabb = leftParent->aabb[leftOffset];
-	Aabb rightAabb = rightParent->aabb[rightOffset];
-
-	if (leftParent == root) {
-		Aabb otherAabb = rightParent->aabb[rightOffset ^ 1];
-		rightAabb = rightAabb + otherAabb;
-	} else if (rightParent == root) {
-		Aabb otherAabb = leftParent->aabb[leftOffset ^ 1];
-		rightAabb = leftAabb + otherAabb;
-	}
-
-	if (leftAabb && rightAabb) {
-		*resultValue = leftAabb.GetVolume() + rightAabb.GetVolume();
-	} else {
-		*resultValue = -1.0f;
-	}
-
-	return true;
-}
-
-void HashLooseOctree::DoRotation(int32_t parentNode, int32_t lId, int32_t rId)
-{
-	if ((lId | rId) == 0b1100 || lId == 0 || rId == 0) {
-		return;
-	}
-
-	int32_t leftId, leftParentId, leftOffset;
-	if (GetNodeOffsetsAndInfo(parentNode, lId, &leftId, &leftParentId,
-							  &leftOffset) == false) {
-		assert(!"Should not happen");
-		return;
-	}
-	int32_t rightId, rightParentId, rightOffset;
-	if (GetNodeOffsetsAndInfo(parentNode, lId, &rightId, &rightParentId,
-							  &rightOffset) == false) {
-		assert(!"Should not happen");
-		return;
-	}
-
-	NodeData *const root = &nodes[parentNode];
-	NodeData *const leftParent = &nodes[leftParentId];
-	NodeData *const rightParent = &nodes[rightParentId];
-
-	std::swap(leftParent->children[leftOffset],
-			  rightParent->children[rightOffset]);
-	std::swap(leftParent->aabb[leftOffset], rightParent->aabb[rightOffset]);
-	SetParent(leftId, rightParentId);
-	SetParent(rightId, leftParentId);
-
-	if (leftParent == root) {
-		leftParent->aabb[leftOffset ^ 1] =
-			GetDirectAabb(leftParent->children[leftOffset ^ 1]);
-		rightParent->mask = GetIndirectMask(rightParentId);
-		leftParent->mask = GetIndirectMask(leftParentId);
-	} else if (rightParent == root) {
-		rightParent->aabb[rightOffset ^ 1] =
-			GetDirectAabb(rightParent->children[rightOffset ^ 1]);
-		leftParent->mask = GetIndirectMask(leftParentId);
-		rightParent->mask = GetIndirectMask(rightParentId);
-	} else {
-		leftParent->mask = GetIndirectMask(leftParentId);
-		rightParent->mask = GetIndirectMask(rightParentId);
-	}
-}
-
-void HashLooseOctree::SetParent(int32_t node, int32_t parent)
-{
-	if (node <= 0) {
-		assert(!"Should not happen");
-	} else if (node < OFFSET) {
-		nodes[node].parent = parent;
-	} else {
-		data[node - OFFSET].parent = parent;
-	}
-}
-
-bool HashLooseOctree::GetNodeOffsetsAndInfo(int32_t rootNodeId, int32_t id,
-											int32_t *nodeId,
-											int32_t *parentNodeId,
-											int32_t *childIdOfParent) const
-{
-	NodeData const *root = &nodes[rootNodeId];
-	NodeData const *child = nullptr;
-
-	if (id & 0b0100) {
-		if (id == 0b0100) {
-			*parentNodeId = rootNodeId;
-			*nodeId = root->children[0];
-			*childIdOfParent = 0;
-			return true;
-		}
-		*parentNodeId = root->children[0];
-		if (*parentNodeId <= 0 || *parentNodeId > OFFSET) {
-			return false;
-		}
-		child = &nodes[*parentNodeId];
-	} else if (id & 0b1000) {
-		if (id == 0b1000) {
-			*parentNodeId = rootNodeId;
-			*nodeId = root->children[1];
-			*childIdOfParent = 1;
-			return true;
-		}
-		*parentNodeId = root->children[1];
-		if (*parentNodeId <= 0 || *parentNodeId > OFFSET) {
-			return false;
-		}
-		child = &nodes[*parentNodeId];
-	} else {
-		*nodeId = rootNodeId;
-		*parentNodeId = 0;
-		*childIdOfParent = 0;
-		return true;
-	}
-
-	*nodeId = child->children[id & 1];
-	*childIdOfParent = id & 1;
-	return true;
-}
-
-int32_t HashLooseOctree::GetIndirectMask(int32_t node) const
-{
-	if (node <= 0) {
-		return 0;
-	} else if (node < OFFSET) {
-		int32_t mask = 0;
-		for (int i = 0; i < 2; ++i) {
-			mask |= GetDirectMask(nodes[node].children[i]);
-		}
-		return mask;
-	} else {
-		return data[node - OFFSET].mask;
-	}
-}
-
-int32_t HashLooseOctree::GetDirectMask(int32_t node) const
-{
-	if (node <= 0) {
-		return 0;
-	} else if (node > OFFSET) {
-		return data[node - OFFSET].mask;
-	} else {
-		return nodes[node].mask;
-	}
-}
-
-Aabb HashLooseOctree::GetIndirectAabb(int32_t node) const
-{
-	if (node <= 0) {
-		assert(!"cannot happen");
-		return {};
-	} else if (node > OFFSET) {
-		AabbCentered r = data[node - OFFSET].aabb;
-		r.halfSize += glm::vec3{1, 1, 1};
-		return r;
-	} else {
-		Aabb l = GetDirectAabb(nodes[node].children[0]);
-		Aabb r = GetDirectAabb(nodes[node].children[1]);
-		if (nodes[node].children[0] > 0) {
-			if (nodes[node].children[1] > 0) {
-				return l + r;
-			} else {
-				return l;
-			}
-		} else if (nodes[node].children[1] > 0) {
-			return r;
-		}
-	}
-	return {};
-}
-
-Aabb HashLooseOctree::GetDirectAabb(int32_t node) const
-{
-	if (node <= 0) {
-		assert(!"cannot happen");
-		return {};
-	} else if (node > OFFSET) {
-		AabbCentered r = data[node - OFFSET].aabb;
-		r.halfSize += glm::vec3{1, 1, 1};
-		return r;
-	} else {
-		if (nodes[node].children[0] > 0) {
-			if (nodes[node].children[1] > 0) {
-				return nodes[node].aabb[0] + nodes[node].aabb[1];
-			} else {
-				return nodes[node].aabb[0];
-			}
-		} else if (nodes[node].children[1] > 0) {
-			return nodes[node].aabb[1];
-		}
-	}
-	return {};
-}
-
-void HashLooseOctree::UpdateAabb(const int32_t nodeId)
-{
-	if (nodeId > OFFSET) {
-		UpdateAabb(data[nodeId - OFFSET].parent);
-		return;
-	}
-	for (int i = 0; i < 2; ++i) {
-		nodes[nodeId].aabb[i] = GetDirectAabb(nodes[nodeId].children[i]);
-	}
-	Aabb aabb = nodes[nodeId].aabb[0] + nodes[nodeId].aabb[1];
-	int32_t id = nodes[nodeId].parent;
-	int32_t childId = nodeId;
-	while (id > 0) {
-		const int i = nodes[id].children[0] == childId ? 0 : 1;
-		if (((Aabb)nodes[id].aabb[i]).ContainsAll(aabb)) {
-			return;
-		}
-		nodes[id].aabb[i] = aabb;
-		aabb = aabb + nodes[id].aabb[i ^ 1];
-		RebalanceNodesRecursively(id, 1);
-		childId = id;
-		id = nodes[childId].parent;
-	}
-}
-
-void HashLooseOctree::UpdateAabbSimple(const int32_t nodeId)
-{
-	if (nodeId > OFFSET) {
-		UpdateAabbSimple(data[nodeId - OFFSET].parent);
-		return;
-	}
-	for (int i = 0; i < 2; ++i) {
-		nodes[nodeId].aabb[i] = GetDirectAabb(nodes[nodeId].children[i]);
-	}
-	Aabb aabb = nodes[nodeId].aabb[0] + nodes[nodeId].aabb[1];
-	int32_t id = nodes[nodeId].parent;
-	int32_t childId = nodeId;
-	while (id > 0) {
-		const int i = nodes[id].children[0] == childId ? 0 : 1;
-		if (((Aabb)nodes[id].aabb[i]).ContainsAll(aabb)) {
-			return;
-		}
-		nodes[id].aabb[i] = aabb;
-		aabb = aabb + nodes[id].aabb[i ^ 1];
-		childId = id;
-		id = nodes[childId].parent;
-	}
-}
-
-void HashLooseOctree::UpdateMask(const int32_t nodeId)
-{
-	if (nodeId > OFFSET) {
-		UpdateMask(data[nodeId - OFFSET].parent);
-		return;
-	}
-	MaskType mask = 0;
-	for (int i = 0; i < 2; ++i) {
-		mask |= GetDirectMask(nodes[nodeId].children[i]);
-	}
-	int32_t id = nodes[nodeId].parent;
-	int32_t childId = nodeId;
-	while (id > 0) {
-		const int i = nodes[id].children[0] == childId ? 0 : 1;
-		MaskType m2 = GetDirectMask(nodes[id].children[i ^ 1]);
-		if (m2 == mask) {
-			break;
-		}
-		mask |= m2;
-		nodes[id].mask = mask;
-		childId = id;
-		id = nodes[childId].parent;
-	}
-}
-
-void HashLooseOctree::UpdateAabbAndMask(const int32_t nodeId)
-{
-	if (nodeId > OFFSET) {
-		UpdateAabbAndMask(data[nodeId - OFFSET].parent);
-		return;
-	}
-	MaskType mask = 0;
-	for (int i = 0; i < 2; ++i) {
-		nodes[nodeId].aabb[i] = GetDirectAabb(nodes[nodeId].children[i]);
-		mask |= GetDirectMask(nodes[nodeId].children[i]);
-	}
-	Aabb aabb = nodes[nodeId].aabb[0] + nodes[nodeId].aabb[1];
-	int32_t id = nodes[nodeId].parent;
-	int32_t childId = nodeId;
-	while (id > 0) {
-		const int i = nodes[id].children[0] == childId ? 0 : 1;
-		MaskType m2 = GetDirectMask(nodes[id].children[i ^ 1]);
-		if (m2 == mask && ((Aabb)nodes[id].aabb[i]).ContainsAll(aabb)) {
-			return;
-		}
-		mask |= m2;
-		nodes[id].mask = mask;
-		nodes[id].aabb[i] = aabb;
-		aabb = aabb + nodes[id].aabb[i ^ 1];
-		RebalanceNodesRecursively(id, 1);
-		childId = id;
-		id = nodes[childId].parent;
-	}
-}
-*/
 } // namespace spp

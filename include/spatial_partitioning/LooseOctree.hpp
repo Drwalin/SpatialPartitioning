@@ -5,6 +5,9 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdio>
+
+#include "../../thirdparty/glm/glm/ext/vector_int3.hpp"
 
 #include "AssociativeArray.hpp"
 #include "BroadPhaseBase.hpp"
@@ -17,8 +20,9 @@ namespace spp
 class LooseOctree final : public BroadphaseBase
 {
 public:
-	LooseOctree(glm::vec3 centerOffset, glm::vec3 sizeScale, int32_t depth,
-				float cellExtensionFactor);
+	// example usage LooseOctree(glm::ivec3(1,1,1)<<(levels-1), 1.0, levels)
+	LooseOctree(glm::vec3 offset, float sizeScale, int32_t levels,
+				float loosnessFactor = 1.6);
 	virtual ~LooseOctree();
 
 	virtual const char *GetName() const override;
@@ -45,55 +49,62 @@ private:
 	void UpdateAabb(int32_t entityId);
 
 	void _Internal_IntersectAabb(IntersectionCallback &cb,
-								 const int32_t nodeId);
-	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
+								 const int32_t nodeId, const Aabb &cbaabb);
+	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId, int32_t level);
 
-	glm::vec3 GetSizeOnDepth(int32_t depth) const;
 	int32_t GetChildIdFromCenter(glm::vec3 p) const;
 	glm::vec3 GetCenterOffset(int32_t depth);
 	// offset from parent node
 	glm::vec3 GetPosOffsetOfNodeAtDepth(int32_t depth, int32_t childId) const;
 
+	void RemoveStructureFor(int32_t offset);
+
+	Aabb GetAabbOfNode(int32_t nodeId) const;
+	
+	static int32_t CalcChildId(glm::ivec3 parentPos, glm::ivec3 childPos, int32_t childLevel);
+
 private:
-	struct NodePath {
-		int8_t id[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-						 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-		int32_t nodes[32] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-							 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-		int depth = 0;
+	int32_t GetNodeIdAt(glm::ivec3 pos, int32_t level);
+
+private:
+	struct IPosLevel {
+		glm::vec3 ipos;
+		int32_t level;
 	};
 
-	NodePath CalculatePathTo(Aabb aabb);
-
-private:
 	struct alignas(64) Data {
 		Aabb aabb;
 		EntityType entity = 0;
 		MaskType mask = 0;
-		int32_t nextOffset = -1;
+		int32_t prev = -1;
+		int32_t next = -1;
+		int32_t parent = -1;
 	};
 
-	struct alignas(32) NodePartialData {
-		Aabb aabb;
-		MaskType mask = 0;
-		int32_t offset = 0;
-	};
-
-	struct NodeData {
-		NodePartialData children[8];
-		Aabb aabbOfLeafs;
-		MaskType maskOfLeafs = 0;
-		int32_t firstChildOffset = 0;
+	struct alignas(64) NodeData {
+		int32_t children[8] = {-1, -1, -1, -1, -1, -1, -1, -1};
+		glm::ivec3 pos;
+		int32_t level;
+		// MaskType mask = 0;
+		int32_t firstEntity = -1;
+		int32_t parentId = -1;
+		bool HasData() const;
 	};
 
 	AssociativeArray<EntityType, int32_t, Data> data;
 	NodesArray<int32_t, NodeData> nodes;
 
-	const glm::vec3 centerOffset;
-	const glm::vec3 sizeScale;
-	const int32_t depth;
-	const float cellExtensionFactor;
-	const int32_t halfTotalSize;
-	int32_t rootNode = 0;
+	const glm::vec3 offset;
+	const float scale;
+
+	const int32_t levels;
+	const float loosnessFactor;
+	const float invLoosenessFactor;
+	const int32_t maxExtent;
+	const float margin;
+	int32_t rootNode = -1;
+
+private:
+	IPosLevel CalcIPosLevel(Aabb aabb) const;
 };
 } // namespace spp

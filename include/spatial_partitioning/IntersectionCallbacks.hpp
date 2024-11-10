@@ -52,12 +52,10 @@ struct RayCallback {
 	glm::vec3 start;
 	glm::vec3 end;
 	MaskType mask;
-	
 	glm::vec3 dir;
 	glm::vec3 dirNormalized;
 	glm::vec3 invDir;
 	float length;
-	float invLength;
 	
 	class BroadphaseBase *broadphase = nullptr;
 	

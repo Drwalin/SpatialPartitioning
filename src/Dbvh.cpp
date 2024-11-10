@@ -263,8 +263,7 @@ void Dbvh::IntersectRay(RayCallback &cb)
 	cb.broadphase = this;
 	cb.dir = cb.end - cb.start;
 	cb.length = glm::length(cb.dir);
-	cb.invLength = 1.0f / cb.length;
-	cb.dirNormalized = cb.dir * cb.invLength;
+	cb.dirNormalized = glm::normalize(cb.dir);
 	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
 
 	_Internal_IntersectRay(cb, rootNode);
@@ -324,7 +323,6 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 						if (res.dist < 0.0f)
 							res.dist = 0.0f;
 						cb.length *= res.dist;
-						cb.invLength /= res.dist;
 						cb.dir *= res.dist;
 						cb.end = cb.start + cb.dir;
 					}

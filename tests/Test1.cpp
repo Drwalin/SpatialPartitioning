@@ -128,13 +128,13 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 					cb->hitPoint = cb->start + cb->dirNormalized * n;
 					cb->hitEntity = entity;
 					cb->hasHit = true;
-					return {n * cb->invLength, true};
+					return {n / cb->length, true};
 				} else if (n < cb->hitDistance) {
 					cb->hitDistance = n;
 					cb->hitPoint = cb->start + cb->dirNormalized * n;
 					cb->hitEntity = entity;
 					cb->hasHit = true;
-					return {n * cb->invLength, true};
+					return {n / cb->length, true};
 				}
 			}
 			return {1.0f, false};
@@ -227,6 +227,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 	printf("\n");
 	for (int i = 1; i < broadphases.size(); ++i) {
 		size_t errs = glm::abs<int64_t>(ents[i].size() - ents[0].size());
+		int JJ = 0;
 		for (int j = 0; j < ents[i].size() && j < ents[0].size() &&
 						j < hitPoints[0].size() && j < hitPoints[i].size();
 			 ++j) {
@@ -255,12 +256,14 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 				}
 
 				if (er == true) {
+					++JJ;
 					++errs;
 					glm::vec3 a, b, c, d;
 					a = aabb0.min;
 					b = aabb0.max;
 					c = aabbi.min;
 					d = aabbi.max;
+					if (JJ < 10) {
 					printf("  %7i: %7lu == %7lu  ", j, p0.e, pi.e);
 					printf("%7.2f %7.2f %7.2f .. %7.2f %7.2f %7.2f <-> %7.2f "
 						   "%7.2f "
@@ -288,6 +291,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 					printf("     dist: %7.2f <-> %7.2f", p0.n, pi.n);
 
 					printf("\n");
+					}
 				}
 			}
 		}
@@ -325,8 +329,8 @@ int main()
 	spp::BvhMedianSplitHeap bvh;
 	spp::BruteForce bf;
 	spp::Dbvh dbvh;
-	spp::HashLooseOctree hlo(1.0, 14, 1.6);
-	spp::LooseOctree lo(-glm::vec3{4096,4096,4096}, 1.0, 16, 1.6);
+	spp::HashLooseOctree hlo(1.0, 13, 1.6);
+	spp::LooseOctree lo(-glm::vec3(1,1,1)*(1024*16.f), 15, 1.6);
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
 // 		&bf,

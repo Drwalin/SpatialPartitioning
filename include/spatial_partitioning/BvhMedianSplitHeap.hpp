@@ -68,7 +68,7 @@ private:
 
 private:
 	
-	struct alignas(64) Data {
+	struct alignas(32) Data {
 		AabbCentered aabb;
 		EntityType entity;
 		MaskType mask;

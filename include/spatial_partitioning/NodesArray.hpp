@@ -5,34 +5,9 @@
 #pragma once
 
 #include <vector>
-#include <queue>
 
 namespace spp
 {
-template <class T, class S, class C>
-S &GetContainer(std::priority_queue<T, S, C> &q)
-{
-	struct HackedQueue : private std::priority_queue<T, S, C> {
-		static S &Container(std::priority_queue<T, S, C> &q)
-		{
-			return q.*&HackedQueue::c;
-		}
-	};
-	return HackedQueue::Container(q);
-}
-
-template <class T, class S, class C>
-const S &GetContainer(const std::priority_queue<T, S, C> &q)
-{
-	struct HackedQueue : private std::priority_queue<T, S, C> {
-		static const S &Container(const std::priority_queue<T, S, C> &q)
-		{
-			return q.*&HackedQueue::c;
-		}
-	};
-	return HackedQueue::Container(q);
-}
-
 /*
  * Offsets start from 1
  */
@@ -50,8 +25,8 @@ public:
 	{
 		OffsetType offset = -1;
 		if (freeOffsets.size() > 0) {
-			offset = freeOffsets.top();
-			freeOffsets.pop();
+			offset = freeOffsets.back();
+			freeOffsets.resize(freeOffsets.size()-1);
 			data[offset] = std::move(value);
 		} else {
 			offset = data.size();
@@ -66,20 +41,20 @@ public:
 			data.resize(data.size() - 1);
 		} else {
 			data[offset] = {};
-			freeOffsets.push(offset);
+			freeOffsets.push_back(offset);
 		}
 	}
 
 	inline void Clear()
 	{
-		GetContainer(freeOffsets).clear();
+		freeOffsets.clear();
 		data.resize(1);
 	}
 
 	inline void ShrinkToFit()
 	{
 		data.shrink_to_fit();
-		GetContainer(freeOffsets).shrink_to_fit();
+		freeOffsets.shrink_to_fit();
 	}
 
 	inline void Reserve(OffsetType capacity) { data.reserve(capacity); }
@@ -98,12 +73,11 @@ public:
 	inline size_t GetMemoryUsage() const
 	{
 		return data.capacity() * sizeof(ValueType) +
-			   GetContainer(freeOffsets).capacity() * sizeof(OffsetType);
+			   freeOffsets.capacity() * sizeof(OffsetType);
 	}
 
 	std::vector<ValueType> &_Data() { return data; }
-	std::priority_queue<OffsetType, std::vector<OffsetType>,
-						std::greater<OffsetType>> &
+	std::vector<OffsetType> &
 	_FreeOffsets()
 	{
 		return freeOffsets;
@@ -111,8 +85,6 @@ public:
 
 private:
 	std::vector<ValueType> data;
-	std::priority_queue<OffsetType, std::vector<OffsetType>,
-						std::greater<OffsetType>>
-		freeOffsets;
+	std::vector<OffsetType> freeOffsets;
 };
 } // namespace spp

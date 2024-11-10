@@ -30,7 +30,7 @@ public:
 			return -1;
 		} else {
 			OffsetType offset = data.Add(std::move(value));
-			offsets[key] = offset;
+			offsets.insert({key, offset});
 			return offset;
 		}
 	}

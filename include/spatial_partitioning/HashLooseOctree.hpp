@@ -52,12 +52,16 @@ private:
 	static int32_t FindBestPrime(int32_t capacity);
 	// value of level should be 0 initially
 	int32_t CalcHashMinLevel(Aabb aabb);
-	uint64_t Hash(const glm::vec3 pos, int32_t level);
-	uint64_t Hash(const glm::ivec3 pos, int32_t level);
+	uint64_t Hash(const glm::vec3 pos, int32_t level) const;
+	uint64_t Hash(const glm::ivec3 pos, int32_t level) const;
 	
-	static Aabb CalcAabbOfNode(glm::ivec3 pos, int32_t level);
+	static Aabb CalcLocalAabbOfNode(glm::ivec3 pos, int32_t level);
 	
-	void _Internal_IntersectAabb(IntersectionCallback &cb, glm::ivec3 pos, int32_t level);
+	void _Internal_IntersectAabb(IntersectionCallback &cb, glm::ivec3 pos, int32_t level, const Aabb &cbaabb);
+	void _Inernal_IntersectAabbIterateOverData(IntersectionCallback &cb, int32_t firstNode, const Aabb &cbaabb);
+	
+	void _Internal_IntersectRay(RayCallback &cb, glm::ivec3 pos, int32_t level);
+	void _Inernal_IntersectRayIterateOverData(RayCallback &cb, int32_t firstNode);
 
 private:
 	struct alignas(64) Data {
@@ -82,9 +86,11 @@ private:
 	AssociativeArray<EntityType, int32_t, Data> data;
 
 	struct Key {
+		Key(const Key &o) : pos(o.pos), level(o.level) {}
 		Key(const HashLooseOctree *bp, glm::ivec3 pos, int32_t level) : pos(pos>>level), level(level) {
 			if (level > bp->levels) {
 				pos = {0,0,0};
+				level = bp->levels+1;
 			}
 		}
 		inline bool operator==(const Key &o) const
@@ -92,16 +98,18 @@ private:
 			return pos == o.pos && level == o.level;
 		}
 		struct Hash {
+		public:
+			Hash(const Hash &o) : bp(o.bp) {}
 			Hash(HashLooseOctree *bp) : bp(bp) {}
 			HashLooseOctree *bp;
-			size_t operator()(const Key &v) { return bp->Hash(v.pos, v.level); }
+			size_t operator()(const Key &v) const { return bp->Hash(v.pos, v.level); }
 		};
 	private:
 		glm::ivec3 pos;
 		int32_t level;
 	};
 
-	std::unordered_map<Key, NodeData, Key::Hash> nodes;
+	std::unordered_map<Key, NodeData, spp::HashLooseOctree::Key::Hash> nodes;
 	
 public:
 	

@@ -14,7 +14,7 @@ namespace spp
 {
 LooseOctree::LooseOctree(glm::vec3 centerOffset,
 						 int32_t levels, float loosnessFactor)
-	: data(), nodes(), offset(centerOffset), levels(levels),
+	: data(), nodes(), centerOffset(centerOffset), levels(levels),
 	  loosnessFactor(loosnessFactor), invLoosenessFactor(1.0f / loosnessFactor),
 	  maxExtent(1 << (levels - 1)), margin((loosnessFactor - 1.0) / 2.0)
 {
@@ -31,7 +31,7 @@ void LooseOctree::Clear()
 	nodes.Clear();
 	rootNode = nodes.Add({});
 	nodes[rootNode].level = levels;
-	nodes[rootNode].pos = offset;
+	nodes[rootNode].center = centerOffset;
 }
 
 size_t LooseOctree::GetMemoryUsage() const
@@ -111,19 +111,18 @@ LooseOctree::IPosLevel LooseOctree::CalcIPosLevel(Aabb aabb) const
 	
 	const IPosLevel ret{c, level};
 
-// 	printf("Calc IPos = {{%i %i %i} %i}    for  %f.1 %.1f %.1f  (%.1f)\n",
-// 			ret.ipos.x, ret.ipos.y, ret.ipos.z, ret.level,
-// 			center.x, center.y, center.z, size);
+	printf("Calc IPos = {{%i %i %i} %i}    for  %f.1 %.1f %.1f  (%.1f)\n",
+			ret.ipos.x, ret.ipos.y, ret.ipos.z, ret.level,
+			center.x, center.y, center.z, size);
 	
 	return ret;
 }
 
-Aabb LooseOctree::GetAabbOfNode(int32_t nodeId) const
+AabbCentered LooseOctree::GetAabbOfNode(int32_t nodeId) const
 {
-	glm::vec3 min = glm::vec3(nodes[nodeId].pos) - margin;
-	float size = 1 << nodes[nodeId].level;
-	glm::vec3 max = min + size * loosnessFactor;
-	return {min, max};
+	glm::vec3 center = nodes[nodeId].center;
+	float extent = (1 << (nodes[nodeId].level-1)) * loosnessFactor;
+	return {center, glm::vec3(extent, extent, extent)};
 }
 
 int32_t LooseOctree::GetNodeIdAt(Aabb aabb)
@@ -142,52 +141,31 @@ int32_t LooseOctree::GetNodeIdAt(Aabb aabb)
 	int32_t n = rootNode;
 	
 	for (; i>id.level; --i) {
-// 		printf("adsdfdsafd jdsfj jsdjf kdshfdsahfld hfldsahfjldshfldshfdlks dhskjf ldf level = %i/%i\n", i,id.level);
-
-		{
-			auto a = id.ipos;
-			auto b = nodes[n].pos;
-			if (a.x < b.x || a.y < b.y || a.z < b.z) {
-				auto p = nodes[n].pos - id.ipos;
-				printf(" dupa GetNodeIdAt: %i %i %i -> %i\n", p.x, p.y, p.z, i - 1);
-
-				printf(" trying to find: %i %i %i   in   %i %i %i\n", a.x, a.y, a.z,
-					   b.x, b.y, b.z);
-
-				return n;
-			}
-		}
-
-		int32_t cid = CalcChildId(nodes[n].pos, id.ipos, i-1);
+		int32_t cid = CalcChildId(nodes[n].center, id.ipos, i-1);
 		int32_t c = nodes[n].children[cid];
 		if (c == 0) {
 			c = nodes.Add({});
 			nodes[n].children[cid] = c;
 			nodes[c].level = i-1;
 			
-			const glm::ivec3 par = nodes[n].pos;
-			
-// 			auto v = -(par - id.ipos);
-// 			auto f = -max_comp(v);
-// 			if (f < 0) {
-// 				printf("GetNodeIdAt Dupsko childPos greater than parentPos !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-// 			}
+			const glm::ivec3 par = nodes[n].center;
 			
 			
-			const glm::ivec3 of = ((id.ipos - par)>>(i-1))<<(i-1);
+			const glm::ivec3 s = glm::sign(id.ipos - par) | glm::ivec3(1,1,1);
+			const glm::ivec3 of = s * (1<<(i-1));
 			
 			
-			nodes[c].pos = nodes[n].pos + of;
-// 			printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count: %i\n", nodes.Size());
+			nodes[c].center = nodes[n].center + of;
+			printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count: %i\n", nodes.Size());
 			
-// 			auto a = nodes[n].pos;
-// 			auto b = nodes[c].pos;
-// 			auto c = id.ipos;
-// 			printf(" new child: %i %i %i -[%i]> %i %i %i   for ipos: %i %i %i\n",
-// 					a.x, a.y, a.z,
-// 					cid,
-// 					b.x, b.y, b.z,
-// 					c.x, c.y, c.z);
+			auto a = nodes[n].center;
+			auto b = nodes[c].center;
+			auto c = id.ipos;
+			printf(" new child: %i %i %i -[%i]> %i %i %i   for ipos: %i %i %i\n",
+					a.x, a.y, a.z,
+					cid,
+					b.x, b.y, b.z,
+					c.x, c.y, c.z);
 // 		} else {
 // 			auto a = nodes[n].pos;
 // 			auto b = nodes[c].pos;
@@ -224,7 +202,7 @@ void LooseOctree::RemoveStructureFor(int32_t did)
 		const int32_t parentId = nodes[n].parentId;
 		if (nodes[n].firstEntity == 0) {
 // 			printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count: %i\n", nodes.Size());
-			const int32_t childId = CalcChildId(nodes[parentId].pos, nodes[n].pos, nodes[n].level);
+			const int32_t childId = CalcChildId(nodes[parentId].center, nodes[n].center, nodes[n].level);
 			assert(nodes[parentId].children[childId] == n && "Failed calculating child id");
 			nodes[parentId].children[childId] = 0;
 			nodes.Remove(n);
@@ -235,15 +213,13 @@ void LooseOctree::RemoveStructureFor(int32_t did)
 	}
 }
 
-int32_t LooseOctree::CalcChildId(glm::ivec3 parentPos, glm::ivec3 childPos, int32_t childLevel)
+int32_t LooseOctree::CalcChildId(glm::ivec3 parentCenter, glm::ivec3 childCenter, int32_t childLevel)
 {
-// 	auto v = -(parentPos - childPos);
-// 	auto f = -max_comp(v);
-// 	if (f < 0) {
-// 		printf("CalcChildId dupsko childPos greater than parentPos !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-// 	}
+	const glm::ivec3 s = glm::sign(childCenter - parentCenter) | glm::ivec3(1,1,1);
+	const glm::ivec3 p = (s+1)>>1;
+
 	
-	const glm::ivec3 p = (childPos - parentPos) >> childLevel;
+// 	const glm::ivec3 p = (parentCenter - childCenter) >> childLevel;
 	const int32_t ret = (p.x&1) | ((p.y<<1)&2) | ((p.z<<2)&4);
 // 	printf(" calc child diff: %i %i %i -> %i         from %i %i %i  >  %i %i %i\n", p.x, p.y, p.z, ret,
 // 			parentPos.x, parentPos.y, parentPos.z,
@@ -342,12 +318,12 @@ void LooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n, int32
 {
 	const Aabb aabb = GetAabbOfNode(n);
 	
+	++cb.nodesTestedCount;
 	float __n, __f;
 	if (n != rootNode && !aabb.FastRayTest(cb.start, cb.dirNormalized,
 				cb.invDir, cb.length, __n, __f)) {
 		return;
 	}
-	++cb.nodesTestedCount;
 	
 	for (int32_t c = nodes[n].firstEntity; c; c = data[c].next) {
 		Data &N = data[c];

@@ -96,8 +96,6 @@ public:
 	inline bool HasIntersection(const AabbCentered &r) const
 	{
 		return glm::all(glm::lessThanEqual(glm::abs(center-r.center), halfSize+r.halfSize+EPSILON));
-		return glm::all(glm::lessThanEqual(GetMin()-EPSILON, r.GetMax()) &
-						glm::lessThanEqual(r.GetMin()-EPSILON, GetMax()));
 	}
 	inline Aabb Intersection(const AabbCentered &r) const
 	{

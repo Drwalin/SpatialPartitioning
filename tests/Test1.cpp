@@ -11,10 +11,11 @@
 #include "../include/spatial_partitioning/Dbvh.hpp"
 #include "../include/spatial_partitioning/HashLooseOctree.hpp"
 #include "../include/spatial_partitioning/LooseOctree.hpp"
+#include "../include/spatial_partitioning/BulletDbvh.hpp"
 
 const int32_t TOTAL_ENTITIES = 10000;
 const size_t TOTAL_AABB_TESTS = 10000;
-const size_t TOTAL_AABB_MOVEMENTS = 10000;
+const size_t TOTAL_AABB_MOVEMENTS = 100000;
 const size_t MAX_MOVING_ENTITIES = 1500;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
@@ -331,13 +332,15 @@ int main()
 	spp::Dbvh dbvh;
 	spp::HashLooseOctree hlo(1.0, 13, 1.6);
 	spp::LooseOctree lo(-glm::vec3(1,1,1)*(1024*16.f), 15, 1.6);
+	spp::BulletDbvh btDbvh;
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
 // 		&bf,
 		&bvh,
 		&dbvh,
 // 		&hlo,
-		&lo,
+// 		&lo,
+		&btDbvh,
 	};
 
 	for (auto bp : broadphases) {
@@ -508,6 +511,13 @@ int main()
 												 : "RAY_FIRST");
 		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
 	}
+	
+	printf("\n");
+	for (auto bp : broadphases) {
+		printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(), bp->GetMemoryUsage(), bp->GetMemoryUsage()/(1024.0*1024.0));
+		fflush(stdout);
+	}
+	printf("\n");
 
 	return 0;
 }

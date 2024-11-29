@@ -63,7 +63,7 @@ private:
 
 	void RemoveStructureFor(int32_t offset);
 
-	Aabb GetAabbOfNode(int32_t nodeId) const;
+	AabbCentered GetAabbOfNode(int32_t nodeId) const;
 	IPosLevel CalcIPosLevel(Aabb aabb) const;
 	
 	static int32_t CalcChildId(glm::ivec3 parentPos, glm::ivec3 childPos, int32_t childLevel);
@@ -73,7 +73,7 @@ private:
 
 private:
 	struct alignas(64) Data {
-		Aabb aabb;
+		AabbCentered aabb;
 		EntityType entity = 0;
 		MaskType mask = 0;
 		int32_t prev = 0;
@@ -83,7 +83,7 @@ private:
 
 	struct alignas(64) NodeData {
 		int32_t children[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-		glm::ivec3 pos;
+		glm::ivec3 center;
 		int32_t level;
 		// MaskType mask = 0;
 		int32_t firstEntity = 0;
@@ -95,7 +95,7 @@ private:
 	AssociativeArray<EntityType, int32_t, Data> data;
 	NodesArray<int32_t, NodeData> nodes;
 
-	const glm::vec3 offset;
+	const glm::vec3 centerOffset;
 
 	const int32_t levels;
 	const float loosnessFactor;

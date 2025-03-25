@@ -22,7 +22,7 @@ std::mt19937_64 mt(12345);
 enum TestType {
 	TEST_AABB = 1,
 	TEST_RAY_FIRST = 2,
-	TEST_RAY = 3,
+	TEST_RAY_ALL = 3,
 };
 
 struct EntityData {
@@ -77,7 +77,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 		ret.testedCount = cb.testedCount;
 		return ret;
 	} break;
-	case TEST_RAY: {
+	case TEST_RAY_ALL: {
 		struct _Cb : public spp::RayCallback {
 			std::vector<uint64_t> entities;
 		} cb;
@@ -216,10 +216,13 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
+		if (i == 0) {
+			printf("   nodesTested: %lu,   testedCount: %lu     [count = "
+				   "%lu]\n",
+				   vec.nodesTestedCount, vec.testedCount, ents.back().size());
+		}
 		printf("%s intersection test [count: %lu]: %.3f us/op\n", it->GetName(),
 			   tC, us / double(tC));
-		printf("    nodesTested: %lu,   testedCount: %lu     [count = %lu]:\n ",
-			   vec.nodesTestedCount, vec.testedCount, ents.back().size());
 		fflush(stdout);
 	}
 
@@ -326,7 +329,7 @@ int main()
 	spp::Dbvh dbvh;
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
-// 		&bf,
+		&bf,
 		&bvh,
 		&dbvh,
 	};
@@ -360,9 +363,10 @@ int main()
 		fflush(stdout);
 	}
 	printf("\n");
-	
+
 	for (auto bp : broadphases) {
-		printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(), bp->GetMemoryUsage(), bp->GetMemoryUsage()/(1024.0*1024.0));
+		printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(),
+			   bp->GetMemoryUsage(), bp->GetMemoryUsage() / (1024.0 * 1024.0));
 		fflush(stdout);
 	}
 	printf("\n");
@@ -409,7 +413,7 @@ int main()
 
 	printf("\nAfter rebuild:\n\n");
 
-	for (int i = 1; i <= 3; ++i) {
+	for (int i = 1; i <= 2; ++i) {
 		printf("\n     TestType: %s\n", i == 1	 ? "AABB"
 										: i == 3 ? "RAY"
 												 : "RAY_FIRST");
@@ -423,9 +427,11 @@ int main()
 	ee.reserve(TOTAL_AABB_MOVEMENTS);
 	vv.reserve(TOTAL_AABB_MOVEMENTS);
 	for (size_t i = 0; i < TOTAL_AABB_MOVEMENTS; ++i) {
-		ee.push_back(((mt() % MAX_MOVING_ENTITIES ) % entities.size()) + 1);
+		ee.push_back(((mt() % MAX_MOVING_ENTITIES) % entities.size()) + 1);
 		vv.push_back({distPos(mt), distPos(mt) / 4.0f, distPos(mt)});
 	}
+
+	printf("\n");
 
 	const auto old = entities;
 	for (auto bp : broadphases) {
@@ -443,26 +449,27 @@ int main()
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%s update data: %.3f us/op\n", bp->GetName(), us / double(TOTAL_AABB_MOVEMENTS));
+		printf("%s update data: %.3f us/op\n", bp->GetName(),
+			   us / double(TOTAL_AABB_MOVEMENTS));
 		fflush(stdout);
 	}
 	printf("\n");
 
 	printf("\nAfter updated without rebuild:\n\n");
 
-	for (int i = 1; i <= 3; ++i) {
+	for (int i = 1; i <= 2; ++i) {
 		printf("\n     TestType: %s\n", i == 1	 ? "AABB"
-										: i == 2 ? "RAY"
+										: i == 3 ? "RAY_ALL"
 												 : "RAY_FIRST");
 		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
 	}
-	
+
 	printf("\nAfter reconstruct and full rebuild:\n");
-	
+
 	for (auto bp : broadphases) {
 		bp->Clear();
 	}
-	
+
 	for (auto bp : broadphases) {
 		auto beg = std::chrono::steady_clock::now();
 		for (const auto &e : entities) {
@@ -492,10 +499,10 @@ int main()
 		fflush(stdout);
 	}
 	printf("\n");
-	
-	for (int i = 1; i <= 3; ++i) {
+
+	for (int i = 1; i <= 2; ++i) {
 		printf("\n     TestType: %s\n", i == 1	 ? "AABB"
-										: i == 2 ? "RAY"
+										: i == 3 ? "RAY_ALL"
 												 : "RAY_FIRST");
 		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
 	}

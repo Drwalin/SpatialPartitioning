@@ -6,8 +6,6 @@
 
 #include <cstdint>
 
-#include <unordered_map>
-
 #include "../../thirdparty/glm/glm/ext/vector_int3.hpp"
 
 #include "AssociativeArray.hpp"
@@ -72,10 +70,9 @@ private:
 		int32_t childrenInNodesCounts[8] = {0,0,0,0,0,0,0,0};
 		int32_t directChildrenCount = 0;
 		int32_t firstChild = -1;
-		MaskType mask = 0;
 		inline bool HasIndirectChildren() const {
 			const int64_t *v = (const int64_t*)childrenInNodesCounts;
-			return v[0] | v[0] | v[2] | v[3];
+			return v[0] | v[1] | v[2] | v[3];
 		};
 	};
 
@@ -101,7 +98,7 @@ private:
 		int32_t level;
 	};
 
-	std::unordered_map<Key, NodeData, Key::Hash> nodes;
+	AssociativeArray<Key, int32_t, NodeData, Key::Hash> nodes;
 	
 public:
 	
@@ -113,3 +110,4 @@ public:
 	const int32_t levels;
 };
 } // namespace spp
+

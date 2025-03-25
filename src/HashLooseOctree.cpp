@@ -2,6 +2,8 @@
 // Copyright (c) 2024 Marek Zalewski aka Drwalin
 // You should have received a copy of the MIT License along with this program.
 
+#ifdef __SPP_USE_HASH_LOOSE_OCTREE__
+
 #include <cstdio>
 #include <cstring>
 
@@ -13,11 +15,9 @@
 
 namespace spp
 {
-HashLooseOctree::HashLooseOctree(float resolution,
-								 int32_t levels, float loosenessFactor)
-	:
-	  nodes(12289, Key::Hash(this)),
-		loosenessFactor(loosenessFactor),
+HashLooseOctree::HashLooseOctree(float resolution, int32_t levels,
+								 float loosenessFactor)
+	: nodes(12289, Key::Hash(this)), loosenessFactor(loosenessFactor),
 	  invLoosenessFactor(1.0f / loosenessFactor), resolution(resolution),
 	  invResolution(1.0f / resolution), levels(levels)
 {
@@ -40,10 +40,7 @@ size_t HashLooseOctree::GetMemoryUsage() const
 			   (sizeof(void *) * 2lu + sizeof(Key) + sizeof(NodeData));
 }
 
-void HashLooseOctree::ShrinkToFit()
-{
-	data.ShrinkToFit();
-}
+void HashLooseOctree::ShrinkToFit() { data.ShrinkToFit(); }
 
 int32_t HashLooseOctree::CalcHashMinLevel(Aabb aabb)
 {
@@ -61,14 +58,14 @@ int32_t HashLooseOctree::CalcHashMinLevel(Aabb aabb)
 	return minLevel;
 }
 
-#define ROT64(V, R) ((V<<R) | (V>>(64-R)))
+#define ROT64(V, R) ((V << R) | (V >> (64 - R)))
 
 uint64_t HashLooseOctree::Hash(const glm::vec3 pos, int32_t level)
 {
 	if (level > levels) {
 		return 3141592653589793238lu;
 	}
-	
+
 	const glm::ivec3 p = pos * invResolution;
 	return Hash(p, level);
 }
@@ -78,7 +75,7 @@ uint64_t HashLooseOctree::Hash(const glm::ivec3 pos, int32_t level)
 	if (level > levels) {
 		return 3141592653589793238lu;
 	}
-	
+
 	const glm::ivec3 a = pos >> level;
 	return (14695981039346656037lu ^ ((uint64_t)((uint32_t)a.x)) ^
 			ROT64((uint64_t)((uint32_t)a.x), 21) ^
@@ -100,29 +97,27 @@ void HashLooseOctree::Add(EntityType entity, Aabb aabb, MaskType mask)
 		}
 		return;
 	}
-	
+
 	int32_t level = CalcHashMinLevel(aabb);
 	const glm::ivec3 pos = aabb.GetCenter() * invResolution;
-	
+
 	{
 		NodeData &nd = nodes[Key(this, pos, level)];
 		nd.directChildrenCount++;
-		
+
 		data[offset].next = nd.firstChild;
 		data[offset].prev = -1;
 		if (nd.firstChild >= 0) {
 			data[nd.firstChild].prev = offset;
 		}
-		nd.mask |= mask;
 		nd.firstChild = offset;
 	}
-	
+
 	for (++level; level <= levels; ++level) {
-		glm::ivec3 p = glm::ivec3(pos)>>(level-1);
-		const int32_t childId = (p.x&1) | ((p.y&1)<<1) | ((p.y&1)<<2);
+		glm::ivec3 p = glm::ivec3(pos) >> (level - 1);
+		const int32_t childId = (p.x & 1) | ((p.y & 1) << 1) | ((p.y & 1) << 2);
 		NodeData &nd = nodes[Key(this, pos, level)];
 		nd.childrenInNodesCounts[childId]++;
-		nd.mask |= mask;
 	}
 }
 
@@ -131,28 +126,28 @@ void HashLooseOctree::Update(EntityType entity, Aabb aabb)
 	const int32_t offset = data.GetOffset(entity);
 	const Aabb oldAabb = data[offset].aabb;
 	data[offset].aabb = aabb;
-	
+
 	const int32_t oldLevel = CalcHashMinLevel(oldAabb);
 	int32_t level = CalcHashMinLevel(aabb);
-	
+
 	if (level != oldLevel) {
 		MaskType mask = data[offset].mask;
 		Remove(entity);
 		Add(entity, aabb, mask);
 		return;
 	}
-	
+
 	const glm::ivec3 oldPos = oldAabb.GetCenter() * invResolution;
 	const glm::ivec3 pos = aabb.GetCenter() * invResolution;
-	
+
 	if (oldPos == pos) {
 		return;
 	}
-	
+
 	{
 		NodeData &oldNd = nodes[Key(this, oldPos, level)];
 		NodeData &nd = nodes[Key(this, pos, level)];
-		
+
 		oldNd.directChildrenCount--;
 		if (data[offset].prev >= 0) {
 			data[data[offset].prev].next = data[offset].next;
@@ -162,7 +157,7 @@ void HashLooseOctree::Update(EntityType entity, Aabb aabb)
 		if (data[offset].next >= 0) {
 			data[data[offset].next].prev = data[offset].prev;
 		}
-		
+
 		nd.directChildrenCount++;
 		data[offset].next = nd.firstChild;
 		data[offset].prev = -1;
@@ -170,25 +165,24 @@ void HashLooseOctree::Update(EntityType entity, Aabb aabb)
 			data[nd.firstChild].prev = offset;
 		}
 		nd.firstChild = offset;
-		nd.mask |= data[offset].mask;
 	}
-	
+
 	for (++level; level <= levels; ++level) {
 		if (Key(this, oldPos, level) == Key(this, pos, level)) {
 			break;
 		}
-		
+
 		NodeData &oldNd = nodes[Key(this, oldPos, level)];
 		NodeData &nd = nodes[Key(this, pos, level)];
-		
-		glm::ivec3 op = glm::ivec3(oldPos)>>(level-1);
-		const int32_t oldChildId = (op.x&1) | ((op.y&1)<<1) | ((op.y&1)<<2);
+
+		glm::ivec3 op = glm::ivec3(oldPos) >> (level - 1);
+		const int32_t oldChildId =
+			(op.x & 1) | ((op.y & 1) << 1) | ((op.y & 1) << 2);
 		oldNd.childrenInNodesCounts[oldChildId]--;
-		
-		glm::ivec3 p = glm::ivec3(pos)>>(level-1);
-		const int32_t childId = (p.x&1) | ((p.y&1)<<1) | ((p.y&1)<<2);
+
+		glm::ivec3 p = glm::ivec3(pos) >> (level - 1);
+		const int32_t childId = (p.x & 1) | ((p.y & 1) << 1) | ((p.y & 1) << 2);
 		nd.childrenInNodesCounts[childId]++;
-		nd.mask |= data[offset].mask;
 	}
 }
 
@@ -196,15 +190,14 @@ void HashLooseOctree::Remove(EntityType entity)
 {
 	const int32_t offset = data.GetOffset(entity);
 	const Aabb aabb = data[offset].aabb;
-	MaskType mask = data[offset].mask;
 	data[offset] = {};
 	int32_t level = CalcHashMinLevel(aabb);
-	
+
 	const glm::ivec3 pos = aabb.GetCenter() * invResolution;
-	
+
 	{
 		NodeData &nd = nodes[Key(this, pos, level)];
-		
+
 		nd.directChildrenCount--;
 		if (data[offset].prev >= 0) {
 			data[data[offset].prev].next = data[offset].next;
@@ -214,45 +207,30 @@ void HashLooseOctree::Remove(EntityType entity)
 		if (data[offset].next >= 0) {
 			data[data[offset].next].prev = data[offset].prev;
 		}
-		
+
 		if (nd.firstChild == -1 || nd.HasIndirectChildren() == 0) {
 			nodes.erase(Key(this, pos, level));
 		}
 	}
-	
+
 	for (++level; level <= levels; ++level) {
 		NodeData &nd = nodes[Key(this, pos, level)];
-		glm::ivec3 op = glm::ivec3(pos)>>(level-1);
-		const int32_t oldChildId = (op.x&1) | ((op.y&1)<<1) | ((op.y&1)<<2);
+		glm::ivec3 op = glm::ivec3(pos) >> (level - 1);
+		const int32_t oldChildId =
+			(op.x & 1) | ((op.y & 1) << 1) | ((op.y & 1) << 2);
 		nd.childrenInNodesCounts[oldChildId]--;
 		if (nd.firstChild == -1 || nd.HasIndirectChildren() == 0) {
 			nodes.erase(Key(this, pos, level));
 		}
 	}
-	
+
 	data.RemoveByKey(entity);
 }
 
 void HashLooseOctree::SetMask(EntityType entity, MaskType mask)
 {
 	const int32_t offset = data.GetOffset(entity);
-	const Aabb aabb = data[offset].aabb;
 	data[offset].mask = mask;
-	data[offset] = {};
-	int32_t level = CalcHashMinLevel(aabb);
-	
-	const glm::ivec3 pos = aabb.GetCenter() * invResolution;
-	
-	NodeData &nd = nodes[Key(this, pos, level)];
-	nd.mask |= mask;
-	
-	for (; level <= levels; ++level) {
-		NodeData &nd = nodes[Key(this, pos, level)];
-		if ((nd.mask & mask) == mask) {
-			break;
-		}
-		nd.mask |= mask;
-	}
 }
 
 Aabb HashLooseOctree::GetAabb(EntityType entity) const
@@ -273,10 +251,10 @@ MaskType HashLooseOctree::GetMask(EntityType entity) const
 	return 0;
 }
 
-Aabb HashLooseOctree::CalcAabbOfNode(glm::ivec3 pos, int32_t level)
-{
-	
+/*
+Aabb HashLooseOctree::CalcAabbOfNode(glm::ivec3 pos, int32_t level) {
 }
+*/
 
 void HashLooseOctree::IntersectAabb(IntersectionCallback &cb)
 {
@@ -285,9 +263,10 @@ void HashLooseOctree::IntersectAabb(IntersectionCallback &cb)
 	}
 	cb.broadphase = this;
 	
-	glm::ivec3 a = cb.aabb.min*
-	
-	_Internal_IntersectAabb(cb, rootNode);
+	const int32_t baseLevel = CalcHashMinLevel(cb.aabb);
+	const glm::ivec3 ipos = cb.aabb.GetCenter() * invResolution;
+
+	_Internal_IntersectAabb(cb, Key(this, ipos, baseLevel));
 }
 
 void HashLooseOctree::_Internal_IntersectAabb(IntersectionCallback &cb,
@@ -793,3 +772,5 @@ void HashLooseOctree::UpdateAabbAndMask(const int32_t nodeId)
 }
 */
 } // namespace spp
+
+#endif

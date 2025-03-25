@@ -13,11 +13,16 @@ namespace spp
 /*
  * Offsets start from 1
  */
-template <typename KeyType, typename OffsetType, typename ValueType>
+template <typename KeyType, typename OffsetType, typename ValueType,
+		  typename KeyHash = std::hash<KeyType>>
 class AssociativeArray final
 {
 public:
-	inline AssociativeArray() { Clear(); }
+	inline AssociativeArray(const KeyHash &hash = KeyHash())
+		: offsets(137, hash)
+	{
+		Clear();
+	}
 	inline ~AssociativeArray() {}
 
 	inline AssociativeArray(const AssociativeArray &) = default;
@@ -92,11 +97,14 @@ public:
 			   data.GetMemoryUsage();
 	}
 
-	std::unordered_map<KeyType, OffsetType> &_Offsets() { return offsets; }
+	std::unordered_map<KeyType, OffsetType, KeyHash> &_Offsets()
+	{
+		return offsets;
+	}
 	NodesArray<OffsetType, ValueType> &_Data() { return data; };
 
 private:
-	std::unordered_map<KeyType, OffsetType> offsets;
+	std::unordered_map<KeyType, OffsetType, KeyHash> offsets;
 	NodesArray<OffsetType, ValueType> data;
 };
 } // namespace spp

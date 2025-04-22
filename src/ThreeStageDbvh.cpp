@@ -102,7 +102,7 @@ void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 		}
 	}
 
-	if (dynamicUpdates > 10000 || optimisedUpdates > 100) {
+	if (dynamicUpdates > 1000 || optimisedUpdates > 100) {
 		TryScheduleRebuild();
 	}
 }
@@ -265,7 +265,7 @@ void ThreeStageDbvh::IntersectAabb(IntersectionCallback &cb)
 	}
 
 	++tests;
-	if (tests > 1000000) {
+	if (tests > 100000) {
 		TryScheduleRebuild();
 	}
 
@@ -281,7 +281,7 @@ void ThreeStageDbvh::IntersectRay(RayCallback &cb)
 	}
 
 	++tests;
-	if (tests > 1000000) {
+	if (tests > 100000) {
 		TryScheduleRebuild();
 	}
 

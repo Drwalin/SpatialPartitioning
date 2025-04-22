@@ -34,8 +34,8 @@ void BulletDbvt::ShrinkToFit() {}
 
 void BulletDbvt::SmallRebuildIfNeeded()
 {
-	if (requiresRebuild > 300) {
-		IncrementalOptimize(requiresRebuild / 3 + 31);
+	if (requiresRebuild > 100) {
+		IncrementalOptimize(requiresRebuild / 13 + 7);
 		requiresRebuild = 0;
 	}
 }
@@ -97,7 +97,7 @@ MaskType BulletDbvt::GetMask(EntityType entity) const
 
 void BulletDbvt::Rebuild()
 {
-	requiresRebuild += 1000;
+	requiresRebuild += 3000;
 	SmallRebuildIfNeeded();
 }
 

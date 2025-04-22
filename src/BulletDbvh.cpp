@@ -6,8 +6,8 @@
 
 #include "../include/spatial_partitioning/BulletDbvh.hpp"
 
-btVector3 bt(glm::vec3 v) { return {v.x, v.y, v.z}; }
-glm::vec3 gl(btVector3 v) { return {v.x(), v.y(), v.z()}; }
+static btVector3 bt(glm::vec3 v) { return {v.x, v.y, v.z}; }
+static glm::vec3 gl(btVector3 v) { return {v.x(), v.y(), v.z()}; }
 
 namespace spp
 {

@@ -378,6 +378,8 @@ void Dbvh::RebalanceNodesRecursively(int32_t node, int32_t depth)
 	for (int i = 0; i < 2; ++i) {
 		RebalanceNodesRecursively(nodes[node].children[i], depth - 1);
 	}
+
+	DoBestNodeRotation(node);
 }
 
 void Dbvh::DoBestNodeRotation(int32_t node)

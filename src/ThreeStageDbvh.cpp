@@ -197,6 +197,7 @@ void ThreeStageDbvh::TryScheduleRebuild()
 		std::swap(_dynamic, _dynamic2);
 		std::swap(dynamic, dynamic2);
 
+		tests = 0;
 		dynamicUpdates = 0;
 		optimisedUpdates = 0;
 		wasScheduled = true;
@@ -220,6 +221,7 @@ void ThreeStageDbvh::TryScheduleRebuild()
 		optimisedUpdates = 0;
 		wasScheduled = false;
 		finishedRebuilding->store(false);
+		tests = 0;
 	}
 }
 

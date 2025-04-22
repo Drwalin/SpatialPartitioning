@@ -13,12 +13,13 @@
 #include "../include/spatial_partitioning/HashLooseOctree.hpp"
 #include "../include/spatial_partitioning/LooseOctree.hpp"
 #include "../include/spatial_partitioning/BulletDbvh.hpp"
+#include "../include/spatial_partitioning/BulletDbvt.hpp"
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
 const int32_t TOTAL_ENTITIES = 2000;
-const size_t TOTAL_AABB_TESTS = 10000;
-const size_t TOTAL_AABB_MOVEMENTS = 100000;
-const size_t MAX_MOVING_ENTITIES = 50;
+const size_t TOTAL_AABB_TESTS = 100000;
+const size_t TOTAL_AABB_MOVEMENTS = 1000000;
+const size_t MAX_MOVING_ENTITIES = 150;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
@@ -229,9 +230,9 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%s intersection test [count: %lu]: %.3f us/op\n", it->GetName(),
+		printf("%20s intersection test [count: %lu]: %8.3f us/op", it->GetName(),
 			   tC, us / double(tC));
-		printf("    nodesTested: %lu,   testedCount: %lu     [count = %lu]:\n ",
+		printf("    \t   nodesTested: %9lu,   testedCount: %6lu     [count = %lu]:\n",
 			   vec.nodesTestedCount, vec.testedCount, ents.back().size());
 		fflush(stdout);
 	}
@@ -347,11 +348,12 @@ int main()
 	spp::HashLooseOctree hlo(1.0, 13, 1.6);
 	spp::LooseOctree lo(-glm::vec3(1, 1, 1) * (1024 * 16.f), 15, 1.6);
 	spp::BulletDbvh btDbvh;
+	spp::BulletDbvt btDbvt;
 
 	spp::ThreeStageDbvh tsdbvh(std::make_shared<spp::BvhMedianSplitHeap>(),
 							   std::make_shared<spp::BvhMedianSplitHeap>(),
-							   std::make_unique<spp::BulletDbvh>(),
-							   std::make_unique<spp::BulletDbvh>());
+							   std::make_unique<spp::BulletDbvt>(),
+							   std::make_unique<spp::BulletDbvt>());
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
 		// &bf,
@@ -360,6 +362,7 @@ int main()
 		// &hlo,
 		// &lo,
 		&btDbvh,
+		&btDbvt,
 		&tsdbvh,
 	};
 
@@ -520,9 +523,10 @@ int main()
 			}
 			int i = 0;
 			double sum = 0;
-			std::vector<std::pair<double, int32_t>> tst(timestage.begin(), timestage.end());
+			std::vector<std::pair<double, int32_t>> tst(timestage.begin(),
+														timestage.end());
 			for (auto it = tst.begin(); i < tst.size();
-				 i = ((i*14/13)+1), it = tst.begin()+i) {
+				 i = ((i * 14 / 13) + 1), it = tst.begin() + i) {
 				sum += it->first;
 				printf("times[%i:%i]: %.3f us\n", i, it->second, it->first);
 			}

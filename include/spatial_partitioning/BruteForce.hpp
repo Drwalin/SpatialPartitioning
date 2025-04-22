@@ -26,6 +26,9 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
+	
+	virtual int32_t GetCount() const override;
+	virtual bool Exists(EntityType entity) const override;
 
 	virtual Aabb GetAabb(EntityType entity) const override;
 	virtual MaskType GetMask(EntityType entity) const override;
@@ -34,6 +37,8 @@ public:
 
 	virtual void IntersectAabb(IntersectionCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
+	
+	virtual BroadphaseBaseIterator *RestartIterator() override;
 
 private:
 	struct Data {
@@ -43,5 +48,21 @@ private:
 	};
 
 	std::unordered_map<EntityType, Data> entitiesData;
+	
+	class Iterator final : public BroadphaseBaseIterator
+	{
+	public:
+		Iterator(BruteForce &bp);
+		virtual ~Iterator();
+		
+		Iterator &operator = (Iterator &&other) = default;
+		
+		virtual bool Next() override;
+		virtual bool Valid() override;
+		bool FetchData();
+		
+		std::unordered_map<EntityType, Data>::iterator it;
+		std::unordered_map<EntityType, Data> *map;
+	} iterator;
 };
 } // namespace spp

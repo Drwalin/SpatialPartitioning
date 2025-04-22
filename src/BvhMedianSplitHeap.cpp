@@ -10,7 +10,7 @@
 
 namespace spp
 {
-BvhMedianSplitHeap::BvhMedianSplitHeap() {}
+BvhMedianSplitHeap::BvhMedianSplitHeap() : iterator(*this) {}
 BvhMedianSplitHeap::~BvhMedianSplitHeap() {}
 
 const char *BvhMedianSplitHeap::GetName() const { return "BvhMedianSplitHeap"; }
@@ -72,16 +72,21 @@ void BvhMedianSplitHeap::Update(EntityType entity, Aabb aabb)
 
 void BvhMedianSplitHeap::Remove(EntityType entity)
 {
+	auto it = entitiesOffsets.find(entity);
+	if (it == entitiesOffsets.end()) {
+		return;
+	}
+
+	uint32_t offset = it->second;
+	entitiesOffsets.erase(it);
+	entitiesData[offset].entity = EMPTY_ENTITY;
+
 	--entitiesCount;
 
 	if (entitiesCount == 0) {
 		Clear();
 		return;
 	}
-
-	uint32_t offset = entitiesOffsets[entity];
-	entitiesOffsets.erase(entity);
-	entitiesData[offset].entity = EMPTY_ENTITY;
 
 	PruneEmptyEntitiesAtEnd();
 
@@ -104,7 +109,17 @@ void BvhMedianSplitHeap::Remove(EntityType entity)
 
 void BvhMedianSplitHeap::SetMask(EntityType entity, MaskType mask)
 {
-	uint32_t offset = entitiesOffsets[entity];
+	auto it = entitiesOffsets.find(entity);
+	if (it == entitiesOffsets.end()) {
+		return;
+	}
+	
+	uint32_t offset = it->second;
+	
+	if (entitiesData[offset].mask == mask) {
+		return;
+	}
+	
 	entitiesData[offset].mask = mask;
 	if ((offset ^ 1) < entitiesData.size()) {
 		if (entitiesData[offset ^ 1].entity != EMPTY_ENTITY) {
@@ -118,6 +133,16 @@ void BvhMedianSplitHeap::SetMask(EntityType entity, MaskType mask)
 			mask |= nodesHeapAabb[n ^ 1].mask;
 		}
 	}
+}
+
+int32_t BvhMedianSplitHeap::GetCount() const
+{
+	return entitiesCount;
+}
+
+bool BvhMedianSplitHeap::Exists(EntityType entity) const
+{
+	return entitiesOffsets.find(entity) != entitiesOffsets.end();
 }
 
 Aabb BvhMedianSplitHeap::GetAabb(EntityType entity) const
@@ -191,10 +216,7 @@ void BvhMedianSplitHeap::IntersectRay(RayCallback &cb)
 	}
 
 	cb.broadphase = this;
-	cb.dir = cb.end - cb.start;
-	cb.length = glm::length(cb.dir);
-	cb.dirNormalized = glm::normalize(cb.dir);
-	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
+	cb.InitVariables();
 
 	_Internal_IntersectRay(cb, 1);
 }
@@ -292,7 +314,11 @@ void BvhMedianSplitHeap::Rebuild()
 
 	// set entitiesOffsets
 	for (int32_t i = 0; i < entitiesData.size(); ++i) {
-		entitiesOffsets[entitiesData[i].entity] = i;
+		EntityType entity = entitiesData[i].entity;
+		if (entitiesOffsets.count(entity) == 0) {
+			printf("DUPA: %lu\n", entity);
+		}
+		entitiesOffsets[entity] = i;
 	}
 }
 
@@ -325,7 +351,7 @@ int32_t BvhMedianSplitHeap::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
 	if (count == 0) {
 		return -1;
 	}
-	
+
 	*tcount = count;
 
 	Aabb totalAabb = entitiesData[offset].aabb;
@@ -512,4 +538,40 @@ bool BvhMedianSplitHeap::RebuildStep(RebuildProgress &progress)
 	}
 	return progress.done;
 }
+
+BroadphaseBaseIterator *BvhMedianSplitHeap::RestartIterator()
+{
+	iterator = {*this};
+	return &iterator;
+}
+
+BvhMedianSplitHeap::Iterator::Iterator(BvhMedianSplitHeap &bp)
+{
+	data = &bp.entitiesData;
+	it = 0;
+	FetchData();
+}
+
+BvhMedianSplitHeap::Iterator::~Iterator() {}
+
+bool BvhMedianSplitHeap::Iterator::Next()
+{
+	do {
+		++it;
+	} while (Valid() && (*data)[it].entity == EMPTY_ENTITY);
+	return FetchData();
+}
+
+bool BvhMedianSplitHeap::Iterator::FetchData()
+{
+	if (Valid()) {
+		entity = (*data)[it].entity;
+		aabb = (*data)[it].aabb;
+		mask = (*data)[it].mask;
+		return true;
+	}
+	return false;
+}
+
+bool BvhMedianSplitHeap::Iterator::Valid() { return it < data->size(); }
 } // namespace spp

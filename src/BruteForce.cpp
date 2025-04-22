@@ -6,7 +6,7 @@
 
 namespace spp
 {
-BruteForce::BruteForce() {}
+BruteForce::BruteForce() : iterator(*this) {}
 BruteForce::~BruteForce() {}
 
 const char *BruteForce::GetName() const { return "BruteForce"; }
@@ -37,6 +37,16 @@ void BruteForce::Remove(EntityType entity) { entitiesData.erase(entity); }
 void BruteForce::SetMask(EntityType entity, MaskType mask)
 {
 	entitiesData[entity].mask = mask;
+}
+
+int32_t BruteForce::GetCount() const
+{
+	return entitiesData.size();
+}
+
+bool BruteForce::Exists(EntityType entity) const
+{
+	return entitiesData.find(entity) != entitiesData.end();
 }
 
 Aabb BruteForce::GetAabb(EntityType entity) const
@@ -85,10 +95,7 @@ void BruteForce::IntersectRay(RayCallback &cb)
 	}
 
 	cb.broadphase = this;
-	cb.dir = cb.end - cb.start;
-	cb.length = glm::length(cb.dir);
-	cb.dirNormalized = glm::normalize(cb.dir);
-	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
+	cb.InitVariables();
 
 	for (const auto &it : entitiesData) {
 		if (it.second.mask & cb.mask) {
@@ -113,5 +120,42 @@ void BruteForce::IntersectRay(RayCallback &cb)
 			++cb.nodesTestedCount;
 		}
 	}
+}
+
+BroadphaseBaseIterator *BruteForce::RestartIterator()
+{
+	iterator = {*this};
+	return &iterator;
+}
+
+BruteForce::Iterator::Iterator(BruteForce &bp)
+{
+	map = &bp.entitiesData;
+	it = map->begin();
+	FetchData();
+}
+
+BruteForce::Iterator::~Iterator() {}
+
+bool BruteForce::Iterator::Next()
+{
+	++it;
+	return FetchData();
+}
+
+bool BruteForce::Iterator::FetchData()
+{
+	if (Valid()) {
+		entity = it->second.entity;
+		aabb = it->second.aabb;
+		mask = it->second.mask;
+		return true;
+	}
+	return false;
+}
+
+bool BruteForce::Iterator::Valid()
+{
+	return it != map->end();
 }
 } // namespace spp

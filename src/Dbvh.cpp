@@ -8,7 +8,7 @@
 
 namespace spp
 {
-Dbvh::Dbvh() { Clear(); }
+Dbvh::Dbvh() : iterator(*this) { Clear(); }
 Dbvh::~Dbvh() {}
 
 const char *Dbvh::GetName() const { return "Dbvh"; }
@@ -205,6 +205,16 @@ void Dbvh::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
+int32_t Dbvh::GetCount() const
+{
+	return data.Size();
+}
+
+bool Dbvh::Exists(EntityType entity) const
+{
+	return data.GetOffset(entity) > 0;
+}
+
 Aabb Dbvh::GetAabb(EntityType entity) const
 {
 	int32_t offset = data.GetOffset(entity);
@@ -261,10 +271,7 @@ void Dbvh::IntersectRay(RayCallback &cb)
 	}
 
 	cb.broadphase = this;
-	cb.dir = cb.end - cb.start;
-	cb.length = glm::length(cb.dir);
-	cb.dirNormalized = glm::normalize(cb.dir);
-	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
+	cb.InitVariables();
 
 	_Internal_IntersectRay(cb, rootNode);
 }
@@ -849,4 +856,40 @@ void Dbvh::UpdateAabbAndMask(const int32_t nodeId)
 		id = nodes[childId].parent;
 	}
 }
+
+BroadphaseBaseIterator *Dbvh::RestartIterator()
+{
+	iterator = {*this};
+	return &iterator;
+}
+
+Dbvh::Iterator::Iterator(Dbvh &bp)
+{
+	data = &bp.data._Data()._Data();
+	it = 0;
+	FetchData();
+}
+
+Dbvh::Iterator::~Iterator() {}
+
+bool Dbvh::Iterator::Next()
+{
+	do {
+		++it;
+	} while (Valid() && (*data)[it].entity == EMPTY_ENTITY);
+	return FetchData();
+}
+
+bool Dbvh::Iterator::FetchData()
+{
+	if (Valid()) {
+		entity = (*data)[it].entity;
+		aabb = (*data)[it].aabb;
+		mask = (*data)[it].mask;
+		return true;
+	}
+	return false;
+}
+
+bool Dbvh::Iterator::Valid() { return it < data->size(); }
 } // namespace spp

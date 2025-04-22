@@ -10,33 +10,52 @@
 
 namespace spp
 {
+class BroadphaseBase;
+	
+class BroadphaseBaseIterator
+{
+public:
+	virtual ~BroadphaseBaseIterator();
+	
+	virtual bool Next() = 0;
+	virtual bool Valid() = 0;
+	
+	Aabb aabb;
+	EntityType entity = EMPTY_ENTITY;
+	MaskType mask = 0;
+};
+
 class BroadphaseBase
 {
 public:
 	BroadphaseBase();
 	virtual ~BroadphaseBase();
-	
-	virtual const char* GetName() const = 0;
+
+	virtual const char *GetName() const = 0;
 
 public:
 	virtual void Clear() = 0;
 	virtual size_t GetMemoryUsage() const = 0;
 	virtual void ShrinkToFit() = 0;
-	
-	virtual void Add(EntityType entity, Aabb aabb,
-					 MaskType mask) = 0;
+
+	virtual void Add(EntityType entity, Aabb aabb, MaskType mask) = 0;
 	virtual void Update(EntityType entity, Aabb aabb) = 0;
 	virtual void Remove(EntityType entity) = 0;
 	virtual void SetMask(EntityType entity, MaskType mask) = 0;
 	
+	virtual int32_t GetCount() const = 0;
+	virtual bool Exists(EntityType entity) const = 0;
+
 	virtual Aabb GetAabb(EntityType entity) const = 0;
 	virtual MaskType GetMask(EntityType entity) const = 0;
-	
+
 	// maybe rename/add Optimize() function
 	virtual void Rebuild() = 0;
 
 	// returns number of tested entities
 	virtual void IntersectAabb(IntersectionCallback &callback) = 0;
 	virtual void IntersectRay(RayCallback &callback) = 0;
+	
+	virtual BroadphaseBaseIterator *RestartIterator() = 0;
 };
 } // namespace spp

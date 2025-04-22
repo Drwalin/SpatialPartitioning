@@ -35,6 +35,9 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
+	
+	virtual int32_t GetCount() const override;
+	virtual bool Exists(EntityType entity) const override;
 
 	virtual Aabb GetAabb(EntityType entity) const override;
 	virtual MaskType GetMask(EntityType entity) const override;
@@ -43,6 +46,8 @@ public:
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	virtual void Rebuild() override;
+	
+	virtual BroadphaseBaseIterator *RestartIterator() override;
 
 private:
 	struct IPosLevel {
@@ -103,5 +108,21 @@ private:
 	const int32_t maxExtent;
 	const float margin;
 	int32_t rootNode = 0;
+
+	class Iterator final : public BroadphaseBaseIterator
+	{
+	public:
+		Iterator(LooseOctree &bp);
+		virtual ~Iterator();
+
+		Iterator &operator=(Iterator &&other) = default;
+
+		virtual bool Next() override;
+		virtual bool Valid() override;
+		bool FetchData();
+
+		std::vector<Data> *data;
+		int it;
+	} iterator;
 };
 } // namespace spp

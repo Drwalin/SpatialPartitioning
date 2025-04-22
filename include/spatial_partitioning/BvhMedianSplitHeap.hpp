@@ -40,6 +40,9 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
+	
+	virtual int32_t GetCount() const override;
+	virtual bool Exists(EntityType entity) const override;
 
 	virtual Aabb GetAabb(EntityType entity) const override;
 	virtual MaskType GetMask(EntityType entity) const override;
@@ -56,7 +59,9 @@ public:
 	AabbUpdatePolicy GetAabbUpdatePolicy() const;
 
 	virtual void Rebuild() override;
-	
+
+	virtual BroadphaseBaseIterator *RestartIterator() override;
+
 public:
 	struct RebuildProgress {
 		int32_t stack[64];
@@ -98,5 +103,21 @@ private:
 	int32_t entitiesPowerOfTwoCount = 0;
 	bool rebuildTree = false;
 	AabbUpdatePolicy updatePolicy = ON_UPDATE_EXTEND_AABB;
+
+	class Iterator final : public BroadphaseBaseIterator
+	{
+	public:
+		Iterator(BvhMedianSplitHeap &bp);
+		virtual ~Iterator();
+
+		Iterator &operator=(Iterator &&other) = default;
+
+		virtual bool Next() override;
+		virtual bool Valid() override;
+		bool FetchData();
+
+		std::vector<Data> *data;
+		int it;
+	} iterator;
 };
 } // namespace spp

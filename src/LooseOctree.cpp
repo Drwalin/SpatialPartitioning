@@ -16,7 +16,8 @@ LooseOctree::LooseOctree(glm::vec3 centerOffset,
 						 int32_t levels, float loosnessFactor)
 	: data(), nodes(), centerOffset(centerOffset), levels(levels),
 	  loosnessFactor(loosnessFactor), invLoosenessFactor(1.0f / loosnessFactor),
-	  maxExtent(1 << (levels - 1)), margin((loosnessFactor - 1.0) / 2.0)
+	  maxExtent(1 << (levels - 1)), margin((loosnessFactor - 1.0) / 2.0),
+	  iterator(*this)
 {
 	Clear();
 }
@@ -249,6 +250,16 @@ void LooseOctree::SetMask(EntityType entity, MaskType mask)
 	// TODO: update masks of tree
 }
 
+int32_t LooseOctree::GetCount() const
+{
+	return data.Size();
+}
+
+bool LooseOctree::Exists(EntityType entity) const
+{
+	return data.GetOffset(entity) > 0;
+}
+
 Aabb LooseOctree::GetAabb(EntityType entity) const
 {
 	int32_t did = data.GetOffset(entity);
@@ -306,10 +317,7 @@ void LooseOctree::IntersectRay(RayCallback &cb)
 	}
 
 	cb.broadphase = this;
-	cb.dir = cb.end - cb.start;
-	cb.length = glm::length(cb.dir);
-	cb.dirNormalized = glm::normalize(cb.dir);
-	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
+	cb.InitVariables();
 	
 	_Internal_IntersectRay(cb, rootNode, levels);
 }
@@ -389,4 +397,40 @@ void LooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n, int32
 		}
 	}
 }
+
+BroadphaseBaseIterator *LooseOctree::RestartIterator()
+{
+	iterator = {*this};
+	return &iterator;
+}
+
+LooseOctree::Iterator::Iterator(LooseOctree &bp)
+{
+	data = &bp.data._Data()._Data();
+	it = 0;
+	FetchData();
+}
+
+LooseOctree::Iterator::~Iterator() {}
+
+bool LooseOctree::Iterator::Next()
+{
+	do {
+		++it;
+	} while (Valid() && (*data)[it].entity == EMPTY_ENTITY);
+	return FetchData();
+}
+
+bool LooseOctree::Iterator::FetchData()
+{
+	if (Valid()) {
+		entity = (*data)[it].entity;
+		aabb = (*data)[it].aabb;
+		mask = (*data)[it].mask;
+		return true;
+	}
+	return false;
+}
+
+bool LooseOctree::Iterator::Valid() { return it < data->size(); }
 } // namespace spp

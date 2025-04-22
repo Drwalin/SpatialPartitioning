@@ -44,7 +44,7 @@ void Free(void *ptr)
 int ___STATIC_INITIALIZATOR_HOLDER =
 	(btAlignedAllocSetCustom(Allocate, Free), 0);
 
-BulletDbvh::BulletDbvh() : broadphase(&cache) {
+BulletDbvh::BulletDbvh() : broadphase(&cache), iterator(*this) {
 	broadphase.m_deferedcollide = true;
 }
 BulletDbvh::~BulletDbvh() {
@@ -121,6 +121,16 @@ void BulletDbvh::SetMask(EntityType entity, MaskType mask)
 	ents[offset].mask = mask;
 }
 
+int32_t BulletDbvh::GetCount() const
+{
+	return ents.Size();
+}
+
+bool BulletDbvh::Exists(EntityType entity) const
+{
+	return ents.GetOffset(entity) > 0;
+}
+
 Aabb BulletDbvh::GetAabb(EntityType entity) const
 {
 	const Data &data = ents[ents.GetOffset(entity)];
@@ -168,7 +178,6 @@ void BulletDbvh::IntersectAabb(IntersectionCallback &cb)
 
 	SmallRebuildIfNeeded();
 
-	cb.nodesTestedCount = 0;
 	cb.broadphase = this;
 	btAabbCb btCb{this, &cb};
 	broadphase.aabbTest(bt(cb.aabb.min), bt(cb.aabb.max), btCb);
@@ -240,14 +249,47 @@ void BulletDbvh::IntersectRay(RayCallback &cb)
 
 	SmallRebuildIfNeeded();
 
-	cb.nodesTestedCount = 0;
 	cb.broadphase = this;
-	cb.dir = cb.end - cb.start;
-	cb.length = glm::length(cb.dir);
-	cb.dirNormalized = glm::normalize(cb.dir);
-	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
+	cb.InitVariables();
 
 	btRayCb btCb{this, &cb};
 	broadphase.rayTest(bt(cb.start), bt(cb.end), btCb);
 }
+
+BroadphaseBaseIterator *BulletDbvh::RestartIterator()
+{
+	iterator = {*this};
+	return &iterator;
+}
+
+BulletDbvh::Iterator::Iterator(BulletDbvh &bp)
+{
+	data = &(bp.ents._Data()._Data());
+	it = 1;
+	FetchData();
+}
+
+BulletDbvh::Iterator::~Iterator() {}
+
+bool BulletDbvh::Iterator::Next()
+{
+	do {
+		++it;
+	} while (Valid() && (*data)[it].entity == EMPTY_ENTITY);
+	return FetchData();
+}
+
+bool BulletDbvh::Iterator::FetchData()
+{
+	if (Valid()) {
+		entity = (*data)[it].entity;
+		Data d = (*data)[it];
+		aabb = {gl(d.proxy->m_aabbMin), gl(d.proxy->m_aabbMax)};
+		mask = (*data)[it].mask;
+		return true;
+	}
+	return false;
+}
+
+bool BulletDbvh::Iterator::Valid() { return it < data->size(); }
 } // namespace spp

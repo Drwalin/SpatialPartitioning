@@ -13,8 +13,9 @@
 #include "../include/spatial_partitioning/HashLooseOctree.hpp"
 #include "../include/spatial_partitioning/LooseOctree.hpp"
 #include "../include/spatial_partitioning/BulletDbvh.hpp"
+#include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 1000000;
+const int32_t TOTAL_ENTITIES = 2000;
 const size_t TOTAL_AABB_TESTS = 10000;
 const size_t TOTAL_AABB_MOVEMENTS = 100000;
 const size_t MAX_MOVING_ENTITIES = 50;
@@ -107,6 +108,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 			offsetOfPatch.push_back(cb.entities.size());
 			cb.start = aabbsToTest[i].GetCenter();
 			cb.end = aabbsToTest[(i + 1) % testsCount].GetCenter();
+			cb.initedVars = false;
 			broadphase->IntersectRay(cb);
 		}
 
@@ -155,6 +157,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 			cb.start = aabbsToTest[i].GetCenter();
 			glm::vec3 end = cb.end =
 				aabbsToTest[(i + 1) % testsCount].GetCenter();
+			cb.initedVars = false;
 			broadphase->IntersectRay(cb);
 			if (cb.hasHit) {
 				ret.entities.push_back(cb.hitEntity);
@@ -345,13 +348,19 @@ int main()
 	spp::LooseOctree lo(-glm::vec3(1, 1, 1) * (1024 * 16.f), 15, 1.6);
 	spp::BulletDbvh btDbvh;
 
+	spp::ThreeStageDbvh tsdbvh(std::make_shared<spp::BvhMedianSplitHeap>(),
+							   std::make_shared<spp::BvhMedianSplitHeap>(),
+							   std::make_unique<spp::BulletDbvh>(),
+							   std::make_unique<spp::BulletDbvh>());
+
 	std::vector<spp::BroadphaseBase *> broadphases = {
-		// 		&bf,
+		// &bf,
 		&bvh,
-		// 		&dbvh,
-		// 		&hlo,
-		// 		&lo,
+		&dbvh,
+		// &hlo,
+		// &lo,
 		&btDbvh,
+		&tsdbvh,
 	};
 
 	for (auto bp : broadphases) {
@@ -484,7 +493,7 @@ int main()
 		bool R = false;
 		double us;
 		if (auto b = dynamic_cast<spp::BvhMedianSplitHeap *>(bp)) {
-			std::multimap<double, int32_t> timestage;
+			std::multimap<double, int32_t, std::greater<double>> timestage;
 			std::vector<char> bytesCacheTrashing;
 			bytesCacheTrashing.resize(1024);
 			R = true;
@@ -492,8 +501,8 @@ int main()
 			while (pr.done == false) {
 				{
 					char *_ptr = bytesCacheTrashing.data();
-					char * volatile ptr = _ptr;
-					for (int i=0; i<bytesCacheTrashing.size(); i+=64) {
+					char *volatile ptr = _ptr;
+					for (int i = 0; i < bytesCacheTrashing.size(); i += 64) {
 						ptr[i] = i;
 					}
 				}
@@ -507,13 +516,13 @@ int main()
 											   int64_t>(diff)
 						.count();
 				us = double(ns) / 1000.0;
-// 				if (s == 5) {
-					timestage.insert({us, s});
-// 				}
+				timestage.insert({us, s});
 			}
-			int i=0;
+			int i = 0;
 			double sum = 0;
-			for (auto it=timestage.begin(); it!=timestage.end(); ++it, ++i) {
+			std::vector<std::pair<double, int32_t>> tst(timestage.begin(), timestage.end());
+			for (auto it = tst.begin(); i < tst.size();
+				 i = ((i*14/13)+1), it = tst.begin()+i) {
 				sum += it->first;
 				printf("times[%i:%i]: %.3f us\n", i, it->second, it->first);
 			}

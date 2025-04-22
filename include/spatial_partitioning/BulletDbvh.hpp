@@ -31,6 +31,9 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
+	
+	virtual int32_t GetCount() const override;
+	virtual bool Exists(EntityType entity) const override;
 
 	virtual Aabb GetAabb(EntityType entity) const override;
 	virtual MaskType GetMask(EntityType entity) const override;
@@ -42,6 +45,8 @@ public:
 	
 	friend class btAabbCb;
 	friend class btRayCb;
+	
+	virtual BroadphaseBaseIterator *RestartIterator() override;
 	
 private:
 	void SmallRebuildIfNeeded();
@@ -57,5 +62,21 @@ private:
 	btDbvtBroadphase broadphase;
 	
 	size_t requiresRebuild = 0;
+	
+	class Iterator final : public BroadphaseBaseIterator
+	{
+	public:
+		Iterator(BulletDbvh &bp);
+		virtual ~Iterator();
+		
+		Iterator &operator = (Iterator &&other) = default;
+		
+		virtual bool Next() override;
+		virtual bool Valid() override;
+		bool FetchData();
+		
+		std::vector<Data> *data;
+		int it;
+	} iterator;
 };
 } // namespace spp

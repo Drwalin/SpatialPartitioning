@@ -56,6 +56,9 @@ struct RayCallback {
 	glm::vec3 dirNormalized;
 	glm::vec3 invDir;
 	float length;
+	bool initedVars = false;
+	
+	void InitVariables();
 	
 	class BroadphaseBase *broadphase = nullptr;
 	

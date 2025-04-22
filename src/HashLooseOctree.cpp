@@ -19,7 +19,7 @@ HashLooseOctree::HashLooseOctree(float resolution,
 	  nodes(12289, Key::Hash(this)),
 		loosenessFactor(loosenessFactor),
 	  invLoosenessFactor(1.0f / loosenessFactor), resolution(resolution),
-	  invResolution(1.0f / resolution), levels(levels)
+	  invResolution(1.0f / resolution), levels(levels), iterator(*this)
 {
 	Clear();
 }
@@ -259,6 +259,16 @@ void HashLooseOctree::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
+int32_t HashLooseOctree::GetCount() const
+{
+	return data.Size();
+}
+
+bool HashLooseOctree::Exists(EntityType entity) const
+{
+	return data.GetOffset(entity) > 0;
+}
+
 Aabb HashLooseOctree::GetAabb(EntityType entity) const
 {
 	int32_t offset = data.GetOffset(entity);
@@ -400,10 +410,7 @@ void HashLooseOctree::IntersectRay(RayCallback &cb)
 	}
 	
 	cb.broadphase = this;
-	cb.dir = cb.end - cb.start;
-	cb.length = glm::length(cb.dir);
-	cb.dirNormalized = glm::normalize(cb.dir);
-	cb.invDir = glm::vec3(1.f, 1.f, 1.f) / cb.dirNormalized;
+	cb.InitVariables();
 
 	// iterate over unfit objects
 	_Internal_IntersectRay(cb, {0,0,0}, levels+1);
@@ -554,4 +561,40 @@ void HashLooseOctree::_Inernal_IntersectRayIterateOverData(RayCallback &cb, int3
 		n = data[n].next;
 	}
 }
+
+BroadphaseBaseIterator *HashLooseOctree::RestartIterator()
+{
+	iterator = {*this};
+	return &iterator;
+}
+
+HashLooseOctree::Iterator::Iterator(HashLooseOctree &bp)
+{
+	data = &bp.data._Data()._Data();
+	it = 0;
+	FetchData();
+}
+
+HashLooseOctree::Iterator::~Iterator() {}
+
+bool HashLooseOctree::Iterator::Next()
+{
+	do {
+		++it;
+	} while (Valid() && (*data)[it].entity == EMPTY_ENTITY);
+	return FetchData();
+}
+
+bool HashLooseOctree::Iterator::FetchData()
+{
+	if (Valid()) {
+		entity = (*data)[it].entity;
+		aabb = (*data)[it].aabb;
+		mask = (*data)[it].mask;
+		return true;
+	}
+	return false;
+}
+
+bool HashLooseOctree::Iterator::Valid() { return it < data->size(); }
 } // namespace spp

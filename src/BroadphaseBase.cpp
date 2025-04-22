@@ -6,6 +6,7 @@
 
 namespace spp
 {
+BroadphaseBaseIterator::~BroadphaseBaseIterator() {}
 BroadphaseBase::BroadphaseBase() {}
 BroadphaseBase::~BroadphaseBase() {}
 }

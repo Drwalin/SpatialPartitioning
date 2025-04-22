@@ -1,8 +1,9 @@
 // This file is part of SpatialPartitioning.
-// Copyright (c) 2024 Marek Zalewski aka Drwalin
+// Copyright (c) 2024-2025 Marek Zalewski aka Drwalin
 // You should have received a copy of the MIT License along with this program.
 
 #include <cstdio>
+#include <bit>
 #include <algorithm>
 
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
@@ -268,17 +269,7 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 void BvhMedianSplitHeap::Rebuild()
 {
 	rebuildTree = false;
-	{
-		uint32_t v = entitiesCount;
-		v--;
-		v |= v >> 1;
-		v |= v >> 2;
-		v |= v >> 4;
-		v |= v >> 8;
-		v |= v >> 16;
-		v++;
-		entitiesPowerOfTwoCount = v;
-	}
+	entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)entitiesCount);
 
 	nodesHeapAabb.resize(entitiesPowerOfTwoCount);
 	for (auto &n : nodesHeapAabb) {
@@ -307,6 +298,17 @@ void BvhMedianSplitHeap::Rebuild()
 
 void BvhMedianSplitHeap::RebuildNode(int32_t nodeId)
 {
+	int32_t tcount = 0;
+	nodeId = RebuildNodePartial(nodeId, &tcount);
+	if (nodeId > 1) {
+		RebuildNode(nodeId);
+		RebuildNode(nodeId + 1);
+	}
+}
+
+int32_t BvhMedianSplitHeap::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
+{
+	*tcount = 0;
 	int32_t offset = nodeId;
 	int32_t count = 1;
 	while (offset < entitiesPowerOfTwoCount) {
@@ -315,14 +317,16 @@ void BvhMedianSplitHeap::RebuildNode(int32_t nodeId)
 	}
 	offset -= entitiesPowerOfTwoCount;
 	if (offset >= entitiesData.size()) {
-		return;
+		return -1;
 	}
 	int32_t orgCount = count;
 	count = std::min<int32_t>(count, entitiesData.size() - offset);
 
 	if (count == 0) {
-		return;
+		return -1;
 	}
+	
+	*tcount = count;
 
 	Aabb totalAabb = entitiesData[offset].aabb;
 	MaskType mask = entitiesData[offset].mask;
@@ -333,7 +337,7 @@ void BvhMedianSplitHeap::RebuildNode(int32_t nodeId)
 	nodesHeapAabb[nodeId] = {totalAabb, mask};
 
 	if (count <= 2) {
-		return;
+		return -1;
 	}
 
 	int axis = 0;
@@ -362,15 +366,13 @@ void BvhMedianSplitHeap::RebuildNode(int32_t nodeId)
 	const static CompareTypeFunc sortFuncs[] = {
 		SortFunctions::SortX, SortFunctions::SortY, SortFunctions::SortZ};
 
-	int32_t mid = orgCount >> 1;
+	int32_t mid = (orgCount >> 1);
 	if (mid < count) {
 		auto beg = entitiesData.data() + offset;
 		std::nth_element(beg, beg + mid, beg + count, sortFuncs[axis]);
 	}
 
-	nodeId <<= 1;
-	RebuildNode(nodeId);
-	RebuildNode(nodeId + 1);
+	return nodeId << 1;
 }
 
 void BvhMedianSplitHeap::PruneEmptyEntitiesAtEnd()
@@ -416,5 +418,98 @@ void BvhMedianSplitHeap::UpdateAabb(int32_t offset)
 			}
 		}
 	}
+}
+
+bool BvhMedianSplitHeap::RebuildStep(RebuildProgress &progress)
+{
+	if (progress.done) {
+		return true;
+	}
+
+	switch (progress.stage) {
+	case 0:
+		rebuildTree = false;
+		entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)entitiesCount);
+		nodesHeapAabb.resize(entitiesPowerOfTwoCount);
+		progress.stage = 1;
+		progress.it = 0;
+		break;
+
+	case 1:
+		for (int32_t i = 0; i < 1024 && progress.it < nodesHeapAabb.size();
+			 ++i, ++progress.it) {
+			nodesHeapAabb[progress.it].mask = 0;
+		}
+		if (progress.it >= nodesHeapAabb.size()) {
+			progress.stage = 2;
+		}
+		break;
+
+	case 2:
+		entitiesOffsets.reserve(((entitiesCount + 7) * 3) / 2);
+		progress.stage = 3;
+		break;
+
+	case 3:
+		PruneEmptyEntitiesAtEnd();
+		progress.it = 0;
+		progress.stage = 4;
+		break;
+
+	case 4:
+		for (int32_t i = 0; i < 4096 && progress.it < entitiesData.size();
+			 ++i, ++progress.it) {
+			if (entitiesData[i].entity == EMPTY_ENTITY) {
+				std::swap(entitiesData[i], entitiesData.back());
+				PruneEmptyEntitiesAtEnd();
+			}
+		}
+
+		if (progress.it >= entitiesData.size()) {
+			progress.size = 1;
+			progress.stack[0] = 1;
+			progress.stage = 5;
+		}
+		break;
+
+	case 5: {
+		int32_t sum = 0;
+		while (sum < 300 && progress.size > 0) {
+			++sum;
+			int32_t tcount = 0;
+			progress.size--;
+			int32_t id = progress.stack[progress.size];
+			int32_t more = RebuildNodePartial(id, &tcount);
+			if (more > 0) {
+				progress.stack[progress.size] = more + 1;
+				progress.stack[progress.size + 1] = more;
+				progress.size += 2;
+			} else if (progress.size == 0) {
+				progress.stage = 6;
+				progress.it = 0;
+			}
+			sum += tcount;
+		}
+	} break;
+
+	case 6: {
+		for (int32_t i = 0; progress.it < entitiesData.size() && i < 64;
+			 ++i, ++progress.it) {
+			entitiesOffsets[entitiesData[progress.it].entity] = progress.it;
+		}
+	}
+
+		if (progress.it >= entitiesData.size()) {
+			progress.stage = 7;
+		}
+		break;
+
+	case 7:
+		// TODO: remove removed during updating
+		progress.done = true;
+		progress.stage = 8;
+		break;
+	}
+	return progress.done;
 }
 } // namespace spp

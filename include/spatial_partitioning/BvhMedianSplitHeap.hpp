@@ -1,5 +1,5 @@
 // This file is part of SpatialPartitioning.
-// Copyright (c) 2024 Marek Zalewski aka Drwalin
+// Copyright (c) 2024-2025 Marek Zalewski aka Drwalin
 // You should have received a copy of the MIT License along with this program.
 
 #pragma once
@@ -56,18 +56,28 @@ public:
 	AabbUpdatePolicy GetAabbUpdatePolicy() const;
 
 	virtual void Rebuild() override;
+	
+public:
+	struct RebuildProgress {
+		int32_t stack[64];
+		int32_t size = 0;
+		int32_t stage = 0;
+		int32_t it = 0;
+		bool done = false;
+	};
+	bool RebuildStep(RebuildProgress &progress);
 
 private:
 	void PruneEmptyEntitiesAtEnd();
 	void UpdateAabb(int32_t entityOffset);
 	void RebuildNode(int32_t nodeId);
+	int32_t RebuildNodePartial(int32_t nodeId, int32_t *tcount);
 
 	void _Internal_IntersectAabb(IntersectionCallback &cb,
 								 const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 
 private:
-	
 	struct alignas(32) Data {
 		AabbCentered aabb;
 		EntityType entity;

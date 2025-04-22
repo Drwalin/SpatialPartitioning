@@ -4,6 +4,7 @@
 #include <random>
 #include <vector>
 #include <chrono>
+#include <map>
 
 #include "../include/spatial_partitioning/BroadPhaseBase.hpp"
 #include "../include/spatial_partitioning/BruteForce.hpp"
@@ -13,10 +14,10 @@
 #include "../include/spatial_partitioning/LooseOctree.hpp"
 #include "../include/spatial_partitioning/BulletDbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 10000;
+const int32_t TOTAL_ENTITIES = 1000000;
 const size_t TOTAL_AABB_TESTS = 10000;
 const size_t TOTAL_AABB_MOVEMENTS = 100000;
-const size_t MAX_MOVING_ENTITIES = 1500;
+const size_t MAX_MOVING_ENTITIES = 50;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
@@ -26,6 +27,9 @@ enum TestType {
 	TEST_RAY_FIRST = 2,
 	TEST_RAY = 3,
 };
+
+const char *testTypeNames[] = {"NULL-NONE", "TEST_AABB", "TEST_RAY_FIRST",
+							   "TEST_ALL_RAYS"};
 
 struct EntityData {
 	spp::Aabb aabb;
@@ -84,9 +88,11 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 			std::vector<spp::EntityType> entities;
 		} cb;
 		cb.mask = ~(uint32_t)0;
-		typedef spp::RayPartialResult (*CbT)(spp::RayCallback *, spp::EntityType);
+		typedef spp::RayPartialResult (*CbT)(spp::RayCallback *,
+											 spp::EntityType);
 		cb.callback =
-			(CbT) + [](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
+			(CbT) +
+			[](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
 			float n, f;
 			spp::Aabb aabb = (*globalEntityData)[entity - 1].aabb;
 			if (aabb.FastRayTest(cb->start, cb->dirNormalized, cb->invDir,
@@ -114,9 +120,11 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 		struct _Cb : public spp::RayCallbackFirstHit {
 		} cb;
 		cb.mask = ~(uint32_t)0;
-		typedef spp::RayPartialResult (*CbT)(spp::RayCallback *, spp::EntityType);
+		typedef spp::RayPartialResult (*CbT)(spp::RayCallback *,
+											 spp::EntityType);
 		cb.callback =
-			(CbT) + [](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
+			(CbT) +
+			[](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
 			float n, f;
 			spp::Aabb aabb = (*globalEntityData)[entity - 1].aabb;
 			if (aabb.FastRayTest(cb->start, cb->dirNormalized, cb->invDir,
@@ -211,8 +219,8 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 				std::sort(vec.entities.begin() + of, vec.entities.begin() + en);
 			}
 		}
-		ents.push_back(
-			std::vector<spp::EntityType>(vec.entities.begin(), vec.entities.end()));
+		ents.push_back(std::vector<spp::EntityType>(vec.entities.begin(),
+													vec.entities.end()));
 		auto diff = end - beg;
 		int64_t ns =
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
@@ -265,33 +273,36 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 					c = aabbi.min;
 					d = aabbi.max;
 					if (JJ < 10) {
-					printf("  %7i: %7lu == %7lu  ", j, p0.e, pi.e);
-					printf("%7.2f %7.2f %7.2f .. %7.2f %7.2f %7.2f <-> %7.2f "
-						   "%7.2f "
-						   "%7.2f .. %7.2f %7.2f %7.2f",
-						   a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x,
-						   d.y, d.z);
+						printf("  %7i: %7lu == %7lu  ", j, p0.e, pi.e);
+						printf(
+							"%7.2f %7.2f %7.2f .. %7.2f %7.2f %7.2f <-> %7.2f "
+							"%7.2f "
+							"%7.2f .. %7.2f %7.2f %7.2f",
+							a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x,
+							d.y, d.z);
 
-					a = p0.point;
-					b = pi.point;
-					printf("     hit points: %7.2f %7.2f %7.2f <-> %7.2f %7.2f "
-						   "%7.2f",
-						   a.x, a.y, a.z, b.x, b.y, b.z);
+						a = p0.point;
+						b = pi.point;
+						printf("     hit points: %7.2f %7.2f %7.2f <-> %7.2f "
+							   "%7.2f "
+							   "%7.2f",
+							   a.x, a.y, a.z, b.x, b.y, b.z);
 
-					a = p0.start;
-					b = pi.start;
-					printf(
-						"     start: %7.2f %7.2f %7.2f <-> %7.2f %7.2f %7.2f",
-						a.x, a.y, a.z, b.x, b.y, b.z);
+						a = p0.start;
+						b = pi.start;
+						printf("     start: %7.2f %7.2f %7.2f <-> %7.2f %7.2f "
+							   "%7.2f",
+							   a.x, a.y, a.z, b.x, b.y, b.z);
 
-					a = p0.end;
-					b = pi.end;
-					printf("     end: %7.2f %7.2f %7.2f <-> %7.2f %7.2f %7.2f",
-						   a.x, a.y, a.z, b.x, b.y, b.z);
+						a = p0.end;
+						b = pi.end;
+						printf(
+							"     end: %7.2f %7.2f %7.2f <-> %7.2f %7.2f %7.2f",
+							a.x, a.y, a.z, b.x, b.y, b.z);
 
-					printf("     dist: %7.2f <-> %7.2f", p0.n, pi.n);
+						printf("     dist: %7.2f <-> %7.2f", p0.n, pi.n);
 
-					printf("\n");
+						printf("\n");
 					}
 				}
 			}
@@ -308,7 +319,7 @@ int main()
 	std::vector<EntityData> entities;
 	globalEntityData = &entities;
 	entities.resize(TOTAL_ENTITIES);
-	std::uniform_real_distribution<float> distPos(-300, 300);
+	std::uniform_real_distribution<float> distPos(-10, 10);
 	std::uniform_real_distribution<float> distSize(0.4, 10);
 	spp::EntityType id = 1;
 	for (auto &e : entities) {
@@ -320,7 +331,7 @@ int main()
 	}
 	entities[0].aabb = {{-400, -10, -400}, {400, 100, 400}};
 	entities[1].aabb = {{150, 0, 150}, {200, 10, 200}};
-	for (int i = 2; i < 50; ++i) {
+	for (int i = 2; i < 50 && i < entities.size(); ++i) {
 		auto &e = entities[i];
 		e.aabb.min = {distPos(mt), distPos(mt) / 16.0f, distPos(mt)};
 		e.aabb.max = {distSize(mt) * 6, distSize(mt) * 2, distSize(mt) * 6};
@@ -331,15 +342,15 @@ int main()
 	spp::BruteForce bf;
 	spp::Dbvh dbvh;
 	spp::HashLooseOctree hlo(1.0, 13, 1.6);
-	spp::LooseOctree lo(-glm::vec3(1,1,1)*(1024*16.f), 15, 1.6);
+	spp::LooseOctree lo(-glm::vec3(1, 1, 1) * (1024 * 16.f), 15, 1.6);
 	spp::BulletDbvh btDbvh;
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
-// 		&bf,
+		// 		&bf,
 		&bvh,
-		&dbvh,
-// 		&hlo,
-// 		&lo,
+		// 		&dbvh,
+		// 		&hlo,
+		// 		&lo,
 		&btDbvh,
 	};
 
@@ -372,9 +383,10 @@ int main()
 		fflush(stdout);
 	}
 	printf("\n");
-	
+
 	for (auto bp : broadphases) {
-		printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(), bp->GetMemoryUsage(), bp->GetMemoryUsage()/(1024.0*1024.0));
+		printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(),
+			   bp->GetMemoryUsage(), bp->GetMemoryUsage() / (1024.0 * 1024.0));
 		fflush(stdout);
 	}
 	printf("\n");
@@ -422,9 +434,7 @@ int main()
 	printf("\nAfter rebuild:\n\n");
 
 	for (int i = 1; i <= 3; ++i) {
-		printf("\n     TestType: %s\n", i == 1	 ? "AABB"
-										: i == 3 ? "RAY"
-												 : "RAY_FIRST");
+		printf("\n     TestType: %s\n", testTypeNames[i]);
 		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
 	}
 
@@ -435,7 +445,7 @@ int main()
 	ee.reserve(TOTAL_AABB_MOVEMENTS);
 	vv.reserve(TOTAL_AABB_MOVEMENTS);
 	for (size_t i = 0; i < TOTAL_AABB_MOVEMENTS; ++i) {
-		ee.push_back(((mt() % MAX_MOVING_ENTITIES ) % entities.size()) + 1);
+		ee.push_back(((mt() % MAX_MOVING_ENTITIES) % entities.size()) + 1);
 		vv.push_back({distPos(mt), distPos(mt) / 4.0f, distPos(mt)});
 	}
 
@@ -455,26 +465,92 @@ int main()
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%s update data: %.3f us/op\n", bp->GetName(), us / double(TOTAL_AABB_MOVEMENTS));
+		printf("%s update data: %.3f us/op\n", bp->GetName(),
+			   us / double(TOTAL_AABB_MOVEMENTS));
 		fflush(stdout);
 	}
 	printf("\n");
 
-	printf("\nAfter updated without rebuild:\n\n");
+	printf("\nAfter updated WITHOUT rebuild:\n\n");
 
 	for (int i = 1; i <= 3; ++i) {
-		printf("\n     TestType: %s\n", i == 1	 ? "AABB"
-										: i == 2 ? "RAY"
-												 : "RAY_FIRST");
+		printf("\n     TestType: %s\n", testTypeNames[i]);
 		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
 	}
-	
+
+	printf("\nRebuild:\n\n");
+
+	for (auto bp : broadphases) {
+		bool R = false;
+		double us;
+		if (auto b = dynamic_cast<spp::BvhMedianSplitHeap *>(bp)) {
+			std::multimap<double, int32_t> timestage;
+			std::vector<char> bytesCacheTrashing;
+			bytesCacheTrashing.resize(1024);
+			R = true;
+			spp::BvhMedianSplitHeap::RebuildProgress pr;
+			while (pr.done == false) {
+				{
+					char *_ptr = bytesCacheTrashing.data();
+					char * volatile ptr = _ptr;
+					for (int i=0; i<bytesCacheTrashing.size(); i+=64) {
+						ptr[i] = i;
+					}
+				}
+				const int32_t s = pr.stage;
+				auto beg = std::chrono::steady_clock::now();
+				b->RebuildStep(pr);
+				auto end = std::chrono::steady_clock::now();
+				auto diff = end - beg;
+				int64_t ns =
+					std::chrono::duration_cast<std::chrono::nanoseconds,
+											   int64_t>(diff)
+						.count();
+				us = double(ns) / 1000.0;
+// 				if (s == 5) {
+					timestage.insert({us, s});
+// 				}
+			}
+			int i=0;
+			double sum = 0;
+			for (auto it=timestage.begin(); it!=timestage.end(); ++it, ++i) {
+				sum += it->first;
+				printf("times[%i:%i]: %.3f us\n", i, it->second, it->first);
+			}
+			printf("times.size = %lu\n", timestage.size());
+			us = sum / timestage.size();
+		} else {
+			auto beg = std::chrono::steady_clock::now();
+			bp->Rebuild();
+			auto end = std::chrono::steady_clock::now();
+			auto diff = end - beg;
+			int64_t ns =
+				std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(
+					diff)
+					.count();
+			us = double(ns) / 1000.0;
+		}
+		printf("%s rebuild: %.3f us\n", bp->GetName(), us);
+		if (R) {
+			printf("RRRRRRRRRRRRRRRRRRRRRRR\n");
+		}
+		fflush(stdout);
+	}
+	printf("\n");
+
+	printf("\nAfter updated WITH rebuild:\n\n");
+
+	for (int i = 1; i <= 3; ++i) {
+		printf("\n     TestType: %s\n", testTypeNames[i]);
+		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
+	}
+
 	printf("\nAfter reconstruct and full rebuild:\n");
-	
+
 	for (auto bp : broadphases) {
 		bp->Clear();
 	}
-	
+
 	for (auto bp : broadphases) {
 		auto beg = std::chrono::steady_clock::now();
 		for (const auto &e : entities) {
@@ -504,17 +580,16 @@ int main()
 		fflush(stdout);
 	}
 	printf("\n");
-	
+
 	for (int i = 1; i <= 3; ++i) {
-		printf("\n     TestType: %s\n", i == 1	 ? "AABB"
-										: i == 2 ? "RAY"
-												 : "RAY_FIRST");
+		printf("\n     TestType: %s\n", testTypeNames[i]);
 		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
 	}
-	
+
 	printf("\n");
 	for (auto bp : broadphases) {
-		printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(), bp->GetMemoryUsage(), bp->GetMemoryUsage()/(1024.0*1024.0));
+		printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(),
+			   bp->GetMemoryUsage(), bp->GetMemoryUsage() / (1024.0 * 1024.0));
 		fflush(stdout);
 	}
 	printf("\n");

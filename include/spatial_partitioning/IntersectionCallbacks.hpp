@@ -12,6 +12,9 @@ namespace spp
 struct IntersectionCallback {
 	IntersectionCallback() = default;
 	virtual ~IntersectionCallback() = default;
+	
+	bool IsRelevant(AabbCentered aabb) const;
+	bool IsRelevant(Aabb aabb) const;
 
 	void (*callback)(IntersectionCallback *, EntityType entity) = nullptr;
 
@@ -45,6 +48,9 @@ struct RayPartialResult {
 struct RayCallback {
 	RayCallback() = default;
 	~RayCallback() = default;
+	
+	bool IsRelevant(AabbCentered aabb, float &near, float &far) const;
+	bool IsRelevant(Aabb aabb, float &near, float &far) const;
 
 	RayPartialResult (*callback)(RayCallback *, EntityType entity) = nullptr;
 

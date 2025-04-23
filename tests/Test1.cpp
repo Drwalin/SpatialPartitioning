@@ -19,11 +19,11 @@
 #include "../include/spatial_partitioning/BulletDbvt.hpp"
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 100000;
+const int32_t TOTAL_ENTITIES = 10000000;
 const size_t TOTAL_AABB_TESTS = 100000;
-const size_t TOTAL_AABB_MOVEMENTS = 10000;
+const size_t TOTAL_AABB_MOVEMENTS = 1000000;
 const size_t TOTAL_MOVES_AND_TESTS = 1000000;
-const size_t MAX_MOVING_ENTITIES = 1500;
+const size_t MAX_MOVING_ENTITIES = 3500;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
@@ -374,10 +374,12 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			auto p0 = hitPoints[0][j];
 			auto pi = hitPoints[i][j];
 			if (p0.e != pi.e) {
-				auto aabb0 =
-					p0.e ? (*globalEntityData)[p0.e - 1].aabb : spp::Aabb{};
-				auto aabbi =
-					pi.e ? (*globalEntityData)[pi.e - 1].aabb : spp::Aabb{};
+				auto aabb0 = (p0.e > 0 && p0.e < globalEntityData->size())
+								 ? (*globalEntityData)[p0.e - 1].aabb
+								 : spp::Aabb{};
+				auto aabbi = (pi.e > 0 && pi.e < globalEntityData->size())
+								 ? (*globalEntityData)[pi.e - 1].aabb
+								 : spp::Aabb{};
 
 				auto com = aabb0 * aabbi;
 				bool er = true;
@@ -453,7 +455,7 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 	static std::mutex mutex;
 	static bool done = false;
 	using Pair = std::pair<std::shared_ptr<std::atomic<bool>>,
-		  std::shared_ptr<spp::BroadphaseBase>>;
+						   std::shared_ptr<spp::BroadphaseBase>>;
 	static std::queue<Pair> queue;
 	if (done == false) {
 		done = true;
@@ -462,13 +464,17 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 				if (size.load() > 0) {
 					Pair p;
+					bool has = false;
 					{
 						std::lock_guard lock(mutex);
-						p = queue.front();
-						queue.pop();
+						if (queue.empty() == false) {
+							p = queue.front();
+							queue.pop();
+							has = true;
+						}
 					}
 					--size;
-					if (p.second.unique() == false || p.second.use_count() > 1) {
+					if (has && p.second.use_count() > 1) {
 						p.second->Rebuild();
 						p.first->store(true);
 					}
@@ -483,7 +489,7 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 	++size;
 }
 
-int main()
+int main(int argc, char **argv)
 {
 	std::vector<EntityData> entities;
 	globalEntityData = &entities;
@@ -528,186 +534,54 @@ int main()
 								std::make_unique<spp::BruteForce>());
 	tsdbvh2.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 
+	spp::ThreeStageDbvh tsdbvh3(std::make_shared<spp::BvhMedianSplitHeap>(),
+								std::make_shared<spp::BvhMedianSplitHeap>(),
+								std::make_unique<spp::Dbvh>(),
+								std::make_unique<spp::Dbvh>());
+	tsdbvh2.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+
 	std::vector<spp::BroadphaseBase *> broadphases = {
 		// 		&bf,
 		// 		&dbvh2,
-// 		&bvh,
+		// 		&bvh,
 		&dbvh,
 		// &hlo,
 		// &lo,
-// 		&btDbvh,
-// 		&btDbvt,
+		// 		&btDbvh,
+		// 		&btDbvt,
 		&tsdbvh,
 		&tsdbvh2,
+		&tsdbvh3,
 	};
 
-	for (auto bp : broadphases) {
-		auto beg = std::chrono::steady_clock::now();
-		for (const auto &e : entities) {
-			bp->Add(e.id, e.aabb, e.mask);
+	bool enablePrepass = true;
+
+	for (int i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "--disable-prepass") == 0) {
+			enablePrepass = false;
 		}
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		printf("%s adding time: %.3f us\n", bp->GetName(), us);
-		fflush(stdout);
-	}
-	printf("\n");
-
-	for (auto bp : broadphases) {
-		auto beg = std::chrono::steady_clock::now();
-		bp->Rebuild();
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		printf("%s build: %.3f us\n", bp->GetName(), us);
-		fflush(stdout);
-	}
-	printf("\n");
-
-	for (auto bp : broadphases) {
-		printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(),
-			   bp->GetMemoryUsage(), bp->GetMemoryUsage() / (1024.0 * 1024.0));
-		fflush(stdout);
-	}
-	printf("\n");
-
-	/*
-	std::uniform_real_distribution<float> distDisp(-50, 50);
-	for (int i = 0; i < 300; ++i) {
-		auto &e = entities[mt() % entities.size()];
-		glm::vec3 disp = {distPos(mt), distPos(mt) / 4.0f, distPos(mt)};
-		e.aabb.min += disp;
-		e.aabb.max += disp;
 	}
 
-	for (auto bp : broadphases) {
-		auto beg = std::chrono::steady_clock::now();
-		for (int i = 0; i < 300 && i < entities.size(); ++i) {
-			bp->Update(entities[i].id, entities[i].aabb);
-		}
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		printf("%s update data: %.3f us\n", bp->GetName(), us);
-		fflush(stdout);
-	}
-	printf("\n");
-	*/
+	if (enablePrepass) {
 
-	for (auto bp : broadphases) {
-		auto beg = std::chrono::steady_clock::now();
-		bp->Rebuild();
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		printf("%s rebuild: %.3f us\n", bp->GetName(), us);
-		fflush(stdout);
-	}
-	printf("\n");
-
-	printf("\nAfter rebuild:\n\n");
-
-	for (int i = 1; i <= 3; ++i) {
-		printf("\n     TestType: %s\n", testTypeNames[i]);
-		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
-	}
-
-	bvh.SetAabbUpdatePolicy(spp::BvhMedianSplitHeap::ON_UPDATE_EXTEND_AABB);
-
-	ee.reserve(TOTAL_AABB_MOVEMENTS);
-	vv.reserve(TOTAL_AABB_MOVEMENTS);
-	for (size_t i = 0; i < TOTAL_AABB_MOVEMENTS; ++i) {
-		ee.push_back(((mt() % MAX_MOVING_ENTITIES) % entities.size()) + 1);
-		vv.push_back({distPos(mt), distPos(mt) / 4.0f, distPos(mt)});
-	}
-
-	printf("\n");
-
-	const auto old = entities;
-	for (auto bp : broadphases) {
-		entities = old;
-		auto beg = std::chrono::steady_clock::now();
-		for (size_t i = 0; i < ee.size(); ++i) {
-			spp::Aabb &a = entities[ee[i] - 1].aabb;
-			a.min += vv[i];
-			a.max += vv[i];
-			bp->Update(ee[i], a);
-		}
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		printf("%s update data: %.3f us/op\n", bp->GetName(),
-			   us / double(TOTAL_AABB_MOVEMENTS));
-		fflush(stdout);
-	}
-	printf("\n");
-
-	printf("\nAfter updated WITHOUT rebuild:\n\n");
-
-	for (int i = 1; i <= 3; ++i) {
-		printf("\n     TestType: %s\n", testTypeNames[i]);
-		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
-	}
-
-	printf("\nRebuild:\n\n");
-
-	for (auto bp : broadphases) {
-		bool R = false;
-		double us;
-		if (auto b = dynamic_cast<spp::BvhMedianSplitHeap *>(bp)) {
-			std::multimap<double, int32_t, std::greater<double>> timestage;
-			std::vector<char> bytesCacheTrashing;
-			bytesCacheTrashing.resize(1024);
-			R = true;
-			spp::BvhMedianSplitHeap::RebuildProgress pr;
-			while (pr.done == false) {
-				{
-					char *_ptr = bytesCacheTrashing.data();
-					char *volatile ptr = _ptr;
-					for (int i = 0; i < bytesCacheTrashing.size(); i += 64) {
-						ptr[i] = i;
-					}
-				}
-				const int32_t s = pr.stage;
-				auto beg = std::chrono::steady_clock::now();
-				b->RebuildStep(pr);
-				auto end = std::chrono::steady_clock::now();
-				auto diff = end - beg;
-				int64_t ns =
-					std::chrono::duration_cast<std::chrono::nanoseconds,
-											   int64_t>(diff)
-						.count();
-				us = double(ns) / 1000.0;
-				timestage.insert({us, s});
+		for (auto bp : broadphases) {
+			auto beg = std::chrono::steady_clock::now();
+			for (const auto &e : entities) {
+				bp->Add(e.id, e.aabb, e.mask);
 			}
-			int i = 0;
-			double sum = 0;
-			std::vector<std::pair<double, int32_t>> tst(timestage.begin(),
-														timestage.end());
-			for (auto it = tst.begin(); i < tst.size();
-				 i = ((i * 14 / 13) + 1), it = tst.begin() + i) {
-				sum += it->first;
-				printf("times[%i:%i]: %.3f us\n", i, it->second, it->first);
-			}
-			printf("times.size = %lu\n", timestage.size());
-			us = sum / timestage.size();
-		} else {
+			auto end = std::chrono::steady_clock::now();
+			auto diff = end - beg;
+			int64_t ns =
+				std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(
+					diff)
+					.count();
+			double us = double(ns) / 1000.0;
+			printf("%s adding time: %.3f us\n", bp->GetName(), us);
+			fflush(stdout);
+		}
+		printf("\n");
+
+		for (auto bp : broadphases) {
 			auto beg = std::chrono::steady_clock::now();
 			bp->Rebuild();
 			auto end = std::chrono::steady_clock::now();
@@ -716,27 +590,185 @@ int main()
 				std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(
 					diff)
 					.count();
-			us = double(ns) / 1000.0;
+			double us = double(ns) / 1000.0;
+			printf("%s build: %.3f us\n", bp->GetName(), us);
+			fflush(stdout);
 		}
-		printf("%s rebuild: %.3f us\n", bp->GetName(), us);
-		if (R) {
-			printf("RRRRRRRRRRRRRRRRRRRRRRR\n");
+		printf("\n");
+
+		for (auto bp : broadphases) {
+			printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(),
+				   bp->GetMemoryUsage(),
+				   bp->GetMemoryUsage() / (1024.0 * 1024.0));
+			fflush(stdout);
 		}
-		fflush(stdout);
+		printf("\n");
+
+		/*
+		std::uniform_real_distribution<float> distDisp(-50, 50);
+		for (int i = 0; i < 300; ++i) {
+			auto &e = entities[mt() % entities.size()];
+			glm::vec3 disp = {distPos(mt), distPos(mt) / 4.0f, distPos(mt)};
+			e.aabb.min += disp;
+			e.aabb.max += disp;
+		}
+
+		for (auto bp : broadphases) {
+			auto beg = std::chrono::steady_clock::now();
+			for (int i = 0; i < 300 && i < entities.size(); ++i) {
+				bp->Update(entities[i].id, entities[i].aabb);
+			}
+			auto end = std::chrono::steady_clock::now();
+			auto diff = end - beg;
+			int64_t ns =
+				std::chrono::duration_cast<std::chrono::nanoseconds,
+		int64_t>(diff) .count(); double us = double(ns) / 1000.0; printf("%s
+		update data: %.3f us\n", bp->GetName(), us); fflush(stdout);
+		}
+		printf("\n");
+		*/
+
+		for (auto bp : broadphases) {
+			auto beg = std::chrono::steady_clock::now();
+			bp->Rebuild();
+			auto end = std::chrono::steady_clock::now();
+			auto diff = end - beg;
+			int64_t ns =
+				std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(
+					diff)
+					.count();
+			double us = double(ns) / 1000.0;
+			printf("%s rebuild: %.3f us\n", bp->GetName(), us);
+			fflush(stdout);
+		}
+		printf("\n");
+
+		printf("\nAfter rebuild:\n\n");
+
+		for (int i = 1; i <= 3; ++i) {
+			printf("\n     TestType: %s\n", testTypeNames[i]);
+			Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
+		}
+
+		bvh.SetAabbUpdatePolicy(spp::BvhMedianSplitHeap::ON_UPDATE_EXTEND_AABB);
+
+		ee.reserve(TOTAL_AABB_MOVEMENTS);
+		vv.reserve(TOTAL_AABB_MOVEMENTS);
+		for (size_t i = 0; i < TOTAL_AABB_MOVEMENTS; ++i) {
+			ee.push_back(((mt() % MAX_MOVING_ENTITIES) % entities.size()) + 1);
+			vv.push_back({distPos(mt), distPos(mt) / 4.0f, distPos(mt)});
+		}
+
+		printf("\n");
+
+		const auto old = entities;
+		for (auto bp : broadphases) {
+			entities = old;
+			auto beg = std::chrono::steady_clock::now();
+			for (size_t i = 0; i < ee.size(); ++i) {
+				spp::Aabb &a = entities[ee[i] - 1].aabb;
+				a.min += vv[i];
+				a.max += vv[i];
+				bp->Update(ee[i], a);
+			}
+			auto end = std::chrono::steady_clock::now();
+			auto diff = end - beg;
+			int64_t ns =
+				std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(
+					diff)
+					.count();
+			double us = double(ns) / 1000.0;
+			printf("%s update data: %.3f us/op\n", bp->GetName(),
+				   us / double(TOTAL_AABB_MOVEMENTS));
+			fflush(stdout);
+		}
+		printf("\n");
+
+		printf("\nAfter updated WITHOUT rebuild:\n\n");
+
+		for (int i = 1; i <= 3; ++i) {
+			printf("\n     TestType: %s\n", testTypeNames[i]);
+			Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
+		}
+
+		printf("\nRebuild:\n\n");
+
+		for (auto bp : broadphases) {
+			double us;
+			if (auto b = dynamic_cast<spp::BvhMedianSplitHeap *>(bp)) {
+				std::multimap<double, int32_t, std::greater<double>> timestage;
+				std::vector<char> bytesCacheTrashing;
+				bytesCacheTrashing.resize(1024);
+				spp::BvhMedianSplitHeap::RebuildProgress pr;
+				while (pr.done == false) {
+					{
+						char *_ptr = bytesCacheTrashing.data();
+						char *volatile ptr = _ptr;
+						for (int i = 0; i < bytesCacheTrashing.size();
+							 i += 64) {
+							ptr[i] = i;
+						}
+					}
+					const int32_t s = pr.stage;
+					auto beg = std::chrono::steady_clock::now();
+					b->RebuildStep(pr);
+					auto end = std::chrono::steady_clock::now();
+					auto diff = end - beg;
+					int64_t ns =
+						std::chrono::duration_cast<std::chrono::nanoseconds,
+												   int64_t>(diff)
+							.count();
+					us = double(ns) / 1000.0;
+					timestage.insert({us, s});
+				}
+				int i = 0;
+				double sum = 0;
+				std::vector<std::pair<double, int32_t>> tst(timestage.begin(),
+															timestage.end());
+				for (auto it = tst.begin(); i < tst.size();
+					 i = ((i * 14 / 13) + 1), it = tst.begin() + i) {
+					sum += it->first;
+					printf("times[%i:%i]: %.3f us\n", i, it->second, it->first);
+				}
+				printf("times.size = %lu\n", timestage.size());
+				us = sum / timestage.size();
+			} else {
+				auto beg = std::chrono::steady_clock::now();
+				bp->Rebuild();
+				auto end = std::chrono::steady_clock::now();
+				auto diff = end - beg;
+				int64_t ns =
+					std::chrono::duration_cast<std::chrono::nanoseconds,
+											   int64_t>(diff)
+						.count();
+				us = double(ns) / 1000.0;
+			}
+			printf("%s rebuild: %.3f us\n", bp->GetName(), us);
+			fflush(stdout);
+		}
+		printf("\n");
+
+		printf("\nAfter updated WITH rebuild:\n\n");
+
+		for (int i = 1; i <= 3; ++i) {
+			printf("\n     TestType: %s\n", testTypeNames[i]);
+			Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
+		}
+
+		printf("\nAfter reconstruct and full rebuild:\n");
 	}
-	printf("\n");
-
-	printf("\nAfter updated WITH rebuild:\n\n");
-
-	for (int i = 1; i <= 3; ++i) {
-		printf("\n     TestType: %s\n", testTypeNames[i]);
-		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
-	}
-
-	printf("\nAfter reconstruct and full rebuild:\n");
 
 	for (auto bp : broadphases) {
+		auto beg = std::chrono::steady_clock::now();
 		bp->Clear();
+		auto end = std::chrono::steady_clock::now();
+		auto diff = end - beg;
+		int64_t ns =
+			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
+				.count();
+		double us = double(ns) / 1000.0;
+		printf("%s clearing time: %.3f us\n", bp->GetName(), us);
+		fflush(stdout);
 	}
 
 	for (auto bp : broadphases) {
@@ -769,9 +801,11 @@ int main()
 	}
 	printf("\n");
 
-	for (int i = 1; i <= 3; ++i) {
-		printf("\n     TestType: %s\n", testTypeNames[i]);
-		Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
+	if (enablePrepass) {
+		for (int i = 1; i <= 3; ++i) {
+			printf("\n     TestType: %s\n", testTypeNames[i]);
+			Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
+		}
 	}
 
 	printf("\nMore realistinc dynamic movement entagled with tests:\n");

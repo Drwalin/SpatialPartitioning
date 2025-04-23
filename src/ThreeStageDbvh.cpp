@@ -74,7 +74,7 @@ void ThreeStageDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 {
 	if (TryIntegrateOptimised()) {
-		if (rebuild->Exists(entity)) {
+		if (optimised->Exists(entity) || dynamic2->Exists(entity)) {
 			toRemoveAfterRebuild.insert(entity);
 		}
 	}
@@ -110,7 +110,7 @@ void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 void ThreeStageDbvh::Remove(EntityType entity)
 {
 	if (TryIntegrateOptimised()) {
-		if (rebuild->Exists(entity)) {
+		if (optimised->Exists(entity) || dynamic2->Exists(entity)) {
 			toRemoveAfterRebuild.insert(entity);
 		}
 	}
@@ -130,7 +130,7 @@ void ThreeStageDbvh::Remove(EntityType entity)
 void ThreeStageDbvh::SetMask(EntityType entity, MaskType mask)
 {
 	if (rebuild) {
-		if (rebuild->Exists(entity)) {
+		if (optimised->Exists(entity) || dynamic2->Exists(entity)) {
 			setMaskAfterRebuild[entity] = mask;
 		}
 	}

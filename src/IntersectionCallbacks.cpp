@@ -16,4 +16,23 @@ void RayCallback::InitVariables()
 		invDir = glm::vec3(1.f, 1.f, 1.f) / dirNormalized;
 	}
 }
+
+bool IntersectionCallback::IsRelevant(AabbCentered aabb) const
+{
+	return aabb && this->aabb;
 }
+
+bool IntersectionCallback::IsRelevant(Aabb aabb) const
+{
+	return aabb && this->aabb;
+}
+
+bool RayCallback::IsRelevant(AabbCentered aabb, float &near, float &far) const
+{
+	return aabb.FastRayTest(start, dirNormalized, invDir, length, near, far);
+}
+bool RayCallback::IsRelevant(Aabb aabb, float &near, float &far) const
+{
+	return aabb.FastRayTest(start, dirNormalized, invDir, length, near, far);
+}
+} // namespace spp

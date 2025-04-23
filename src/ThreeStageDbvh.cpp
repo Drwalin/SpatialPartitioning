@@ -206,22 +206,7 @@ void ThreeStageDbvh::TryScheduleRebuild()
 		scheduleRebuildFunc(_finishedRebuilding, _rebuild,
 							scheduleUpdateUserData);
 	} else {
-		for (auto it = dynamic->RestartIterator(); it->Valid(); it->Next()) {
-			optimised->Add(it->entity, it->aabb, it->mask);
-		}
-		for (auto it = dynamic2->RestartIterator(); it->Valid(); it->Next()) {
-			optimised->Add(it->entity, it->aabb, it->mask);
-		}
-		optimised->Rebuild();
-		
-		dynamic->Clear();
-		dynamic2->Clear();
-
-		dynamicUpdates = 0;
-		optimisedUpdates = 0;
-		wasScheduled = false;
-		finishedRebuilding->store(false);
-		tests = 0;
+		Rebuild();
 	}
 }
 
@@ -290,7 +275,29 @@ void ThreeStageDbvh::IntersectRay(RayCallback &cb)
 	optimised->IntersectRay(cb);
 }
 
-void ThreeStageDbvh::Rebuild() { TryScheduleRebuild(); }
+void ThreeStageDbvh::Rebuild() {
+	
+	if (wasScheduled) {
+		clear = true;
+	}
+	
+	for (auto it = dynamic->RestartIterator(); it->Valid(); it->Next()) {
+		optimised->Add(it->entity, it->aabb, it->mask);
+	}
+	for (auto it = dynamic2->RestartIterator(); it->Valid(); it->Next()) {
+		optimised->Add(it->entity, it->aabb, it->mask);
+	}
+	optimised->Rebuild();
+
+	dynamic->Clear();
+	dynamic2->Clear();
+
+	dynamicUpdates = 0;
+	optimisedUpdates = 0;
+	wasScheduled = false;
+	finishedRebuilding->store(false);
+	tests = 0;
+}
 
 BroadphaseBaseIterator *ThreeStageDbvh::RestartIterator()
 {

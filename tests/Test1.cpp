@@ -1,5 +1,8 @@
 #include <cstdio>
 
+#include <thread>
+#include <mutex>
+#include <queue>
 #include <algorithm>
 #include <random>
 #include <vector>
@@ -16,11 +19,11 @@
 #include "../include/spatial_partitioning/BulletDbvt.hpp"
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 2000;
-const size_t TOTAL_AABB_TESTS = 10000;
+const int32_t TOTAL_ENTITIES = 100000;
+const size_t TOTAL_AABB_TESTS = 100000;
 const size_t TOTAL_AABB_MOVEMENTS = 10000;
 const size_t TOTAL_MOVES_AND_TESTS = 1000000;
-const size_t MAX_MOVING_ENTITIES = 50;
+const size_t MAX_MOVING_ENTITIES = 1500;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
@@ -205,7 +208,7 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			(CbTRay) +
 			[](_CbRay *cb, spp::EntityType entity) -> spp::RayPartialResult {
 			float n, f;
-			spp::Aabb aabb = (*globalEntityData)[entity - 1].aabb;
+			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
 			if (aabb.FastRayTest(cb->start, cb->dirNormalized, cb->invDir,
 								 cb->length, n, f)) {
 				if (n < 0.0f) {
@@ -235,19 +238,19 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			broadphase->IntersectAabb(cbAabb);
 
 			auto e = ee[i + 1];
-			if (i % 50 == 15 || broadphase->Exists(e) == false) {
+			if (i % 15 == 0 || broadphase->Exists(e) == false) {
 				if (broadphase->Exists(e) == false) {
 					spp::Aabb aabb = aabbsToTest[i + 1];
-					aabb.max = aabb.min + ((vv[i+1]+1000.0f) /  400.0f);
+					aabb.max = aabb.min + ((vv[i + 1] + 1000.0f) / 400.0f);
 					broadphase->Add(e, aabb, ~0);
 				}
-				e = (((i ^ e)*16777619) % (TOTAL_ENTITIES*2)) + 1;
-				
+				e = (((i ^ e) * 16777619) % (TOTAL_ENTITIES + 1000)) + 1;
+
 				if (broadphase->Exists(e)) {
 					broadphase->Remove(e);
 				} else {
 					spp::Aabb aabb = aabbsToTest[i + 1];
-					aabb.max = aabb.min + ((vv[i+1]+1000.0f) /  400.0f);
+					aabb.max = aabb.min + ((vv[i + 1] + 1000.0f) / 400.0f);
 					broadphase->Add(e, aabb, ~0);
 				}
 			} else {
@@ -307,7 +310,7 @@ std::vector<std::vector<spp::EntityType>>
 Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 	 TestType testType)
 {
-	std::uniform_real_distribution<float> distPos(-1000, 1000);
+	std::uniform_real_distribution<float> distPos(-520, 520);
 	std::uniform_real_distribution<float> distSize(pow(2.0 / 16.0, 1.0 / 3.0),
 												   1.0);
 	std::vector<spp::Aabb> &aabbs = globalAabbs;
@@ -442,6 +445,44 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 	return ents;
 }
 
+void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
+							std::shared_ptr<spp::BroadphaseBase> dbvh,
+							std::shared_ptr<void> data)
+{
+	static std::atomic<int> size = 0;
+	static std::mutex mutex;
+	static bool done = false;
+	using Pair = std::pair<std::shared_ptr<std::atomic<bool>>,
+		  std::shared_ptr<spp::BroadphaseBase>>;
+	static std::queue<Pair> queue;
+	if (done == false) {
+		done = true;
+		std::thread thread = std::thread([]() {
+			while (true) {
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				if (size.load() > 0) {
+					Pair p;
+					{
+						std::lock_guard lock(mutex);
+						p = queue.front();
+						queue.pop();
+					}
+					--size;
+					if (p.second.unique() == false || p.second.use_count() > 1) {
+						p.second->Rebuild();
+						p.first->store(true);
+					}
+				}
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+		});
+		thread.detach();
+	}
+	std::lock_guard lock(mutex);
+	queue.push({fin, dbvh});
+	++size;
+}
+
 int main()
 {
 	std::vector<EntityData> entities;
@@ -479,17 +520,25 @@ int main()
 							   std::make_shared<spp::BvhMedianSplitHeap>(),
 							   std::make_unique<spp::BulletDbvt>(),
 							   std::make_unique<spp::BulletDbvt>());
+	tsdbvh.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+
+	spp::ThreeStageDbvh tsdbvh2(std::make_shared<spp::BvhMedianSplitHeap>(),
+								std::make_shared<spp::BvhMedianSplitHeap>(),
+								std::make_unique<spp::BruteForce>(),
+								std::make_unique<spp::BruteForce>());
+	tsdbvh2.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
-		&bf,
-		&dbvh2,
-		&bvh,
+		// 		&bf,
+		// 		&dbvh2,
+// 		&bvh,
 		&dbvh,
 		// &hlo,
 		// &lo,
-		&btDbvh,
-		&btDbvt,
+// 		&btDbvh,
+// 		&btDbvt,
 		&tsdbvh,
+		&tsdbvh2,
 	};
 
 	for (auto bp : broadphases) {

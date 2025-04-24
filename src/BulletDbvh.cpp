@@ -69,7 +69,13 @@ void BulletDbvh::Clear()
 
 size_t BulletDbvh::GetMemoryUsage() const
 {
-	return ents.GetMemoryUsage() + allocatedBytes;
+	return ents.GetMemoryUsage() +
+		(broadphase.m_sets[0].m_leaves * 2 - 1) * sizeof(bullet::btDbvtNode) +
+		broadphase.m_sets[0].m_stkStack.capacity() * sizeof(bullet::btDbvt::sStkNN) +
+		(broadphase.m_sets[1].m_leaves * 2 - 1) * sizeof(bullet::btDbvtNode) +
+		broadphase.m_sets[1].m_stkStack.capacity() * sizeof(bullet::btDbvt::sStkNN) +
+		64*64 +
+		ents.Size() * sizeof(bullet::btDbvtProxy);
 }
 
 void BulletDbvh::ShrinkToFit() {}
@@ -256,8 +262,8 @@ BroadphaseBaseIterator *BulletDbvh::RestartIterator()
 BulletDbvh::Iterator::Iterator(BulletDbvh &bp)
 {
 	data = &(bp.ents._Data()._Data());
-	it = 1;
-	FetchData();
+	it = 0;
+	Next();
 }
 
 BulletDbvh::Iterator::~Iterator() {}

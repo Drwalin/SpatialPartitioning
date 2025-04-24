@@ -562,7 +562,7 @@ HashLooseOctree::Iterator::Iterator(HashLooseOctree &bp)
 {
 	data = &bp.data._Data()._Data();
 	it = 0;
-	FetchData();
+	Next();
 }
 
 HashLooseOctree::Iterator::~Iterator() {}

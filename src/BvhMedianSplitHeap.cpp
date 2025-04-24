@@ -90,20 +90,9 @@ void BvhMedianSplitHeap::Remove(EntityType entity)
 
 	PruneEmptyEntitiesAtEnd();
 
-	if (updatePolicy == ON_UPDATE_EXTEND_AABB) {
-		offset = (offset | 1) ^ 1;
-		if (offset < entitiesData.size()) {
-			UpdateAabb(offset);
-		}
-	} else {
-		if (entitiesCount != entitiesData.size()) {
-			rebuildTree = true;
-		} else {
-			offset = (offset | 1) ^ 1;
-			if (offset < entitiesData.size()) {
-				UpdateAabb(offset);
-			}
-		}
+	offset = (offset | 1) ^ 1;
+	if (offset < entitiesData.size()) {
+		UpdateAabb(offset);
 	}
 }
 
@@ -113,13 +102,13 @@ void BvhMedianSplitHeap::SetMask(EntityType entity, MaskType mask)
 	if (it == entitiesOffsets.end()) {
 		return;
 	}
-	
+
 	uint32_t offset = it->second;
-	
+
 	if (entitiesData[offset].mask == mask) {
 		return;
 	}
-	
+
 	entitiesData[offset].mask = mask;
 	if ((offset ^ 1) < entitiesData.size()) {
 		if (entitiesData[offset ^ 1].entity != EMPTY_ENTITY) {
@@ -135,10 +124,7 @@ void BvhMedianSplitHeap::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
-int32_t BvhMedianSplitHeap::GetCount() const
-{
-	return entitiesCount;
-}
+int32_t BvhMedianSplitHeap::GetCount() const { return entitiesCount; }
 
 bool BvhMedianSplitHeap::Exists(EntityType entity) const
 {
@@ -396,7 +382,7 @@ void BvhMedianSplitHeap::PruneEmptyEntitiesAtEnd()
 void BvhMedianSplitHeap::UpdateAabb(int32_t offset)
 {
 	MaskType mask = 0;
-	Aabb aabb = {{0, 0, 0}, {-1, -1, -1}};
+	Aabb aabb = {{0, 0, 0}, {0, 0, 0}};
 	for (int i = 0; i <= 1; ++i, offset ^= 1) {
 		if (offset < entitiesData.size()) {
 			if (entitiesData[offset].entity != EMPTY_ENTITY &&
@@ -530,8 +516,8 @@ BroadphaseBaseIterator *BvhMedianSplitHeap::RestartIterator()
 BvhMedianSplitHeap::Iterator::Iterator(BvhMedianSplitHeap &bp)
 {
 	data = &bp.entitiesData;
-	it = 0;
-	FetchData();
+	it = -1;
+	Next();
 }
 
 BvhMedianSplitHeap::Iterator::~Iterator() {}
@@ -541,6 +527,7 @@ bool BvhMedianSplitHeap::Iterator::Next()
 	do {
 		++it;
 	} while (Valid() && (*data)[it].entity == EMPTY_ENTITY);
+	
 	return FetchData();
 }
 

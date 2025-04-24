@@ -24,7 +24,6 @@ subject to the following restrictions:
 // Compile time config
 //
 
-#define DBVT_BP_PROFILE 0
 //#define DBVT_BP_SORTPAIRS				1
 #define DBVT_BP_PREVENTFALSEUPDATE 0
 #define DBVT_BP_ACCURATESLEEPING 0
@@ -33,11 +32,6 @@ subject to the following restrictions:
 namespace bullet {
 extern btScalar gDbvtMargin;
 }
-
-#if DBVT_BP_PROFILE
-#define DBVT_BP_PROFILING_RATE 256
-#include "LinearMath/btQuickprof.h"
-#endif
 
 namespace bullet {
 //
@@ -92,17 +86,7 @@ struct btDbvtBroadphase : btBroadphaseInterface
 	bool m_deferedcollide;                      // Defere dynamic/static collision to collide call
 	bool m_needcleanup;                         // Need to run cleanup?
 	btAlignedObjectArray<btAlignedObjectArray<const btDbvtNode*> > m_rayTestStacks;
-#if DBVT_BP_PROFILE
-	btClock m_clock;
-	struct
-	{
-		unsigned long m_total;
-		unsigned long m_ddcollide;
-		unsigned long m_fdcollide;
-		unsigned long m_cleanup;
-		unsigned long m_jobcount;
-	} m_profiling;
-#endif
+	
 	/* Methods		*/
 	btDbvtBroadphase(btOverlappingPairCache* paircache = 0);
 	~btDbvtBroadphase();
@@ -142,7 +126,6 @@ struct btDbvtBroadphase : btBroadphaseInterface
 	///http://code.google.com/p/bullet/issues/detail?id=223
 	void setAabbForceUpdate(btBroadphaseProxy* absproxy, const btVector3& aabbMin, const btVector3& aabbMax, btDispatcher* /*dispatcher*/);
 
-	static void benchmark(btBroadphaseInterface*);
 };
 }
 

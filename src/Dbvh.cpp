@@ -34,6 +34,7 @@ void Dbvh::ShrinkToFit()
 
 void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
+	assert(Exists(entity) == false);
 	assert(rootNode != 0);
 
 	const int32_t offset = data.Add(entity, {aabb, entity, mask});
@@ -851,7 +852,7 @@ Dbvh::Iterator::Iterator(Dbvh &bp)
 {
 	data = &bp.data._Data()._Data();
 	it = 0;
-	FetchData();
+	Next();
 }
 
 Dbvh::Iterator::~Iterator() {}

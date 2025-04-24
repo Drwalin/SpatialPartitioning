@@ -41,7 +41,7 @@ size_t ChunkedLooseOctree::GetMemoryUsage() const
 {
 	return data.GetMemoryUsage() + nodes.GetMemoryUsage() +
 		   chunks.GetMemoryUsage() + bigObjects.GetMemoryUsage() +
-		   sizeof(*this) + 8;
+		   8;
 }
 
 void ChunkedLooseOctree::ShrinkToFit()
@@ -380,7 +380,7 @@ ChunkedLooseOctree::Iterator::Iterator(ChunkedLooseOctree &bp)
 {
 	data = &bp.data._Data()._Data();
 	it = 0;
-	FetchData();
+	Next();
 }
 
 ChunkedLooseOctree::Iterator::~Iterator() {}

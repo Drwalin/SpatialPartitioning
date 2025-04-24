@@ -24,6 +24,7 @@ void BruteForce::ShrinkToFit() {}
 
 void BruteForce::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
+	assert(Exists(entity) == false);
 	entitiesData[entity] = Data{aabb, entity, mask};
 }
 

@@ -199,22 +199,7 @@ void ChunkedLooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n
 	int32_t of = n.firstEntity;
 	while (of > 0) {
 		if (data[of].mask & cb.mask) {
-			++cb.nodesTestedCount;
-			if (cb.IsRelevant(data[of].aabb, near, far)) {
-				
-				++cb.testedCount;
-				auto res = cb.callback(&cb, data[of].entity);
-				if (res.intersection) {
-					if (res.dist + 0.00000001f < 1.0f) {
-						if (res.dist < 0.0f)
-							res.dist = 0.0f;
-						cb.length *= res.dist;
-						cb.dir *= res.dist;
-						cb.end = cb.start + cb.dir;
-					}
-					++cb.hitCount;
-				}
-			}
+			cb.ExecuteIfRelevant(data[of].aabb, data[of].entity);
 		}
 		of = data[of].nextDataId;
 	}

@@ -461,7 +461,7 @@ void HashLooseOctree::IntersectRay(RayCallback &cb)
 				Aabb aabb = CalcLocalAabbOfNode(p, levels);
 				float __n, __f;
 				if (aabb.FastRayTest(cb.start*invResolution, cb.dirNormalized,
-							cb.invDir, cb.length*invResolution,
+							cb.invDir, cb.length*invResolution*cb.cutFactor,
 							__n, __f)) {
 					_Internal_IntersectRay(cb, p, levels);
 				}
@@ -506,19 +506,20 @@ void HashLooseOctree::_Internal_IntersectRay(RayCallback &cb,
 		Aabb aabb = {p, p + ihalfSize};
 		float __n, __f;
 		if (aabb.FastRayTest(cb.start*invResolution, cb.dirNormalized,
-					cb.invDir, cb.length*invResolution,
-					__n, __f)) {
+					cb.invDir, cb.length*invResolution, __n, __f)) {
 			
-			int j=0;
-			for (; i<ordsCount; ++j) {
-				if (ords[j].near > __n) {
-					break;
+			if (__n < cb.cutFactor) {
+				int j=0;
+				for (; i<ordsCount; ++j) {
+					if (ords[j].near > __n) {
+						break;
+					}
 				}
+				if (ordsCount != j) {
+					memmove(ords+j+1, ords+j, (ordsCount-j)*sizeof(Ords));
+				}
+				ords[j] = {__n, i};
 			}
-			if (ordsCount != j) {
-				memmove(ords+j+1, ords+j, (ordsCount-j)*sizeof(Ords));
-			}
-			ords[j] = {__n*cb.length, i};
 		}
 	}
 	
@@ -526,7 +527,7 @@ void HashLooseOctree::_Internal_IntersectRay(RayCallback &cb,
 	for (int32_t _i=0; _i<ordsCount; ++_i) {
 		int32_t i = ords[_i].i;
 		const glm::ivec3 is = {i&1,(i<<1)&1,(i<<2)&1};
-		if (ords[_i].near < cb.length) {
+		if (ords[_i].near < cb.cutFactor) {
 			_Internal_IntersectRay(cb, pos + is * ihalf, level - 1);
 		}
 	}
@@ -544,18 +545,7 @@ void HashLooseOctree::_Inernal_IntersectRayIterateOverData(RayCallback &cb, int3
 			if (N.aabb.FastRayTest(cb.start*invResolution, cb.dirNormalized,
 						cb.invDir, cb.length*invResolution,
 						__n, __f)) {
-				++cb.testedCount;
-				auto res = cb.callback(&cb, N.entity);
-				if (res.intersection) {
-					if (res.dist + 0.00000001f < 1.0f) {
-						if (res.dist < 0.0f)
-							res.dist = 0.0f;
-						cb.length *= res.dist;
-						cb.dir *= res.dist;
-						cb.end = cb.start + cb.dir;
-					}
-					++cb.hitCount;
-				}
+				cb.ExecuteCallback(N.entity);
 			}
 		}
 		n = data[n].next;

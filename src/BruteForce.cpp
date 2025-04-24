@@ -99,25 +99,7 @@ void BruteForce::IntersectRay(RayCallback &cb)
 
 	for (const auto &it : entitiesData) {
 		if (it.second.mask & cb.mask) {
-			float n, f;
-			if (it.second.aabb.FastRayTest(cb.start, cb.dirNormalized,
-										   cb.invDir, cb.length, n, f)) {
-				auto res = cb.callback(&cb, it.first);
-				if (res.intersection) {
-					if (res.dist + 0.00000001f < 1.0f) {
-						if (res.dist < 0.0f)
-							res.dist = 0.0f;
-						else
-							res.dist += 0.00000001f;
-						cb.length *= res.dist;
-						cb.dir *= res.dist;
-						cb.end = cb.start + cb.dir;
-					}
-					++cb.hitCount;
-				}
-				++cb.testedCount;
-			}
-			++cb.nodesTestedCount;
+			cb.ExecuteIfRelevant(it.second.aabb, it.first);
 		}
 	}
 }

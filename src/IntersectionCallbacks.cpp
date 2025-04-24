@@ -11,6 +11,7 @@ void RayCallback::InitVariables()
 	if (initedVars == false) {
 		initedVars = true;
 		dir = end - start;
+		cutFactor = 1.0f;
 		length = glm::length(dir);
 		dirNormalized = glm::normalize(dir);
 		invDir = glm::vec3(1.f, 1.f, 1.f) / dirNormalized;
@@ -29,10 +30,77 @@ bool IntersectionCallback::IsRelevant(Aabb aabb) const
 
 bool RayCallback::IsRelevant(AabbCentered aabb, float &near, float &far) const
 {
-	return aabb.FastRayTest(start, dirNormalized, invDir, length, near, far);
+	if (aabb.FastRayTest(start, dirNormalized, invDir, length, near, far)) {
+		if (near >= cutFactor) {
+			return false;
+		} else {
+			return true;
+		}
+	}
+	return false;
 }
 bool RayCallback::IsRelevant(Aabb aabb, float &near, float &far) const
 {
-	return aabb.FastRayTest(start, dirNormalized, invDir, length, near, far);
+	return IsRelevant((AabbCentered)aabb, near, far);
+}
+
+bool RayCallback::IsRelevant(AabbCentered aabb) const
+{
+	float n, f;
+	return IsRelevant(aabb, n, f);
+}
+
+bool RayCallback::IsRelevant(Aabb aabb) const
+{
+	float n, f;
+	return IsRelevant(aabb, n, f);
+}
+
+RayPartialResult RayCallback::ExecuteCallback(EntityType entity)
+{
+	auto res = callback(this, entity);
+	++testedCount;
+	if (res.intersection) {
+		++hitCount;
+		cutFactor = res.dist;
+		return res;
+	}
+	return {1, false};
+}
+
+RayPartialResult RayCallback::ExecuteIfRelevant(AabbCentered aabb,
+												EntityType entity, float &near,
+												float &far)
+{
+	++nodesTestedCount;
+	if (IsRelevant(aabb, near, far)) {
+		float n = near;
+		if (n < 0.0f) {
+			n = 0.0f;
+		}
+		if (n < cutFactor) {
+			return ExecuteCallback(entity);
+		}
+	}
+	return {1, false};
+}
+
+RayPartialResult RayCallback::ExecuteIfRelevant(Aabb aabb, EntityType entity,
+												float &near, float &far)
+{
+	return ExecuteIfRelevant((AabbCentered)aabb, entity, near, far);
+}
+
+RayPartialResult RayCallback::ExecuteIfRelevant(AabbCentered aabb,
+												EntityType entity)
+{
+	float n, f;
+	return ExecuteIfRelevant(aabb, entity, n, f);
+}
+
+RayPartialResult RayCallback::ExecuteIfRelevant(Aabb aabb, EntityType entity)
+{
+	float n, f;
+	return ExecuteIfRelevant(aabb, entity, n, f);
 }
 } // namespace spp

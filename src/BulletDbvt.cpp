@@ -21,11 +21,8 @@ void BulletDbvt::Clear()
 {
 	auto &of = ents._Offsets();
 
-	for (auto it : of) {
-		bullet::btDbvtNode *node = ents[it.second].node;
-		dbvt.remove(node);
-	}
 	ents.Clear();
+	dbvt.clear();
 }
 
 size_t BulletDbvt::GetMemoryUsage() const { return ents.GetMemoryUsage(); }
@@ -156,31 +153,23 @@ public:
 		m_signs[1] = m_rayDirectionInverse[1] < 0.0;
 		m_signs[2] = m_rayDirectionInverse[2] < 0.0;
 
-		m_lambda_max = rayDir.dot(bt(cb->end - cb->start));
+		m_lambda_max = lambdaOrig = rayDir.dot(bt(cb->end - cb->start));
 	}
 	virtual ~btDbvtRayCb() {}
 	virtual void Process(const bullet::btDbvtNode *leaf) override
 	{
-		if (cb->length == bullet::btScalar(0.f))
+		if (cb->cutFactor == bullet::btScalar(0.f))
 			return;
 
 		int32_t offset = (int32_t)(uint64_t)(leaf->data);
 		BulletDbvt::Data &data = bp->ents[offset];
 		if (cb->mask & data.mask) {
-			auto res = cb->callback(cb, data.entity);
+			auto res = cb->ExecuteCallback(data.entity);
 			if (res.intersection) {
-				if (res.dist + 0.00000001f < 1.0f) {
-					if (res.dist < 0.0f)
-						res.dist = 0.0f;
-					else
-						res.dist += 0.00000001f;
-					cb->length *= res.dist;
-					cb->dir *= res.dist;
-					cb->end = cb->start + cb->dir;
-				}
-				++cb->hitCount;
+				assert(res.dist >= 0);
+				assert(res.dist <= 1);
+				m_lambda_max = lambdaOrig * res.dist;
 			}
-			++cb->testedCount;
 		}
 	}
 
@@ -189,7 +178,8 @@ public:
 
 	bullet::btVector3 m_rayDirectionInverse;
 	unsigned int m_signs[3];
-	bullet::btScalar m_lambda_max;
+	float m_lambda_max;
+	float lambdaOrig;
 };
 
 void BulletDbvt::IntersectRay(RayCallback &cb)

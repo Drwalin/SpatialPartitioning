@@ -292,6 +292,7 @@ void ThreeStageDbvh::Rebuild() {
 	dynamic->Clear();
 	dynamic2->Clear();
 
+	tests = 0;
 	dynamicUpdates = 0;
 	optimisedUpdates = 0;
 	wasScheduled = false;

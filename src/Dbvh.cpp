@@ -286,9 +286,7 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 			int __has = 0;
 			for (int i = 0; i < 2; ++i) {
 				++cb.nodesTestedCount;
-				if (nodes[node].aabb[i].FastRayTest(cb.start, cb.dirNormalized,
-													cb.invDir, cb.length,
-													__n[i], __f[i])) {
+				if (cb.IsRelevant(nodes[node].aabb[i], __n[i], __f[i])) {
 					if (__n[i] < 0.0f)
 						__n[i] = 0.0f;
 					__has += i + 1;
@@ -304,12 +302,12 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 			case 3:
 				if (__n[1] < __n[0]) {
 					_Internal_IntersectRay(cb, nodes[node].children[1]);
-					if (__n[0] < cb.length) {
+					if (__n[0] < cb.cutFactor) {
 						_Internal_IntersectRay(cb, nodes[node].children[0]);
 					}
 				} else {
 					_Internal_IntersectRay(cb, nodes[node].children[0]);
-					if (__n[1] < cb.length) {
+					if (__n[1] < cb.cutFactor) {
 						_Internal_IntersectRay(cb, nodes[node].children[1]);
 					}
 				}
@@ -319,23 +317,7 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 	} else {
 		const int32_t offset = node - OFFSET;
 		if (data[offset].mask & cb.mask) {
-			++cb.nodesTestedCount;
-			float _n, _f;
-			if (data[offset].aabb.FastRayTest(cb.start, cb.dirNormalized,
-											  cb.invDir, cb.length, _n, _f)) {
-				++cb.testedCount;
-				auto res = cb.callback(&cb, data[offset].entity);
-				if (res.intersection) {
-					if (res.dist + 0.00000001f < 1.0f) {
-						if (res.dist < 0.0f)
-							res.dist = 0.0f;
-						cb.length *= res.dist;
-						cb.dir *= res.dist;
-						cb.end = cb.start + cb.dir;
-					}
-					++cb.hitCount;
-				}
-			}
+			cb.ExecuteIfRelevant(data[offset].aabb, data[offset].entity);
 		}
 	}
 }

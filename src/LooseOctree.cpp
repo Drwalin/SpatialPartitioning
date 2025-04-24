@@ -327,9 +327,7 @@ void LooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n, int32
 	const Aabb aabb = GetAabbOfNode(n);
 	
 	++cb.nodesTestedCount;
-	float __n, __f;
-	if (n != rootNode && !aabb.FastRayTest(cb.start, cb.dirNormalized,
-				cb.invDir, cb.length, __n, __f)) {
+	if (n != rootNode && !cb.IsRelevant(aabb)) {
 		return;
 	}
 	
@@ -337,21 +335,7 @@ void LooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n, int32
 		Data &N = data[c];
 		++cb.testedCount;
 		if (N.mask & cb.mask) {
-			if (N.aabb.FastRayTest(cb.start, cb.dirNormalized,
-						cb.invDir, cb.length,
-						__n, __f)) {
-				auto res = cb.callback(&cb, N.entity);
-				if (res.intersection) {
-					if (res.dist + 0.00000001f < 1.0f) {
-						if (res.dist < 0.0f)
-							res.dist = 0.0f;
-						cb.length *= res.dist;
-						cb.dir *= res.dist;
-						cb.end = cb.start + cb.dir;
-					}
-					++cb.hitCount;
-				}
-			}
+			cb.ExecuteIfRelevant(N.aabb, N.entity);
 		}
 	}
 	
@@ -371,10 +355,8 @@ void LooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n, int32
 			continue;
 		}
 		
-		if (GetAabbOfNode(c).FastRayTest(cb.start, cb.dirNormalized,
-					cb.invDir, cb.length,
-					__n, __f)) {
-			
+		float __n, __f;
+		if (cb.IsRelevant(GetAabbOfNode(c), __n, __f)) {
 			int j=0;
 			for (; i<ordsCount; ++j) {
 				if (ords[j].near > __n) {
@@ -384,13 +366,13 @@ void LooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n, int32
 			if (ordsCount != j) {
 				memmove(ords+j+1, ords+j, (ordsCount-j)*sizeof(Ords));
 			}
-			ords[j] = {__n*cb.length, nodes[n].children[i]};
+			ords[j] = {__n, nodes[n].children[i]};
 		}
 	}
 	
 	for (int32_t _i=0; _i<ordsCount; ++_i) {
 		int32_t c = ords[_i].n;
-		if (ords[_i].near < cb.length) {
+		if (ords[_i].near < cb.cutFactor) {
 			_Internal_IntersectRay(cb, c, level - 1);
 		} else {
 			return;

@@ -229,24 +229,8 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 		int32_t o = n - entitiesPowerOfTwoCount;
 		for (int i = 0; i <= 1 && (o ^ i) < entitiesData.size(); ++i) {
 			if (entitiesData[o ^ i].mask & cb.mask) {
-				++cb.nodesTestedCount;
-				float _n, _f;
-				if (entitiesData[o ^ i].aabb.FastRayTest(
-						cb.start, cb.dirNormalized, cb.invDir, cb.length, _n,
-						_f)) {
-					++cb.testedCount;
-					auto res = cb.callback(&cb, entitiesData[o ^ i].entity);
-					if (res.intersection) {
-						if (res.dist + 0.00000001f < 1.0f) {
-							if (res.dist < 0.0f)
-								res.dist = 0.0f;
-							cb.length *= res.dist;
-							cb.dir *= res.dist;
-							cb.end = cb.start + cb.dir;
-						}
-						++cb.hitCount;
-					}
-				}
+				auto &ed = entitiesData[o ^ i];
+				cb.ExecuteIfRelevant(ed.aabb, ed.entity);
 			}
 		}
 	} else {
@@ -255,9 +239,7 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 		for (int i = 0; i <= 1; ++i) {
 			if (nodesHeapAabb[n ^ i].mask & cb.mask) {
 				++cb.nodesTestedCount;
-				if (nodesHeapAabb[n ^ i].aabb.FastRayTest(
-						cb.start, cb.dirNormalized, cb.invDir, cb.length,
-						__n[i], __f[i])) {
+				if (cb.IsRelevant(nodesHeapAabb[n ^ i].aabb, __n[i], __f[i])) {
 					if (__n[i] < 0.0f)
 						__n[i] = 0.0f;
 					__has += i + 1;
@@ -274,12 +256,12 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 		case 3:
 			if (__n[1] < __n[0]) {
 				_Internal_IntersectRay(cb, n + 1);
-				if (__n[0] < cb.length) {
+				if (__n[0] <= cb.cutFactor) {
 					_Internal_IntersectRay(cb, n);
 				}
 			} else {
 				_Internal_IntersectRay(cb, n);
-				if (__n[1] < cb.length) {
+				if (__n[1] <= cb.cutFactor) {
 					_Internal_IntersectRay(cb, n + 1);
 				}
 			}

@@ -19,20 +19,26 @@ const char *BulletDbvt::GetName() const { return "BulletDbvt"; }
 
 void BulletDbvt::Clear()
 {
-	auto &of = ents._Offsets();
-
 	ents.Clear();
 	dbvt.clear();
 }
 
-size_t BulletDbvt::GetMemoryUsage() const { return ents.GetMemoryUsage(); }
+size_t BulletDbvt::GetMemoryUsage() const {
+	return ents.GetMemoryUsage() +
+		(dbvt.m_leaves * 2 - 1) * sizeof(bullet::btDbvtNode) +
+		dbvt.m_stkStack.capacity() * sizeof(bullet::btDbvt::sStkNN) +
+		stack.capacity() * sizeof(const bullet::btDbvtNode*)
+		;
+}
 
-void BulletDbvt::ShrinkToFit() {}
+void BulletDbvt::ShrinkToFit() {
+	ents.ShrinkToFit();
+}
 
 void BulletDbvt::SmallRebuildIfNeeded()
 {
-	if (requiresRebuild > 100) {
-		IncrementalOptimize(requiresRebuild / 13 + 7);
+	if (requiresRebuild > 1000) {
+		IncrementalOptimize(requiresRebuild / 133 + 1);
 		requiresRebuild = 0;
 	}
 }
@@ -217,8 +223,8 @@ BroadphaseBaseIterator *BulletDbvt::RestartIterator()
 BulletDbvt::Iterator::Iterator(BulletDbvt &bp)
 {
 	data = &(bp.ents._Data()._Data());
-	it = 1;
-	FetchData();
+	it = 0;
+	Next();
 }
 
 BulletDbvt::Iterator::~Iterator() {}

@@ -19,12 +19,12 @@
 #include "../include/spatial_partitioning/BulletDbvt.hpp"
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 100000;
-const int32_t MAX_ENTITIES = TOTAL_ENTITIES + 10000;
-const size_t TOTAL_AABB_TESTS = 10000;
+const int32_t TOTAL_ENTITIES = 1000;
+const int32_t MAX_ENTITIES = TOTAL_ENTITIES + 1000;
+const size_t TOTAL_AABB_TESTS = 200000;
 const size_t TOTAL_AABB_MOVEMENTS = 1000000;
-const size_t TOTAL_MOVES_AND_TESTS = 100000;
-const size_t MAX_MOVING_ENTITIES = 1500;
+const size_t TOTAL_MOVES_AND_TESTS = 1000;
+const size_t MAX_MOVING_ENTITIES = 250;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
@@ -63,6 +63,8 @@ struct StartEndPoint {
 
 std::vector<spp::EntityType> ee;
 std::vector<glm::vec3> vv;
+
+uint64_t TEST_RANDOM_SEED = 0;
 
 std::vector<spp::Aabb> aabbsToTest;
 SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
@@ -175,8 +177,8 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			if (cb.hasHit) {
 				ret.entities.push_back(cb.hitEntity);
 				hitPoints.push_back({broadphase->GetAabb(cb.hitEntity),
-									 cb.start, end, cb.hitPoint,
-									 cb.cutFactor, cb.hitEntity});
+									 cb.start, end, cb.hitPoint, cb.cutFactor,
+									 cb.hitEntity});
 			} else {
 				ret.entities.push_back(0);
 				hitPoints.push_back({{}, cb.start, end, {}, -1, 0});
@@ -229,52 +231,53 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			}
 			return {1.0f, false};
 		};
-		
 
 		testsCount = std::min(testsCount / 5, vv.size() / 5) * 5;
-		static size_t i = 0;
-		
-		static std::vector<spp::EntityType> removeEntities;
+
+		std::vector<spp::EntityType> removeEntities;
 		removeEntities.reserve(10000);
 		removeEntities.clear();
-		
-		static uint64_t (*Random)() = +[]() -> uint64_t{
-				static uint64_t s = 14695981039346656037lu;
-				if ((i&255) == 0) {
-					s = mt();
-				} else {
+
+// 		static std::mt19937_64 _mt;
+// 		_mt = std::mt19937_64(TEST_RANDOM_SEED);
+
+		uint64_t s = 14695981039346656037lu;
+		static uint64_t (*Random)(uint64_t &s, size_t i) = +[](uint64_t &s, size_t i) -> uint64_t {
+// 				if ((i & 255) == 0) {
+// 					s = _mt();
+// 				} else {
 					s ^= i;
 					s *= 1099511628211lu;
-				}
+// 				}
 				return s;
 			};
-		
-		static spp::EntityType (*popRandom)() = +[]() -> spp::EntityType{
-			if (!removeEntities.empty() && (Random()&7) > 5) {
-				size_t x = Random()%removeEntities.size();
+
+		static spp::EntityType (*popRandom)(uint64_t &s, size_t i, std::vector<spp::EntityType> &removeEntities) = +[](uint64_t &s, size_t i, std::vector<spp::EntityType> &removeEntities) -> spp::EntityType {
+			if (!removeEntities.empty() && (Random(s, i) & 7) > 5) {
+				size_t x = Random(s, i) % removeEntities.size();
 				auto ret = removeEntities[x];
 				removeEntities[x] = removeEntities.back();
-				removeEntities.resize(removeEntities.size()-1);
+				removeEntities.resize(removeEntities.size() - 1);
 				return ret;
 			} else {
-				return (Random()%MAX_ENTITIES) + 1;
+				return (Random(s, i) % MAX_ENTITIES) + 1;
 			}
 		};
-		
-		
-		for (i = 0; i < testsCount; i += 5) {
+
+		for (size_t i = 0; i < testsCount; i += 5) {
 			offsetOfPatch.push_back(ret.entities.size());
 			cbAabb.aabb = aabbsToTest[i + 0];
 			broadphase->IntersectAabb(cbAabb);
 
 			auto e = ee[i + 1];
-			if (i % 155 == 0 || broadphase->Exists(e) == false) {
+			if (i % 55 == 0 || broadphase->Exists(e) == false) {
 				if (broadphase->Exists(e) == false) {
 					spp::Aabb aabb = aabbsToTest[i + 1];
 					aabb.max = aabb.min + ((vv[i + 1] + 1000.0f) / 400.0f);
+					assert(e > 0);
 					broadphase->Add(e, aabb, ~0);
 				}
-				e = popRandom();
+				e = popRandom(s, i, removeEntities);
 
 				if (broadphase->Exists(e)) {
 					broadphase->Remove(e);
@@ -282,6 +285,7 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 				} else {
 					spp::Aabb aabb = aabbsToTest[i + 1];
 					aabb.max = aabb.min + ((vv[i + 1] + 1000.0f) / 400.0f);
+					assert(e > 0);
 					broadphase->Add(e, aabb, ~0);
 				}
 			} else {
@@ -306,8 +310,7 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 					ret.entities.push_back(cbRay.hitEntity);
 					hitPoints.push_back({broadphase->GetAabb(cbRay.hitEntity),
 										 cbRay.start, cbRay.end, cbRay.hitPoint,
-										 cbRay.cutFactor,
-										 cbRay.hitEntity});
+										 cbRay.cutFactor, cbRay.hitEntity});
 				} else {
 					ret.entities.push_back(0);
 					hitPoints.push_back({{}, cbRay.start, end, {}, -1, 0});
@@ -330,6 +333,8 @@ std::vector<std::vector<spp::EntityType>>
 Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 	 TestType testType)
 {
+	TEST_RANDOM_SEED = mt();
+
 	std::uniform_real_distribution<float> distPos(-520, 520);
 	std::uniform_real_distribution<float> distSize(pow(2.0 / 16.0, 1.0 / 3.0),
 												   1.0);
@@ -351,7 +356,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 		offsetOfPatch.push_back({});
 		offsetOfPatch.back().reserve(testsCount * 5);
 		hitPoints.push_back({});
-		hitPoints.back().reserve(testsCount*10);
+		hitPoints.back().reserve(testsCount * 10);
 		auto &it = broadphases[i];
 		size_t tC =
 			i ? aabbs.size() : aabbs.size() / BRUTE_FROCE_TESTS_COUNT_DIVISOR;
@@ -386,7 +391,82 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 
 	printf("\n");
 	for (int i = 1; i < broadphases.size(); ++i) {
-		size_t errs = 0;//glm::abs<int64_t>(ents[i].size() - ents[0].size());
+		size_t cardinalErrors = 0;
+		{
+			auto &bp0 = *(broadphases[0]);
+			auto &bpi = *(broadphases[i]);
+			auto it0 = bp0.RestartIterator();
+			auto iti = bpi.RestartIterator();
+
+			if (bp0.GetCount() != bpi.GetCount()) {
+				++cardinalErrors;
+			}
+
+			int i = 0;
+			int j = 0;
+			for (; it0->Valid(); it0->Next()) {
+				++j;
+				if (bpi.Exists(it0->entity) == false) {
+					++cardinalErrors;
+					if (i < 10) {
+						printf(
+							"1. CARDINAL ERROR: ENTITY DOES NOT EXIST: %lu\n",
+							it0->entity);
+						printf("j = %i\n", j);
+					}
+					++i;
+				} else {
+					spp::Aabb aabb0 = it0->aabb;
+					spp::Aabb aabbi = bpi.GetAabb(it0->entity);
+					glm::vec3 a = aabb0.min - aabbi.min;
+					glm::vec3 b = aabb0.max - aabbi.max;
+					float sum = glm::length(a) + glm::length(b);
+					if (sum > 0.1) {
+						++cardinalErrors;
+						if (i < 10) {
+							printf("2. CARDINAL ERROR: ENTITY AABBS DOES NOT "
+								   "MATCH: %lu (sum diff dist corners: %.1f)\n",
+								   it0->entity, sum);
+							printf("j = %i\n", j);
+						}
+						++i;
+					}
+				}
+			}
+
+			i = 0;
+			for (; iti->Valid(); iti->Next()) {
+				++j;
+				if (bp0.Exists(iti->entity) == false) {
+					++cardinalErrors;
+					if (i < 10) {
+						printf("3. CARDINAL ERROR: ENTITY SHOULD NOT EXIST BUT "
+							   "DOES: %lu\n",
+							   iti->entity);
+						printf("j = %i\n", j);
+					}
+					++i;
+				} else {
+					spp::Aabb aabb0 = bp0.GetAabb(iti->entity);
+					spp::Aabb aabbi = iti->aabb;
+					glm::vec3 a = aabb0.min - aabbi.min;
+					glm::vec3 b = aabb0.max - aabbi.max;
+					float sum = glm::length(a) + glm::length(b);
+					if (sum > 0.1) {
+						++cardinalErrors;
+						if (i < 10) {
+							printf("4. CARDINAL ERROR: ENTITY AABBS DOES NOT "
+								   "MATCH: %lu (sum diff dist corners: %.1f)\n",
+								   iti->entity, sum);
+							printf("j = %i\n", j);
+						}
+						++i;
+					}
+				}
+			}
+		}
+
+		size_t errs = glm::abs<int64_t>(ents[i].size() - ents[0].size());
 		int JJ = 0;
 		for (int j = 0; j < ents[i].size() && j < ents[0].size() &&
 						j < hitPoints[0].size() && j < hitPoints[i].size();
@@ -454,8 +534,10 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 				}
 			}
 		}
-		printf(" %s: errors count: %lu ... %s\n", broadphases[i]->GetName(),
-			   errs, errs ? "ERRORS" : "OK");
+		errs += cardinalErrors;
+		printf(" %s: (cardinal err: %lu) errors count: %lu ... %s\n",
+			   broadphases[i]->GetName(), cardinalErrors, errs,
+			   errs ? "ERRORS" : "OK");
 	}
 
 	return ents;
@@ -465,6 +547,27 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 							std::shared_ptr<spp::BroadphaseBase> dbvh,
 							std::shared_ptr<void> data)
 {
+
+	if (false) {
+		auto beg = std::chrono::steady_clock::now();
+		dbvh->Rebuild();
+		auto end = std::chrono::steady_clock::now();
+		auto diff = end - beg;
+		int64_t ns =
+			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
+				.count();
+		double us = double(ns) / 1000.0;
+		printf("                        "
+			   "%s (%i) "
+			   "Async rebuild of : %.3f us/op\n",
+			   dbvh->GetName(), dbvh->GetCount(),
+			   us / double(TOTAL_AABB_MOVEMENTS));
+		fflush(stdout);
+
+		fin->store(true);
+		return;
+	}
+
 	static std::atomic<int> size = 0;
 	static std::mutex mutex;
 	static bool done = false;
@@ -489,7 +592,24 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 					}
 					--size;
 					if (has && p.second.use_count() > 1) {
+						auto beg = std::chrono::steady_clock::now();
 						p.second->Rebuild();
+						auto end = std::chrono::steady_clock::now();
+						auto diff = end - beg;
+						int64_t ns =
+							std::chrono::duration_cast<std::chrono::nanoseconds,
+													   int64_t>(diff)
+								.count();
+						double us = double(ns) / 1000.0;
+						if (false) {
+							printf("                        "
+									"%s (%i) "
+									"Async rebuild of : %.3f us/op\n",
+									p.second->GetName(), p.second->GetCount(),
+									us / double(TOTAL_AABB_MOVEMENTS));
+							fflush(stdout);
+						}
+
 						p.first->store(true);
 					}
 				}
@@ -528,6 +648,8 @@ int main(int argc, char **argv)
 	}
 
 	spp::BvhMedianSplitHeap bvh;
+	bvh.SetAabbUpdatePolicy(spp::BvhMedianSplitHeap::ON_UPDATE_EXTEND_AABB);
+
 	spp::BruteForce bf;
 	spp::Dbvh dbvh;
 	spp::Dbvh dbvh2;
@@ -555,17 +677,16 @@ int main(int argc, char **argv)
 	tsdbvh3.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
-		// &bf,
-		// &dbvh2,
+		//	&bf,
 		// &bvh,
 		&dbvh,
 		// &hlo,
 		// &lo,
-		&btDbvh,
-		&btDbvt,
+		// &btDbvh,
+		//&btDbvt,
 		&tsdbvh,
 		// &tsdbvh2,
-		&tsdbvh3,
+		// &tsdbvh3,
 	};
 
 	bool enablePrepass = true;
@@ -581,6 +702,7 @@ int main(int argc, char **argv)
 		for (auto bp : broadphases) {
 			auto beg = std::chrono::steady_clock::now();
 			for (const auto &e : entities) {
+				assert(e.id > 0);
 				bp->Add(e.id, e.aabb, e.mask);
 			}
 			auto end = std::chrono::steady_clock::now();
@@ -663,8 +785,6 @@ int main(int argc, char **argv)
 			printf("\n     TestType: %s\n", testTypeNames[i]);
 			Test(broadphases, TOTAL_AABB_TESTS, (TestType)i);
 		}
-
-		bvh.SetAabbUpdatePolicy(spp::BvhMedianSplitHeap::ON_UPDATE_EXTEND_AABB);
 
 		ee.reserve(TOTAL_AABB_MOVEMENTS);
 		vv.reserve(TOTAL_AABB_MOVEMENTS);
@@ -784,13 +904,16 @@ int main(int argc, char **argv)
 		printf("%s clearing time: %.3f us\n", bp->GetName(), us);
 		fflush(stdout);
 	}
-	
+
 	printf("\n");
 
 	for (auto bp : broadphases) {
 		auto beg = std::chrono::steady_clock::now();
 		for (const auto &e : entities) {
-			bp->Add(e.id, e.aabb, e.mask);
+			assert(e.id > 0);
+			if (bp->Exists(e.id) == false) {
+				bp->Add(e.id, e.aabb, e.mask);
+			}
 		}
 		auto end = std::chrono::steady_clock::now();
 		auto diff = end - beg;
@@ -826,7 +949,7 @@ int main(int argc, char **argv)
 
 	printf("\nMore realistinc dynamic movement entagled with tests:\n");
 
-	for (int i=0; i<10000; ++i) {
+	for (int i = 0; i < 10000; ++i) {
 		ee.clear();
 		vv.clear();
 		ee.reserve(TOTAL_MOVES_AND_TESTS);
@@ -841,7 +964,8 @@ int main(int argc, char **argv)
 		printf("\n");
 		for (auto bp : broadphases) {
 			printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(),
-					bp->GetMemoryUsage(), bp->GetMemoryUsage() / (1024.0 * 1024.0));
+				   bp->GetMemoryUsage(),
+				   bp->GetMemoryUsage() / (1024.0 * 1024.0));
 			fflush(stdout);
 		}
 		printf("\n");

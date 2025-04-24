@@ -44,9 +44,6 @@ subject to the following restrictions:
 // Using memmov for collideOCL
 #define DBVT_USE_MEMMOVE 1
 
-// Enable benchmarking code
-#define DBVT_ENABLE_BENCHMARK 0
-
 // Inlining
 #define DBVT_INLINE SIMD_FORCE_INLINE
 
@@ -103,10 +100,6 @@ subject to the following restrictions:
 
 #ifndef DBVT_USE_MEMMOVE
 #error "DBVT_USE_MEMMOVE undefined"
-#endif
-
-#ifndef DBVT_ENABLE_BENCHMARK
-#error "DBVT_ENABLE_BENCHMARK undefined"
 #endif
 
 #ifndef DBVT_SELECT_IMPL
@@ -277,14 +270,6 @@ struct btDbvt
 		DBVT_VIRTUAL bool Descent(const btDbvtNode*) { return (true); }
 		DBVT_VIRTUAL bool AllLeaves(const btDbvtNode*) { return (true); }
 	};
-	/* IWriter	*/
-	struct IWriter
-	{
-		virtual ~IWriter() {}
-		virtual void Prepare(const btDbvtNode* root, int numnodes) = 0;
-		virtual void WriteNode(const btDbvtNode*, int index, int parent, int child0, int child1) = 0;
-		virtual void WriteLeaf(const btDbvtNode*, int index, int parent) = 0;
-	};
 	/* IClone	*/
 	struct IClone
 	{
@@ -323,18 +308,11 @@ struct btDbvt
 	bool update(btDbvtNode* leaf, btDbvtVolume& volume, const btVector3& velocity);
 	bool update(btDbvtNode* leaf, btDbvtVolume& volume, btScalar margin);
 	void remove(btDbvtNode* leaf);
-	void write(IWriter* iwriter) const;
 	void clone(btDbvt& dest, IClone* iclone = 0) const;
 	static int maxdepth(const btDbvtNode* node);
 	static int countLeaves(const btDbvtNode* node);
 	static void extractLeaves(const btDbvtNode* node, btAlignedObjectArray<const btDbvtNode*>& leaves);
-#if DBVT_ENABLE_BENCHMARK
-	static void benchmark();
-#else
-	static void benchmark()
-	{
-	}
-#endif
+	
 	// DBVT_IPOLICY must support ICollide policy/interface
 	DBVT_PREFIX
 	static void enumNodes(const btDbvtNode* root,

@@ -390,7 +390,7 @@ LooseOctree::Iterator::Iterator(LooseOctree &bp)
 {
 	data = &bp.data._Data()._Data();
 	it = 0;
-	FetchData();
+	Next();
 }
 
 LooseOctree::Iterator::~Iterator() {}

@@ -19,32 +19,6 @@ subject to the following restrictions:
 namespace bullet {
 btScalar gDbvtMargin = btScalar(0.05);
 }
-//
-// Profiling
-//
-
-#if DBVT_BP_PROFILE || DBVT_BP_ENABLE_BENCHMARK
-#include <stdio.h>
-#endif
-
-#if DBVT_BP_PROFILE
-struct ProfileScope
-{
-	__forceinline ProfileScope(btClock& clock, unsigned long& value) : m_clock(&clock), m_value(&value), m_base(clock.getTimeMicroseconds())
-	{
-	}
-	__forceinline ~ProfileScope()
-	{
-		(*m_value) += m_clock->getTimeMicroseconds() - m_base;
-	}
-	btClock* m_clock;
-	unsigned long* m_value;
-	unsigned long m_base;
-};
-#define SPC(_value_) ProfileScope spc_scope(m_clock, _value_)
-#else
-#define SPC(_value_)
-#endif
 
 
 namespace bullet {
@@ -154,14 +128,7 @@ btDbvtBroadphase::btDbvtBroadphase(btOverlappingPairCache* paircache)
 	{
 		m_stageRoots[i] = 0;
 	}
-#if BT_THREADSAFE
-	m_rayTestStacks.resize(BT_MAX_THREAD_COUNT);
-#else
 	m_rayTestStacks.resize(1);
-#endif
-#if DBVT_BP_PROFILE
-	clear(m_profiling);
-#endif
 }
 
 //
@@ -244,24 +211,6 @@ void btDbvtBroadphase::rayTest(const btVector3& rayFrom, const btVector3& rayTo,
 {
 	BroadphaseRayTester callback(rayCallback);
 	btAlignedObjectArray<const btDbvtNode*>* stack = &m_rayTestStacks[0];
-#if BT_THREADSAFE
-	// for this function to be threadsafe, each thread must have a separate copy
-	// of this stack.  This could be thread-local static to avoid dynamic allocations,
-	// instead of just a local.
-	int threadIndex = btGetCurrentThreadIndex();
-	btAlignedObjectArray<const btDbvtNode*> localStack;
-	//todo(erwincoumans, "why do we get tsan issue here?")
-	if (0)//threadIndex < m_rayTestStacks.size())
-	//if (threadIndex < m_rayTestStacks.size())
-	{
-		// use per-thread preallocated stack if possible to avoid dynamic allocations
-		stack = &m_rayTestStacks[threadIndex];
-	}
-	else
-	{
-		stack = &localStack;
-	}
-#endif
 
 	m_sets[0].rayTestInternal(m_sets[0].m_root,
 							  rayFrom,
@@ -420,26 +369,6 @@ void btDbvtBroadphase::setAabbForceUpdate(btBroadphaseProxy* absproxy,
 void btDbvtBroadphase::calculateOverlappingPairs(btDispatcher* dispatcher)
 {
 	collide(dispatcher);
-#if DBVT_BP_PROFILE
-	if (0 == (m_pid % DBVT_BP_PROFILING_RATE))
-	{
-		printf("fixed(%u) dynamics(%u) pairs(%u)\r\n", m_sets[1].m_leaves, m_sets[0].m_leaves, m_paircache->getNumOverlappingPairs());
-		unsigned int total = m_profiling.m_total;
-		if (total <= 0) total = 1;
-		printf("ddcollide: %u%% (%uus)\r\n", (50 + m_profiling.m_ddcollide * 100) / total, m_profiling.m_ddcollide / DBVT_BP_PROFILING_RATE);
-		printf("fdcollide: %u%% (%uus)\r\n", (50 + m_profiling.m_fdcollide * 100) / total, m_profiling.m_fdcollide / DBVT_BP_PROFILING_RATE);
-		printf("cleanup:   %u%% (%uus)\r\n", (50 + m_profiling.m_cleanup * 100) / total, m_profiling.m_cleanup / DBVT_BP_PROFILING_RATE);
-		printf("total:     %uus\r\n", total / DBVT_BP_PROFILING_RATE);
-		const unsigned long sum = m_profiling.m_ddcollide +
-								  m_profiling.m_fdcollide +
-								  m_profiling.m_cleanup;
-		printf("leaked: %u%% (%uus)\r\n", 100 - ((50 + sum * 100) / total), (total - sum) / DBVT_BP_PROFILING_RATE);
-		printf("job counts: %u%%\r\n", (m_profiling.m_jobcount * 100) / ((m_sets[0].m_leaves + m_sets[1].m_leaves) * DBVT_BP_PROFILING_RATE));
-		clear(m_profiling);
-		m_clock.reset();
-	}
-#endif
-
 	performDeferredRemoval(dispatcher);
 }
 
@@ -529,7 +458,6 @@ void btDbvtBroadphase::collide(btDispatcher* dispatcher)
 	}
 */
 
-	SPC(m_profiling.m_total);
 	/* optimize				*/
 	m_sets[0].optimizeIncremental(1 + (m_sets[0].m_leaves * m_dupdates) / 100);
 	if (m_fixedleft)
@@ -572,19 +500,16 @@ void btDbvtBroadphase::collide(btDispatcher* dispatcher)
 		btDbvtTreeCollider collider(this);
 		if (m_deferedcollide)
 		{
-			SPC(m_profiling.m_fdcollide);
 			m_sets[0].collideTTpersistentStack(m_sets[0].m_root, m_sets[1].m_root, collider);
 		}
 		if (m_deferedcollide)
 		{
-			SPC(m_profiling.m_ddcollide);
 			m_sets[0].collideTTpersistentStack(m_sets[0].m_root, m_sets[0].m_root, collider);
 		}
 	}
 	/* clean up				*/
 	if (m_needcleanup)
 	{
-		SPC(m_profiling.m_cleanup);
 		btBroadphasePairArray& pairs = m_paircache->getOverlappingPairArray();
 		if (pairs.size() > 0)
 		{
@@ -698,6 +623,3 @@ void btDbvtBroadphase::resetPool(btDispatcher* dispatcher)
 
 }
 
-#if DBVT_BP_PROFILE
-#undef SPC
-#endif

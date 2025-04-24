@@ -4,10 +4,10 @@
 
 #include "../include/spatial_partitioning/BulletDbvt.hpp"
 
-static btVector3 bt(glm::vec3 v) { return {v.x, v.y, v.z}; }
-static btDbvtAabbMm bt(spp::Aabb v)
+static bullet::btVector3 bt(glm::vec3 v) { return {v.x, v.y, v.z}; }
+static bullet::btDbvtAabbMm bt(spp::Aabb v)
 {
-	return btDbvtVolume::FromMM(bt(v.min), bt(v.max));
+	return bullet::btDbvtVolume::FromMM(bt(v.min), bt(v.max));
 }
 
 namespace spp
@@ -22,7 +22,7 @@ void BulletDbvt::Clear()
 	auto &of = ents._Offsets();
 
 	for (auto it : of) {
-		btDbvtNode *node = ents[it.second].node;
+		bullet::btDbvtNode *node = ents[it.second].node;
 		dbvt.remove(node);
 	}
 	ents.Clear();
@@ -49,8 +49,8 @@ void BulletDbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	int32_t offset = ents.Add(entity, Data{entity, mask, aabb, nullptr});
 
-	btDbvtAabbMm volume = bt(aabb);
-	btDbvtNode *node = dbvt.insert(volume, (void *)(int64_t)offset);
+	bullet::btDbvtAabbMm volume = bt(aabb);
+	bullet::btDbvtNode *node = dbvt.insert(volume, (void *)(int64_t)offset);
 	ents[offset].node = node;
 	requiresRebuild++;
 }
@@ -59,7 +59,7 @@ void BulletDbvt::Update(EntityType entity, Aabb aabb)
 {
 	int32_t offset = ents.GetOffset(entity);
 	ents[offset].aabb = aabb;
-	btDbvtAabbMm volume = bt(aabb);
+	bullet::btDbvtAabbMm volume = bt(aabb);
 	dbvt.update(ents[offset].node, volume);
 	requiresRebuild++;
 }
@@ -101,12 +101,12 @@ void BulletDbvt::Rebuild()
 	SmallRebuildIfNeeded();
 }
 
-class btDbvtAabbCb final : public btDbvt::ICollide
+class btDbvtAabbCb final : public bullet::btDbvt::ICollide
 {
 public:
 	btDbvtAabbCb(BulletDbvt *bp, IntersectionCallback *cb) : bp(bp), cb(cb) {}
 	virtual ~btDbvtAabbCb() {}
-	virtual void Process(const btDbvtNode *leaf) override
+	virtual void Process(const bullet::btDbvtNode *leaf) override
 	{
 		int32_t offset = (int32_t)(int64_t)(leaf->data);
 		if (bp->ents[offset].mask & cb->mask) {
@@ -130,28 +130,28 @@ void BulletDbvt::IntersectAabb(IntersectionCallback &cb)
 	cb.broadphase = this;
 	btDbvtAabbCb btCb{this, &cb};
 
-	const ATTRIBUTE_ALIGNED16(btDbvtVolume) bounds = bt(cb.aabb);
+	const ATTRIBUTE_ALIGNED16(bullet::btDbvtVolume) bounds = bt(cb.aabb);
 // 	dbvt.collideTV(dbvt.m_root, bounds, btCb);
 	dbvt.collideTVNoStackAlloc(dbvt.m_root, bounds, stack, btCb);
 }
 
-class btDbvtRayCb final : public btDbvt::ICollide
+class btDbvtRayCb final : public bullet::btDbvt::ICollide
 {
 public:
 	btDbvtRayCb(BulletDbvt *bp, RayCallback *cb) : bp(bp), cb(cb)
 	{
-		btVector3 rayDir = bt(cb->end - cb->start);
+		bullet::btVector3 rayDir = bt(cb->end - cb->start);
 
 		rayDir.normalize();
-		m_rayDirectionInverse[0] = rayDir[0] == btScalar(0.0)
-									   ? btScalar(BT_LARGE_FLOAT)
-									   : btScalar(1.0) / rayDir[0];
-		m_rayDirectionInverse[1] = rayDir[1] == btScalar(0.0)
-									   ? btScalar(BT_LARGE_FLOAT)
-									   : btScalar(1.0) / rayDir[1];
-		m_rayDirectionInverse[2] = rayDir[2] == btScalar(0.0)
-									   ? btScalar(BT_LARGE_FLOAT)
-									   : btScalar(1.0) / rayDir[2];
+		m_rayDirectionInverse[0] = rayDir[0] == bullet::btScalar(0.0)
+									   ? bullet::btScalar(BT_LARGE_FLOAT)
+									   : bullet::btScalar(1.0) / rayDir[0];
+		m_rayDirectionInverse[1] = rayDir[1] == bullet::btScalar(0.0)
+									   ? bullet::btScalar(BT_LARGE_FLOAT)
+									   : bullet::btScalar(1.0) / rayDir[1];
+		m_rayDirectionInverse[2] = rayDir[2] == bullet::btScalar(0.0)
+									   ? bullet::btScalar(BT_LARGE_FLOAT)
+									   : bullet::btScalar(1.0) / rayDir[2];
 		m_signs[0] = m_rayDirectionInverse[0] < 0.0;
 		m_signs[1] = m_rayDirectionInverse[1] < 0.0;
 		m_signs[2] = m_rayDirectionInverse[2] < 0.0;
@@ -159,9 +159,9 @@ public:
 		m_lambda_max = rayDir.dot(bt(cb->end - cb->start));
 	}
 	virtual ~btDbvtRayCb() {}
-	virtual void Process(const btDbvtNode *leaf) override
+	virtual void Process(const bullet::btDbvtNode *leaf) override
 	{
-		if (cb->length == btScalar(0.f))
+		if (cb->length == bullet::btScalar(0.f))
 			return;
 
 		int32_t offset = (int32_t)(uint64_t)(leaf->data);
@@ -187,9 +187,9 @@ public:
 	BulletDbvt *bp;
 	RayCallback *cb;
 
-	btVector3 m_rayDirectionInverse;
+	bullet::btVector3 m_rayDirectionInverse;
 	unsigned int m_signs[3];
-	btScalar m_lambda_max;
+	bullet::btScalar m_lambda_max;
 };
 
 void BulletDbvt::IntersectRay(RayCallback &cb)
@@ -212,8 +212,8 @@ void BulletDbvt::IntersectRay(RayCallback &cb)
 			btCb.m_rayDirectionInverse,
 			btCb.m_signs,
 			btCb.m_lambda_max,
-			btVector3(0, 0, 0),
-			btVector3(0, 0, 0),
+			bullet::btVector3(0, 0, 0),
+			bullet::btVector3(0, 0, 0),
 			stack,
 			btCb);
 }

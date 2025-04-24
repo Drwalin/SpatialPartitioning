@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "../../thirdparty/bullet/src/BulletCollision/BroadphaseCollision/btDbvtBroadphase.h"
+#include "../../src/bullet/btDbvtBroadphase.h"
 
 #include "AssociativeArray.hpp"
 #include "BroadPhaseBase.hpp"
@@ -55,11 +55,11 @@ private:
 	struct Data {
 		EntityType entity;
 		MaskType mask;
-		btBroadphaseProxy *proxy;
+		bullet::btBroadphaseProxy *proxy;
 	};
 	AssociativeArray<EntityType, int32_t, Data> ents;
-	btNullPairCache cache;
-	btDbvtBroadphase broadphase;
+	bullet::btNullPairCache cache;
+	bullet::btDbvtBroadphase broadphase;
 	
 	size_t requiresRebuild = 0;
 	

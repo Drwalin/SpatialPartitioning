@@ -6,8 +6,8 @@
 
 #include "../include/spatial_partitioning/BulletDbvh.hpp"
 
-static btVector3 bt(glm::vec3 v) { return {v.x, v.y, v.z}; }
-static glm::vec3 gl(btVector3 v) { return {v.x(), v.y(), v.z()}; }
+static bullet::btVector3 bt(glm::vec3 v) { return {v.x, v.y, v.z}; }
+static glm::vec3 gl(bullet::btVector3 v) { return {v.x(), v.y(), v.z()}; }
 
 namespace spp
 {
@@ -42,7 +42,7 @@ void Free(void *ptr)
 }
 	
 int ___STATIC_INITIALIZATOR_HOLDER =
-	(btAlignedAllocSetCustom(Allocate, Free), 0);
+	(bullet::btAlignedAllocSetCustom(Allocate, Free), 0);
 
 BulletDbvh::BulletDbvh() : broadphase(&cache), iterator(*this) {
 	broadphase.m_deferedcollide = true;
@@ -91,7 +91,7 @@ void BulletDbvh::IncrementalOptimize(int iterations)
 void BulletDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	int32_t offset = ents.Add(entity, Data{entity, mask});
-	btBroadphaseProxy *proxy =
+	bullet::btBroadphaseProxy *proxy =
 		broadphase.createProxy(bt(aabb.min), bt(aabb.max), 0,
 							   (void *)(uint64_t)offset, mask, mask, nullptr);
 	ents[offset].proxy = proxy;
@@ -149,12 +149,12 @@ void BulletDbvh::Rebuild()
 	IncrementalOptimize(100);
 }
 
-class btAabbCb final : public btBroadphaseAabbCallback
+class btAabbCb final : public bullet::btBroadphaseAabbCallback
 {
 public:
 	btAabbCb(BulletDbvh *bp, IntersectionCallback *cb) : bp(bp), cb(cb) {}
 	virtual ~btAabbCb() {}
-	virtual bool process(const btBroadphaseProxy *p) override
+	virtual bool process(const bullet::btBroadphaseProxy *p) override
 	{
 		int32_t offset = (int32_t)(uint64_t)(p->m_clientObject);
 		BulletDbvh::Data &data = bp->ents[offset];
@@ -183,23 +183,23 @@ void BulletDbvh::IntersectAabb(IntersectionCallback &cb)
 	broadphase.aabbTest(bt(cb.aabb.min), bt(cb.aabb.max), btCb);
 }
 
-class btRayCb final : public btBroadphaseRayCallback
+class btRayCb final : public bullet::btBroadphaseRayCallback
 {
 public:
 	btRayCb(BulletDbvh *bp, RayCallback *cb) : bp(bp), cb(cb)
 	{
-		btVector3 rayDir = bt(cb->end - cb->start);
+		bullet::btVector3 rayDir = bt(cb->end - cb->start);
 
 		rayDir.normalize();
-		m_rayDirectionInverse[0] = rayDir[0] == btScalar(0.0)
-									   ? btScalar(BT_LARGE_FLOAT)
-									   : btScalar(1.0) / rayDir[0];
-		m_rayDirectionInverse[1] = rayDir[1] == btScalar(0.0)
-									   ? btScalar(BT_LARGE_FLOAT)
-									   : btScalar(1.0) / rayDir[1];
-		m_rayDirectionInverse[2] = rayDir[2] == btScalar(0.0)
-									   ? btScalar(BT_LARGE_FLOAT)
-									   : btScalar(1.0) / rayDir[2];
+		m_rayDirectionInverse[0] = rayDir[0] == bullet::btScalar(0.0)
+									   ? bullet::btScalar(BT_LARGE_FLOAT)
+									   : bullet::btScalar(1.0) / rayDir[0];
+		m_rayDirectionInverse[1] = rayDir[1] == bullet::btScalar(0.0)
+									   ? bullet::btScalar(BT_LARGE_FLOAT)
+									   : bullet::btScalar(1.0) / rayDir[1];
+		m_rayDirectionInverse[2] = rayDir[2] == bullet::btScalar(0.0)
+									   ? bullet::btScalar(BT_LARGE_FLOAT)
+									   : bullet::btScalar(1.0) / rayDir[2];
 		m_signs[0] = m_rayDirectionInverse[0] < 0.0;
 		m_signs[1] = m_rayDirectionInverse[1] < 0.0;
 		m_signs[2] = m_rayDirectionInverse[2] < 0.0;
@@ -207,9 +207,9 @@ public:
 		m_lambda_max = rayDir.dot(bt(cb->end - cb->start));
 	}
 	virtual ~btRayCb() {}
-	virtual bool process(const btBroadphaseProxy *p) override
+	virtual bool process(const bullet::btBroadphaseProxy *p) override
 	{
-		if (cb->length == btScalar(0.f))
+		if (cb->length == bullet::btScalar(0.f))
 			return false;
 
 		bool hasHit = false;

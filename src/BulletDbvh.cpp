@@ -204,34 +204,24 @@ public:
 		m_signs[1] = m_rayDirectionInverse[1] < 0.0;
 		m_signs[2] = m_rayDirectionInverse[2] < 0.0;
 
-		m_lambda_max = rayDir.dot(bt(cb->end - cb->start));
+		m_lambda_max = lambdaOrig = rayDir.dot(bt(cb->end - cb->start));
 	}
 	virtual ~btRayCb() {}
 	virtual bool process(const bullet::btBroadphaseProxy *p) override
 	{
-		if (cb->length == bullet::btScalar(0.f))
+		if (cb->cutFactor == bullet::btScalar(0.f))
 			return false;
 
 		bool hasHit = false;
 		int32_t offset = (int32_t)(uint64_t)(p->m_clientObject);
 		BulletDbvh::Data &data = bp->ents[offset];
 		if (cb->mask & data.mask) {
-			auto res = cb->callback(cb, data.entity);
+			auto res = cb->ExecuteCallback(data.entity);
 			if (res.intersection) {
+				assert(res.dist >= 0);
 				hasHit = true;
-				if (res.dist + 0.00000001f < 1.0f) {
-					if (res.dist < 0.0f)
-						res.dist = 0.0f;
-					else
-						res.dist += 0.00000001f;
-					cb->length *= res.dist;
-					cb->dir *= res.dist;
-					cb->end = cb->start + cb->dir;
-					m_lambda_max *= res.dist;
-				}
-				++cb->hitCount;
+				m_lambda_max = lambdaOrig * res.dist;
 			}
-			++cb->testedCount;
 		}
 		// TODO: test return false
 		return !hasHit;
@@ -239,6 +229,7 @@ public:
 
 	BulletDbvh *bp;
 	RayCallback *cb;
+	float lambdaOrig;
 };
 
 void BulletDbvh::IntersectRay(RayCallback &cb)

@@ -58,7 +58,6 @@ void ThreeStageDbvh::Clear()
 		clear = true;
 		TryIntegrateOptimised();
 	}
-	entitiesData.clear();
 	dynamic->Clear();
 	dynamic2->Clear();
 	optimised->Clear();
@@ -90,41 +89,17 @@ void ThreeStageDbvh::ShrinkToFit()
 
 void ThreeStageDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
-	assert((optimised->Exists(entity) || dynamic->Exists(entity) ||
-			dynamic2->Exists(entity)) == false &&
-		   entitiesData.contains(entity) == false);
-
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
-
-	entitiesData.insert({entity, aabb});
+	assert(Exists(entity) == false);
 
 	dynamicUpdates++;
 	dynamic->Add(entity, aabb, mask);
-
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
 }
 
 void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 {
-	assert((optimised->Exists(entity) || dynamic->Exists(entity) ||
-			dynamic2->Exists(entity)) == true &&
-		   entitiesData.contains(entity) == true);
-
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
-
-	if (assert(entitiesData.contains(entity))) {
-		BreakPoint();
-	}
+	assert(Exists(entity) == true);
 
 	TryIntegrateOptimised();
-
-	entitiesData[entity] = aabb;
 
 	if (dynamic->Exists(entity)) {
 		dynamicUpdates++;
@@ -146,6 +121,7 @@ void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 		dynamic->Add(entity, aabb, mask);
 
 		if (rebuild) {
+			assert(toRemoveAfterRebuild.contains(entity) == false);
 			toRemoveAfterRebuild.insert(entity);
 		}
 	}
@@ -153,54 +129,34 @@ void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 	if (dynamicUpdates > 1000 || optimisedUpdates > 100) {
 		TryScheduleRebuild();
 	}
-
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
 }
 
 void ThreeStageDbvh::Remove(EntityType entity)
 {
-	assert((optimised->Exists(entity) || dynamic->Exists(entity) ||
-			dynamic2->Exists(entity)) == true &&
-		   entitiesData.contains(entity) == true);
-
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
+	assert(Exists(entity) == true);
 
 	TryIntegrateOptimised();
 
-	entitiesData.erase(entity);
-
 	if (dynamic->Exists(entity)) {
 		dynamic->Remove(entity);
-		if (assert(dynamic2->Exists(entity) == false)) {
-			BreakPoint();
-		}
-		if (assert(optimised->Exists(entity) == false)) {
-			BreakPoint();
-		}
+		assert(dynamic2->Exists(entity) == false);
+		assert(optimised->Exists(entity) == false);
 	} else if (dynamic2->Exists(entity)) {
 		dynamic2->Remove(entity);
 		if (rebuild) {
+			assert(toRemoveAfterRebuild.contains(entity) == false);
 			toRemoveAfterRebuild.insert(entity);
 		}
-		if (assert(optimised->Exists(entity) == false)) {
-			BreakPoint();
-		}
+		assert(optimised->Exists(entity) == false);
 	} else if (optimised->Exists(entity)) {
 		optimised->Remove(entity);
 		if (rebuild) {
+			assert(toRemoveAfterRebuild.contains(entity) == false);
 			toRemoveAfterRebuild.insert(entity);
 		}
 	} else {
 		ASSERT(false);
 	}
-
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
 }
 
 void ThreeStageDbvh::SetMask(EntityType entity, MaskType mask)
@@ -224,10 +180,6 @@ void ThreeStageDbvh::SetMask(EntityType entity, MaskType mask)
 
 void ThreeStageDbvh::TryIntegrateOptimised()
 {
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
-
 	if (rebuild) {
 		if (finishedRebuilding->load()) {
 			if (clear) {
@@ -263,6 +215,7 @@ void ThreeStageDbvh::TryIntegrateOptimised()
 						glm::vec3 d = a.max - b.max;
 						float len = glm::length(c) + glm::length(d);
 						assert(len < 0.001);
+						assert(toRemoveAfterRebuild.contains(it->entity) == false);
 						toRemoveAfterRebuild.insert(it->entity);
 					}
 				}
@@ -283,10 +236,6 @@ void ThreeStageDbvh::TryIntegrateOptimised()
 			finishedRebuilding->store(false);
 		}
 	}
-
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
 }
 
 void ThreeStageDbvh::TryScheduleRebuild()
@@ -296,10 +245,6 @@ void ThreeStageDbvh::TryScheduleRebuild()
 			return;
 		}
 	}
-
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
 
 	if (scheduleRebuildFunc) {
 		rebuild = _rebuild.get();
@@ -341,10 +286,6 @@ void ThreeStageDbvh::TryScheduleRebuild()
 		toRemoveAfterRebuild.clear();
 		setMaskAfterRebuild.clear();
 	}
-
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
 }
 
 int32_t ThreeStageDbvh::GetCount() const
@@ -424,10 +365,6 @@ void ThreeStageDbvh::IntersectRay(RayCallback &cb)
 
 void ThreeStageDbvh::Rebuild()
 {
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
-
 	if (rebuild) {
 		clear = true;
 	}
@@ -448,10 +385,6 @@ void ThreeStageDbvh::Rebuild()
 	optimisedUpdates = 0;
 	finishedRebuilding->store(false);
 	tests = 0;
-
-	assert((optimised->GetCount() + dynamic->GetCount() +
-			dynamic2->GetCount()) == entitiesData.size() ||
-		   (BreakPoint(), false));
 }
 
 BroadphaseBaseIterator *ThreeStageDbvh::RestartIterator()

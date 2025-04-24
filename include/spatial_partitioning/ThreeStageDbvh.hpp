@@ -59,8 +59,6 @@ private:
 private:
 	std::shared_ptr<BroadphaseBase> dbvhs[2];
 	
-	std::unordered_map<EntityType, Aabb> entitiesData;
-
 	std::shared_ptr<std::atomic<bool>> _finishedRebuilding;
 	std::atomic<bool> *finishedRebuilding;
 	std::shared_ptr<BroadphaseBase> _rebuild;

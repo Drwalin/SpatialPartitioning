@@ -50,6 +50,10 @@ void BulletDbvt::IncrementalOptimize(int iterations)
 
 void BulletDbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
+	if (Exists(entity)) {
+		assert(false && "Entity already exists");
+		return;
+	}
 	int32_t offset = ents.Add(entity, Data{entity, mask, aabb, nullptr});
 
 	bullet::btDbvtAabbMm volume = bt(aabb);

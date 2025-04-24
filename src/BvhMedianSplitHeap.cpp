@@ -53,6 +53,10 @@ void BvhMedianSplitHeap::ShrinkToFit()
 
 void BvhMedianSplitHeap::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
+	if (entitiesOffsets.find(entity) != entitiesOffsets.end()) {
+		assert(false && "Entity already exists");
+		return;
+	}
 	entitiesOffsets[entity] = entitiesData.size();
 	entitiesData.push_back({aabb, entity, mask});
 	rebuildTree = true;

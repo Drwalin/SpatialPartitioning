@@ -19,12 +19,12 @@
 #include "../include/spatial_partitioning/BulletDbvt.hpp"
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 1000;
-const int32_t MAX_ENTITIES = TOTAL_ENTITIES + 1000;
+const int32_t TOTAL_ENTITIES = 1000000;
+const int32_t MAX_ENTITIES = TOTAL_ENTITIES + 10000;
 const size_t TOTAL_AABB_TESTS = 200000;
 const size_t TOTAL_AABB_MOVEMENTS = 1000000;
-const size_t TOTAL_MOVES_AND_TESTS = 1000;
-const size_t MAX_MOVING_ENTITIES = 250;
+const size_t TOTAL_MOVES_AND_TESTS = 1000000;
+const size_t MAX_MOVING_ENTITIES = 2500;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
@@ -383,7 +383,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 		double us = double(ns) / 1000.0;
 		printf("%20s intersection test [count: %lu]: %8.3f us/op",
 			   it->GetName(), tC, us / double(tC));
-		printf("    \t   nodesTested: %9lu,   testedCount: %6lu     [count = "
+		printf("    \t   nodesTested: %11lu,   testedCount: %10lu     [count = "
 			   "%lu]:\n",
 			   vec.nodesTestedCount, vec.testedCount, ents.back().size());
 		fflush(stdout);

@@ -2,8 +2,6 @@
 // Copyright (c) 2024-2025 Marek Zalewski aka Drwalin
 // You should have received a copy of the MIT License along with this program.
 
-#include <atomic>
-
 #include "../include/spatial_partitioning/BulletDbvh.hpp"
 
 static bullet::btVector3 bt(glm::vec3 v) { return {v.x, v.y, v.z}; }
@@ -11,47 +9,12 @@ static glm::vec3 gl(bullet::btVector3 v) { return {v.x(), v.y(), v.z()}; }
 
 namespace spp
 {
-std::atomic<size_t> allocatedBytes = 0;
-std::atomic<size_t> allocatedBlocks = 0;
-std::atomic<size_t> totalMallocs = 0;
 
-void *Allocate(size_t size)
+BulletDbvh::BulletDbvh() : broadphase(&cache), iterator(*this)
 {
-	if (size != 0) {
-		totalMallocs++;
-		allocatedBlocks++;
-		allocatedBytes += size;
-		void *raw = malloc(size + 16);
-		((size_t *)raw)[0] = size;
-		char *ptr = (char *)raw;
-		return ptr + 16;
-	}
-	exit(13);
-	return nullptr;
-}
-
-void Free(void *ptr)
-{
-	if (ptr) {
-		allocatedBlocks--;
-		size_t *g = (size_t *)(((char *)ptr) - 16);
-		size_t size = g[0];
-		allocatedBytes -= size;
-		free(g);
-	}
-}
-	
-int ___STATIC_INITIALIZATOR_HOLDER =
-	(bullet::btAlignedAllocSetCustom(Allocate, Free), 0);
-
-BulletDbvh::BulletDbvh() : broadphase(&cache), iterator(*this) {
 	broadphase.m_deferedcollide = true;
 }
-BulletDbvh::~BulletDbvh() {
-	printf("Total allocations count: %lu, sums up to %.2f MiB\n", totalMallocs.load(),
-			allocatedBytes / (1024.0f*1024.0));
-	Clear();
-}
+BulletDbvh::~BulletDbvh() { Clear(); }
 
 const char *BulletDbvh::GetName() const { return "BulletDbvh"; }
 
@@ -70,12 +33,15 @@ void BulletDbvh::Clear()
 size_t BulletDbvh::GetMemoryUsage() const
 {
 	return ents.GetMemoryUsage() +
-		(broadphase.m_sets[0].m_leaves * 2 - 1) * sizeof(bullet::btDbvtNode) +
-		broadphase.m_sets[0].m_stkStack.capacity() * sizeof(bullet::btDbvt::sStkNN) +
-		(broadphase.m_sets[1].m_leaves * 2 - 1) * sizeof(bullet::btDbvtNode) +
-		broadphase.m_sets[1].m_stkStack.capacity() * sizeof(bullet::btDbvt::sStkNN) +
-		64*64 +
-		ents.Size() * sizeof(bullet::btDbvtProxy);
+		   (broadphase.m_sets[0].m_leaves * 2 - 1) *
+			   sizeof(bullet::btDbvtNode) +
+		   broadphase.m_sets[0].m_stkStack.capacity() *
+			   sizeof(bullet::btDbvt::sStkNN) +
+		   (broadphase.m_sets[1].m_leaves * 2 - 1) *
+			   sizeof(bullet::btDbvtNode) +
+		   broadphase.m_sets[1].m_stkStack.capacity() *
+			   sizeof(bullet::btDbvt::sStkNN) +
+		   64 * 64 + ents.Size() * sizeof(bullet::btDbvtProxy);
 }
 
 void BulletDbvh::ShrinkToFit() {}
@@ -127,10 +93,7 @@ void BulletDbvh::SetMask(EntityType entity, MaskType mask)
 	ents[offset].mask = mask;
 }
 
-int32_t BulletDbvh::GetCount() const
-{
-	return ents.Size();
-}
+int32_t BulletDbvh::GetCount() const { return ents.Size(); }
 
 bool BulletDbvh::Exists(EntityType entity) const
 {
@@ -150,7 +113,7 @@ MaskType BulletDbvh::GetMask(EntityType entity) const
 
 void BulletDbvh::Rebuild()
 {
-// 	broadphase.optimize();
+	// 	broadphase.optimize();
 	requiresRebuild = false;
 	IncrementalOptimize(100);
 }

@@ -10,12 +10,14 @@ bool Assert(bool condition, const char *text, const char *function,
 			const char *file, int line)
 {
 	if (!condition) {
-		BreakPoint();
 		printf("Assert failed: `%s` %s %s:%i\n", text, function, file, line);
 		fflush(stdout);
 	}
 	return !condition;
 }
+
+#define ASSERT(COND)                                                           \
+	Assert(COND, #COND, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 
 #undef assert
 #define assert(COND)                                                           \
@@ -52,14 +54,14 @@ ThreeStageDbvh::~ThreeStageDbvh() {}
 const char *ThreeStageDbvh::GetName() const { return "ThreeStageDbvh"; }
 void ThreeStageDbvh::Clear()
 {
-	entitiesData.clear();
-	dynamic->Clear();
-	dynamic2->Clear();
-	optimised->Clear();
 	if (rebuild) {
 		clear = true;
 		TryIntegrateOptimised();
 	}
+	entitiesData.clear();
+	dynamic->Clear();
+	dynamic2->Clear();
+	optimised->Clear();
 }
 
 size_t ThreeStageDbvh::GetMemoryUsage() const
@@ -91,10 +93,19 @@ void ThreeStageDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 	assert((optimised->Exists(entity) || dynamic->Exists(entity) ||
 			dynamic2->Exists(entity)) == false &&
 		   entitiesData.contains(entity) == false);
-	entitiesData[entity] = aabb;
+
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
+
+	entitiesData.insert({entity, aabb});
 
 	dynamicUpdates++;
 	dynamic->Add(entity, aabb, mask);
+
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
 }
 
 void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
@@ -102,9 +113,18 @@ void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 	assert((optimised->Exists(entity) || dynamic->Exists(entity) ||
 			dynamic2->Exists(entity)) == true &&
 		   entitiesData.contains(entity) == true);
-	entitiesData[entity] = aabb;
+
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
+
+	if (assert(entitiesData.contains(entity))) {
+		BreakPoint();
+	}
 
 	TryIntegrateOptimised();
+
+	entitiesData[entity] = aabb;
 
 	if (dynamic->Exists(entity)) {
 		dynamicUpdates++;
@@ -115,7 +135,8 @@ void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 			mask = dynamic2->GetMask(entity);
 			dynamic2->Remove(entity);
 		} else {
-			assert(optimised->Exists(entity));
+			assert(optimised->Exists(entity) &&
+				   "This is an alternative scenario");
 			mask = optimised->GetMask(entity);
 			optimised->Remove(entity);
 		}
@@ -132,6 +153,10 @@ void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 	if (dynamicUpdates > 1000 || optimisedUpdates > 100) {
 		TryScheduleRebuild();
 	}
+
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
 }
 
 void ThreeStageDbvh::Remove(EntityType entity)
@@ -139,16 +164,30 @@ void ThreeStageDbvh::Remove(EntityType entity)
 	assert((optimised->Exists(entity) || dynamic->Exists(entity) ||
 			dynamic2->Exists(entity)) == true &&
 		   entitiesData.contains(entity) == true);
-	entitiesData.erase(entity);
+
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
 
 	TryIntegrateOptimised();
 
+	entitiesData.erase(entity);
+
 	if (dynamic->Exists(entity)) {
 		dynamic->Remove(entity);
+		if (assert(dynamic2->Exists(entity) == false)) {
+			BreakPoint();
+		}
+		if (assert(optimised->Exists(entity) == false)) {
+			BreakPoint();
+		}
 	} else if (dynamic2->Exists(entity)) {
 		dynamic2->Remove(entity);
 		if (rebuild) {
 			toRemoveAfterRebuild.insert(entity);
+		}
+		if (assert(optimised->Exists(entity) == false)) {
+			BreakPoint();
 		}
 	} else if (optimised->Exists(entity)) {
 		optimised->Remove(entity);
@@ -156,8 +195,12 @@ void ThreeStageDbvh::Remove(EntityType entity)
 			toRemoveAfterRebuild.insert(entity);
 		}
 	} else {
-		assert(false);
+		ASSERT(false);
 	}
+
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
 }
 
 void ThreeStageDbvh::SetMask(EntityType entity, MaskType mask)
@@ -175,12 +218,16 @@ void ThreeStageDbvh::SetMask(EntityType entity, MaskType mask)
 			setMaskAfterRebuild[entity] = mask;
 		}
 	} else {
-		assert(false);
+		ASSERT(false);
 	}
 }
 
 void ThreeStageDbvh::TryIntegrateOptimised()
 {
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
+
 	if (rebuild) {
 		if (finishedRebuilding->load()) {
 			if (clear) {
@@ -190,20 +237,56 @@ void ThreeStageDbvh::TryIntegrateOptimised()
 			} else {
 				optimised->Clear();
 				std::swap(_optimised, _rebuild);
-				optimised = rebuild;
+				optimised = _optimised.get();
 				rebuild = nullptr;
 
-				for (auto entity : toRemoveAfterRebuild) {
-					optimised->Remove(entity);
-				}
 				for (auto it : setMaskAfterRebuild) {
-					optimised->SetMask(it.first, it.second);
+					if (optimised->Exists(it.first)) {
+						optimised->SetMask(it.first, it.second);
+					}
 				}
+				for (auto entity : toRemoveAfterRebuild) {
+					if (optimised->Exists(entity)) {
+						optimised->Remove(entity);
+					}
+				}
+
+				toRemoveAfterRebuild.clear();
+				setMaskAfterRebuild.clear();
+
+				for (auto it = dynamic2->RestartIterator(); it->Valid();
+					 it->Next()) {
+					if (optimised->Exists(it->entity)) {
+						auto a = it->aabb;
+						auto b = optimised->GetAabb(it->entity);
+						glm::vec3 c = a.min - b.min;
+						glm::vec3 d = a.max - b.max;
+						float len = glm::length(c) + glm::length(d);
+						assert(len < 0.001);
+						toRemoveAfterRebuild.insert(it->entity);
+					}
+				}
+				for (auto entity : toRemoveAfterRebuild) {
+					dynamic2->Remove(entity);
+				}
+				toRemoveAfterRebuild.clear();
+
+				for (auto it = dynamic2->RestartIterator(); it->Valid();
+					 it->Next()) {
+					if (assert(optimised->Exists(it->entity))) {
+						BreakPoint();
+					}
+				}
+
 				dynamic2->Clear();
 			}
 			finishedRebuilding->store(false);
 		}
 	}
+
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
 }
 
 void ThreeStageDbvh::TryScheduleRebuild()
@@ -214,41 +297,54 @@ void ThreeStageDbvh::TryScheduleRebuild()
 		}
 	}
 
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
+
 	if (scheduleRebuildFunc) {
 		rebuild = _rebuild.get();
 		rebuild->Clear();
-		int i=0;
 		for (auto it = optimised->RestartIterator(); it->Valid(); it->Next()) {
-			++i;
 			rebuild->Add(it->entity, it->aabb, it->mask);
 		}
-		if (assert(i == optimised->GetCount())) {
-			printf(" iterated: %i, count: %i\n", i, optimised->GetCount());
-			exit(69);
-		}
-		
+
 		for (auto it = dynamic->RestartIterator(); it->Valid(); it->Next()) {
 			rebuild->Add(it->entity, it->aabb, it->mask);
 		}
 		for (auto it = dynamic2->RestartIterator(); it->Valid(); it->Next()) {
-			if (rebuild->Exists(it->entity) == false) {
-				rebuild->Add(it->entity, it->aabb, it->mask);
-			}
+			rebuild->Add(it->entity, it->aabb, it->mask);
 		}
 
-		std::swap(_dynamic, _dynamic2);
-		std::swap(dynamic, dynamic2);
+		if (dynamic2->GetCount() < dynamic->GetCount()) {
+			std::swap(_dynamic, _dynamic2);
+			std::swap(dynamic, dynamic2);
+		}
+
+		for (auto it = dynamic->RestartIterator(); it->Valid(); it->Next()) {
+			dynamic2->Add(it->entity, it->aabb, it->mask);
+		}
+		dynamic->Clear();
 
 		tests = 0;
 		dynamicUpdates = 0;
 		optimisedUpdates = 0;
 		finishedRebuilding->store(false);
 
+		toRemoveAfterRebuild.clear();
+		setMaskAfterRebuild.clear();
+
 		scheduleRebuildFunc(_finishedRebuilding, _rebuild,
 							scheduleUpdateUserData);
 	} else {
 		Rebuild();
+		
+		toRemoveAfterRebuild.clear();
+		setMaskAfterRebuild.clear();
 	}
+
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
 }
 
 int32_t ThreeStageDbvh::GetCount() const
@@ -268,8 +364,11 @@ Aabb ThreeStageDbvh::GetAabb(EntityType entity) const
 		return optimised->GetAabb(entity);
 	} else if (dynamic->Exists(entity)) {
 		return dynamic->GetAabb(entity);
-	} else {
+	} else if (dynamic2->Exists(entity)) {
 		return dynamic2->GetAabb(entity);
+	} else {
+		ASSERT(false && "DUPA DUPA DUPA DUP DUP DUP DUP DUP DUPAAAAAA DUPA");
+		return {};
 	}
 }
 
@@ -279,8 +378,11 @@ MaskType ThreeStageDbvh::GetMask(EntityType entity) const
 		return optimised->GetMask(entity);
 	} else if (dynamic->Exists(entity)) {
 		return dynamic->GetMask(entity);
-	} else {
+	} else if (dynamic2->Exists(entity)) {
 		return dynamic2->GetMask(entity);
+	} else {
+		ASSERT(false && "DUPA DUPA DUPA DUP DUP DUP DUP DUP DUPAAAAAA DUPA");
+		return 0;
 	}
 }
 
@@ -322,6 +424,9 @@ void ThreeStageDbvh::IntersectRay(RayCallback &cb)
 
 void ThreeStageDbvh::Rebuild()
 {
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
 
 	if (rebuild) {
 		clear = true;
@@ -343,6 +448,10 @@ void ThreeStageDbvh::Rebuild()
 	optimisedUpdates = 0;
 	finishedRebuilding->store(false);
 	tests = 0;
+
+	assert((optimised->GetCount() + dynamic->GetCount() +
+			dynamic2->GetCount()) == entitiesData.size() ||
+		   (BreakPoint(), false));
 }
 
 BroadphaseBaseIterator *ThreeStageDbvh::RestartIterator()

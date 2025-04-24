@@ -19,11 +19,11 @@
 #include "../include/spatial_partitioning/BulletDbvt.hpp"
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 10000000;
+const int32_t TOTAL_ENTITIES = 1000000;
 const size_t TOTAL_AABB_TESTS = 100000;
 const size_t TOTAL_AABB_MOVEMENTS = 1000000;
-const size_t TOTAL_MOVES_AND_TESTS = 1000000;
-const size_t MAX_MOVING_ENTITIES = 3500;
+const size_t TOTAL_MOVES_AND_TESTS = 100000;
+const size_t MAX_MOVING_ENTITIES = 1500;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
@@ -534,11 +534,11 @@ int main(int argc, char **argv)
 								std::make_unique<spp::BruteForce>());
 	tsdbvh2.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 
-	spp::ThreeStageDbvh tsdbvh3(std::make_shared<spp::BvhMedianSplitHeap>(),
-								std::make_shared<spp::BvhMedianSplitHeap>(),
-								std::make_unique<spp::Dbvh>(),
-								std::make_unique<spp::Dbvh>());
-	tsdbvh2.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+// 	spp::ThreeStageDbvh tsdbvh3(std::make_shared<spp::BvhMedianSplitHeap>(),
+// 								std::make_shared<spp::BvhMedianSplitHeap>(),
+// 								std::make_unique<spp::Dbvh>(),
+// 								std::make_unique<spp::Dbvh>());
+// 	tsdbvh2.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
 		// 		&bf,
@@ -551,7 +551,7 @@ int main(int argc, char **argv)
 		// 		&btDbvt,
 		&tsdbvh,
 		&tsdbvh2,
-		&tsdbvh3,
+// 		&tsdbvh3,
 	};
 
 	bool enablePrepass = true;

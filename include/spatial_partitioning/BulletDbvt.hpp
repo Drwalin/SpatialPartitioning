@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-#include "../../thirdparty/bullet/src/BulletCollision/BroadphaseCollision/btDbvt.h"
+#include "../../src/bullet/btDbvt.h"
 
 #include "AssociativeArray.hpp"
 #include "BroadPhaseBase.hpp"
@@ -56,11 +56,11 @@ private:
 		EntityType entity;
 		MaskType mask;
 		Aabb aabb;
-		btDbvtNode *node;
+		bullet::btDbvtNode *node;
 	};
 	AssociativeArray<EntityType, int32_t, Data> ents;
-	btDbvt dbvt;
-	btAlignedObjectArray<const btDbvtNode*> stack;
+	bullet::btDbvt dbvt;
+	bullet::btAlignedObjectArray<const bullet::btDbvtNode*> stack;
 	
 	size_t requiresRebuild = 0;
 	

@@ -24,6 +24,9 @@ public:
 	virtual void Clear() override;
 	virtual size_t GetMemoryUsage() const override;
 	virtual void ShrinkToFit() override;
+	
+	virtual void StartFastAdding() override;
+	virtual void StopFastAdding() override;
 
 	virtual void Add(EntityType entity, Aabb aabb, MaskType mask) override;
 	virtual void Update(EntityType entity, Aabb aabb) override;
@@ -64,6 +67,7 @@ private:
 	int32_t optimisedUpdates = 0;
 	int32_t tests = 0;
 	bool clear = false;
+	bool fastAdding = false;
 
 	std::shared_ptr<BroadphaseBase> _optimised;
 

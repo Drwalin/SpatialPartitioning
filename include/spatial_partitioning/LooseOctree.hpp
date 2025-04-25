@@ -77,7 +77,7 @@ private:
 	int32_t GetNodeIdAt(Aabb aabb);
 
 private:
-	struct alignas(64) Data {
+	struct Data {
 		AabbCentered aabb;
 		EntityType entity = 0;
 		MaskType mask = 0;
@@ -86,7 +86,7 @@ private:
 		int32_t parent = 0;
 	};
 
-	struct alignas(64) NodeData {
+	struct NodeData {
 		int32_t children[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 		glm::ivec3 center;
 		int32_t level;

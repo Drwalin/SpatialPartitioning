@@ -83,13 +83,13 @@ private:
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 
 private:
-	struct alignas(32) Data {
+	struct Data {
 		AabbCentered aabb;
 		EntityType entity;
 		MaskType mask;
 	};
 
-	struct alignas(32) NodeData {
+	struct NodeData {
 		AabbCentered aabb;
 		MaskType mask;
 	};

@@ -83,7 +83,7 @@ private:
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 	
 private:
-	struct alignas(64) Data {
+	struct Data {
 		AabbCentered aabb;
 		EntityType entity = 0;
 		MaskType mask = 0;

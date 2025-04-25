@@ -86,14 +86,14 @@ private:
 private:
 	inline const static int32_t OFFSET = 0x10000000;
 
-	struct alignas(64) Data {
+	struct Data {
 		AabbCentered aabb;
 		EntityType entity = 0;
 		MaskType mask = 0;
 		int32_t parent = 0;
 	};
 
-	struct alignas(64) NodeData {
+	struct NodeData {
 		AabbCentered aabb[2];
 		MaskType mask = 0;
 		int32_t parent = 0;

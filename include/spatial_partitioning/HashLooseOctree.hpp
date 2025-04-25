@@ -72,7 +72,7 @@ private:
 											  int32_t firstNode);
 
 private:
-	struct alignas(64) Data {
+	struct Data {
 		AabbCentered aabb;
 		EntityType entity = 0;
 		MaskType mask = 0;

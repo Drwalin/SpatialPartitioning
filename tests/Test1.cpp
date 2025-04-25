@@ -229,15 +229,11 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 						return {n, true};
 					}
 				} else if (n < cb->cutFactor) {
-					// 					if (cb->cutFactor-0.000001f < n &&
-					// entity < cb->hitEntity) { 						return
-					// {1.0f, false}; 					} else {
 					cb->cutFactor = n;
 					cb->hitPoint = cb->start + cb->dir * n;
 					cb->hitEntity = entity;
 					cb->hasHit = true;
 					return {n, true};
-					// 					}
 				} else if (n - 0.000001f < cb->cutFactor &&
 						   entity > cb->hitEntity) {
 					cb->cutFactor = n;
@@ -285,10 +281,10 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			-> spp::EntityType {
 			if (!removeEntities.empty() && (Random(s, i) & 7) > 5) {
 				size_t x = Random(s, i) % removeEntities.size();
-				auto ret = removeEntities[x];
+				auto r = removeEntities[x];
 				removeEntities[x] = removeEntities.back();
 				removeEntities.resize(removeEntities.size() - 1);
-				return ret;
+				return r;
 			} else {
 				return (Random(s, i) % MAX_ENTITIES) + 1;
 			}
@@ -495,8 +491,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 				}
 			}
 
-			for (int j = 0; j < ents[i].size() && j < hitPoints[i].size();
-				 ++j) {
+			for (int j = 0; j < hitPoints[i].size(); ++j) {
 				auto hp = hitPoints[i][j];
 				if (hp.e <= 0) {
 					continue;
@@ -546,8 +541,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 
 		size_t errs = glm::abs<int64_t>(ents[i].size() - ents[0].size());
 		int JJ = 0;
-		for (int j = 0; j < ents[i].size() && j < ents[0].size() &&
-						j < hitPoints[0].size() && j < hitPoints[i].size();
+		for (int j = 0; j < hitPoints[0].size() && j < hitPoints[i].size();
 			 ++j) {
 			auto p0 = hitPoints[0][j];
 			auto pi = hitPoints[i][j];

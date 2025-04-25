@@ -84,6 +84,7 @@ void BvhMedianSplitHeap::Remove(EntityType entity)
 	uint32_t offset = it->second;
 	entitiesOffsets.erase(it);
 	entitiesData[offset].entity = EMPTY_ENTITY;
+	entitiesData[offset].mask = 0;
 
 	--entitiesCount;
 
@@ -218,7 +219,8 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 	if (n >= entitiesPowerOfTwoCount) {
 		int32_t o = n - entitiesPowerOfTwoCount;
 		for (int i = 0; i <= 1 && (o ^ i) < entitiesData.size(); ++i) {
-			if (entitiesData[o ^ i].mask & cb.mask) {
+			if ((entitiesData[o ^ i].mask & cb.mask) &&
+				entitiesData[o ^ i].entity != EMPTY_ENTITY) {
 				auto &ed = entitiesData[o ^ i];
 				cb.ExecuteIfRelevant(ed.aabb, ed.entity);
 			}
@@ -531,7 +533,7 @@ bool BvhMedianSplitHeap::Iterator::Next()
 	do {
 		++it;
 	} while (Valid() && (*data)[it].entity == EMPTY_ENTITY);
-	
+
 	return FetchData();
 }
 

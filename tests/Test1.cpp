@@ -114,8 +114,9 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 		cb.callback =
 			(CbT) +
 			[](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
+			assert(entity > 0);
 			spp::Aabb aabb = (*globalEntityData)[entity - 1].aabb;
-			if (cb->IsRelevant(aabb)) {
+			if (cb->IsRelevant((spp::AabbCentered)aabb)) {
 				ret.entities.push_back(entity);
 				return {1.0f, true};
 			}
@@ -147,7 +148,7 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			[](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
 			float n, f;
 			spp::Aabb aabb = (*globalEntityData)[entity - 1].aabb;
-			if (cb->IsRelevant(aabb, n, f)) {
+			if (cb->IsRelevant((spp::AabbCentered)aabb, n, f)) {
 				if (n < 0.0f) {
 					n = 0.0f;
 				}
@@ -215,7 +216,7 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			[](_CbRay *cb, spp::EntityType entity) -> spp::RayPartialResult {
 			float n, f;
 			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
-			if (cb->IsRelevant(aabb, n, f)) {
+			if (cb->IsRelevant((spp::AabbCentered)aabb, n, f)) {
 				if (n < 0.0f) {
 					n = 0.0f;
 				}
@@ -228,6 +229,17 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 						return {n, true};
 					}
 				} else if (n < cb->cutFactor) {
+					// 					if (cb->cutFactor-0.000001f < n &&
+					// entity < cb->hitEntity) { 						return
+					// {1.0f, false}; 					} else {
+					cb->cutFactor = n;
+					cb->hitPoint = cb->start + cb->dir * n;
+					cb->hitEntity = entity;
+					cb->hasHit = true;
+					return {n, true};
+					// 					}
+				} else if (n - 0.000001f < cb->cutFactor &&
+						   entity > cb->hitEntity) {
 					cb->cutFactor = n;
 					cb->hitPoint = cb->start + cb->dir * n;
 					cb->hitEntity = entity;
@@ -540,17 +552,28 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			auto p0 = hitPoints[0][j];
 			auto pi = hitPoints[i][j];
 			if (p0.e != pi.e) {
-				auto aabb0 = p0.aabb;
-				auto aabbi = pi.aabb;
+				spp::Aabb aabb0 = p0.aabb;
+				spp::Aabb aabbi = pi.aabb;
 
-				auto com = aabb0 * aabbi;
+				aabb0.min -= 0.0025;
+				aabbi.min -= 0.0025;
+				aabb0.max += 0.0025;
+				aabbi.max += 0.0025;
+
 				bool er = true;
 				if (p0.e && pi.e) {
 					if (aabb0 && aabbi) {
-						if (com && spp::Aabb{p0.point, p0.point}) {
-							if (com && spp::Aabb{pi.point, pi.point}) {
-								if (glm::length(pi.point - p0.point) < 0.001) {
-									er = false;
+						if (aabb0 && spp::Aabb{p0.point, p0.point}) {
+							if (aabbi && spp::Aabb{p0.point, p0.point}) {
+								if (aabb0 && spp::Aabb{pi.point, pi.point}) {
+									if (aabbi &&
+										spp::Aabb{pi.point, pi.point}) {
+										if (glm::length(pi.point - p0.point) <
+												0.01 &&
+											fabs(p0.n - pi.n) < 0.0001) {
+											er = false;
+										}
+									}
 								}
 							}
 						}
@@ -558,6 +581,9 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 				}
 
 				if (er == true) {
+					aabb0 = p0.aabb;
+					aabbi = pi.aabb;
+
 					++JJ;
 					++errs;
 					glm::vec3 a, b, c, d;
@@ -644,7 +670,7 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 		done = true;
 		std::thread thread = std::thread([]() {
 			while (true) {
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
 				if (size.load() > 0) {
 					Pair p;
 					bool has = false;
@@ -679,7 +705,6 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 						p.first->store(true);
 					}
 				}
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			}
 		});
 		thread.detach();

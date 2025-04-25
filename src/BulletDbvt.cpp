@@ -25,10 +25,9 @@ void BulletDbvt::Clear()
 
 size_t BulletDbvt::GetMemoryUsage() const {
 	return ents.GetMemoryUsage() +
-		(dbvt.m_leaves * 2 - 1) * sizeof(bullet::btDbvtNode) +
+		(GetCount() * 2 - 1) * sizeof(bullet::btDbvtNode) +
 		dbvt.m_stkStack.capacity() * sizeof(bullet::btDbvt::sStkNN) +
-		stack.capacity() * sizeof(const bullet::btDbvtNode*)
-		;
+		stack.capacity() * sizeof(const bullet::btDbvtNode*);
 }
 
 void BulletDbvt::ShrinkToFit() {

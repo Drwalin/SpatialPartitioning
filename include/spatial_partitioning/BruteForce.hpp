@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <unordered_map>
-
+#include "AssociativeArray.hpp"
 #include "BroadPhaseBase.hpp"
 
 namespace spp
@@ -42,12 +41,12 @@ public:
 
 private:
 	struct Data {
-		Aabb aabb;
-		EntityType entity;
-		MaskType mask;
+		AabbCentered aabb;
+		EntityType entity = 0;
+		MaskType mask = 0;
 	};
 
-	std::unordered_map<EntityType, Data> entitiesData;
+	AssociativeArray<EntityType, int32_t, Data> entitiesData;
 	
 	class Iterator final : public BroadphaseBaseIterator
 	{
@@ -61,8 +60,8 @@ private:
 		virtual bool Valid() override;
 		bool FetchData();
 		
-		std::unordered_map<EntityType, Data>::iterator it;
-		std::unordered_map<EntityType, Data> *map;
+		AssociativeArray<EntityType, int32_t, Data> *map;
+		int32_t it = 0;
 	} iterator;
 };
 } // namespace spp

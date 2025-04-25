@@ -1,5 +1,6 @@
 #include <cstdio>
 
+#include <string>
 #include <thread>
 #include <mutex>
 #include <queue>
@@ -19,13 +20,14 @@
 #include "../include/spatial_partitioning/BulletDbvt.hpp"
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 1000000;
-const int32_t MAX_ENTITIES = TOTAL_ENTITIES + 10000;
-const size_t TOTAL_AABB_TESTS = 200000;
-const size_t TOTAL_AABB_MOVEMENTS = 1000000;
-const size_t TOTAL_MOVES_AND_TESTS = 1000000;
-const size_t MAX_MOVING_ENTITIES = 2500;
-const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
+int32_t TOTAL_ENTITIES = 1000000;
+int32_t ADDITIONAL_ENTITIES = 10000;
+int32_t MAX_ENTITIES = TOTAL_ENTITIES + ADDITIONAL_ENTITIES;
+size_t TOTAL_AABB_TESTS = 200000;
+size_t TOTAL_AABB_MOVEMENTS = 1000000;
+size_t TOTAL_MOVES_AND_TESTS = 1000000;
+size_t MAX_MOVING_ENTITIES = 2500;
+size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
 
@@ -689,6 +691,54 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 
 int main(int argc, char **argv)
 {
+	bool enablePrepass = true;
+
+	bool customizeStructures = false;
+
+	for (int i = 1; i < argc; ++i) {
+		if (std::string(argv[i]).starts_with("-disable-prepass")) {
+			enablePrepass = false;
+		} else if (std::string(argv[i]).starts_with("-total-entities=")) {
+			TOTAL_ENTITIES = atoi(argv[i] + strlen("-total-entities="));
+			MAX_ENTITIES = TOTAL_ENTITIES + ADDITIONAL_ENTITIES;
+		} else if (std::string(argv[i]).starts_with("-additional-entities=")) {
+			ADDITIONAL_ENTITIES =
+				atoi(argv[i] + strlen("-additional-entities="));
+			MAX_ENTITIES = TOTAL_ENTITIES + ADDITIONAL_ENTITIES;
+		} else if (std::string(argv[i]).starts_with("-aabb-tests=")) {
+			TOTAL_AABB_TESTS = atoll(argv[i] + strlen("-aabb-tests="));
+		} else if (std::string(argv[i]).starts_with("-aabb-movements=")) {
+			TOTAL_AABB_MOVEMENTS = atoll(argv[i] + strlen("-aabb-movements="));
+		} else if (std::string(argv[i]).starts_with("-mixed-tests=")) {
+			TOTAL_MOVES_AND_TESTS = atoll(argv[i] + strlen("-mixed-tests="));
+		} else if (std::string(argv[i]).starts_with("-moving-entities=")) {
+			MAX_MOVING_ENTITIES = atoll(argv[i] + strlen("-moving-entities="));
+		} else if (argv[i][0] != '-') {
+			customizeStructures = true;
+		} else if (std::string(argv[i]).starts_with("-help")) {
+			printf("Available options:\n"
+				   "\t-disable-prepass\n"
+				   "\t-total-entities=\n"
+				   "\t-additional-entities=\n"
+				   "\t-aabb-tests=\n"
+				   "\t-aabb-movements=\n"
+				   "\t-mixed-tests=\n"
+				   "\t-moving-entities=\n"
+				   "\tBF         - BruteForce\n"
+				   "\tBVH        - BvhMedianSplitHeap\n"
+				   "\tDBVH       - Dbvh (DynamicBoundingVolumeHierarchy)\n"
+				   "\tBTDBVH     - BulletDbvh (Bullet dbvh - two stages)\n"
+				   "\tBTDBVT     - BulletDbvt (Bullet dbvt one stage)\n"
+				   "\tTSH_BT     - ThreeStageDbvh BvhMedian + BruteForce\n"
+				   "\tTSH_BTDBVT - ThreeStageDbvh BvhMedian + BulletDbvt\n"
+				   "\tTSH_DBVH   - ThreeStageDbvh BvhMedian + Dbvh\n"
+				   "\tHLO        - HashedLooseOctree\n"
+				   "\tLO         - LooseOctree\n");
+
+			return 0;
+		}
+	}
+
 	std::vector<EntityData> entities;
 	globalEntityData = &entities;
 	entities.resize(TOTAL_ENTITIES);
@@ -716,7 +766,6 @@ int main(int argc, char **argv)
 
 	spp::BruteForce bf;
 	spp::Dbvh dbvh;
-	spp::Dbvh dbvh2;
 	spp::HashLooseOctree hlo(1.0, 13, 1.6);
 	spp::LooseOctree lo(-glm::vec3(1, 1, 1) * (1024 * 16.f), 15, 1.6);
 	spp::BulletDbvh btDbvh;
@@ -737,25 +786,67 @@ int main(int argc, char **argv)
 								std::make_unique<spp::Dbvh>());
 	tsdbvh3.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 
-	std::vector<spp::BroadphaseBase *> broadphases = {
-		// &bf,
-		// &bvh,
-		&dbvh,
-		// &hlo,
-		// &lo,
-		// &btDbvh,
-		//&btDbvt,
-		&tsdbvh,
-		// &tsdbvh2,
-		// &tsdbvh3,
-	};
+	std::vector<spp::BroadphaseBase *> broadphases;
 
-	bool enablePrepass = true;
-
-	for (int i = 1; i < argc; ++i) {
-		if (strcmp(argv[i], "--disable-prepass") == 0) {
-			enablePrepass = false;
+	if (customizeStructures) {
+		broadphases.clear();
+		for (int i = 1; i < argc; ++i) {
+			char *str = argv[i];
+			if (false) {
+			} else if (strcmp(str, "BF") == false) {
+				broadphases.push_back(new spp::BruteForce);
+			} else if (strcmp(str, "BVH") == false) {
+				spp::BvhMedianSplitHeap *bvh;
+				bvh = new spp::BvhMedianSplitHeap;
+				broadphases.push_back(bvh);
+				bvh->SetAabbUpdatePolicy(
+					spp::BvhMedianSplitHeap::ON_UPDATE_EXTEND_AABB);
+			} else if (strcmp(str, "DBVH") == false) {
+				broadphases.push_back(new spp::Dbvh);
+			} else if (strcmp(str, "BTDBVH") == false) {
+				broadphases.push_back(new spp::BulletDbvh);
+			} else if (strcmp(str, "BTDBVT") == false) {
+				broadphases.push_back(new spp::BulletDbvt);
+			} else if (strcmp(str, "TSH_BT") == false) {
+				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
+					std::make_shared<spp::BvhMedianSplitHeap>(),
+					std::make_shared<spp::BvhMedianSplitHeap>(),
+					std::make_unique<spp::BruteForce>());
+				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_BTDBVT") == false) {
+				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
+					std::make_shared<spp::BvhMedianSplitHeap>(),
+					std::make_shared<spp::BvhMedianSplitHeap>(),
+					std::make_unique<spp::BulletDbvt>());
+				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_DBVH") == false) {
+				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
+					std::make_shared<spp::BvhMedianSplitHeap>(),
+					std::make_shared<spp::BvhMedianSplitHeap>(),
+					std::make_unique<spp::Dbvh>());
+				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "HLO") == false) {
+				broadphases.push_back(new spp::HashLooseOctree(1.0, 13, 1.6));
+			} else if (strcmp(str, "LO") == false) {
+				broadphases.push_back(new spp::LooseOctree(
+					-glm::vec3(1, 1, 1) * (1024 * 16.f), 15, 1.6));
+			} else if (strcmp(str, "CLO") == false) {
+				printf("ChunkedLooseOctree not implemented\n");
+			}
+			fflush(stdout);
 		}
+	} else {
+		spp::ThreeStageDbvh *s;
+		broadphases = {new spp::Dbvh,
+					   (s = new spp::ThreeStageDbvh(
+							std::make_shared<spp::BvhMedianSplitHeap>(),
+							std::make_shared<spp::BvhMedianSplitHeap>(),
+							std::make_unique<spp::BulletDbvt>()),
+						s->SetRebuildSchedulerFunction(EnqueueRebuildThreaded),
+						s)};
 	}
 
 	if (enablePrepass) {
@@ -1034,6 +1125,11 @@ int main(int argc, char **argv)
 			fflush(stdout);
 		}
 		printf("\n");
+	}
+
+	for (auto bp : broadphases) {
+		bp->Clear();
+		delete bp;
 	}
 
 	return 0;

@@ -87,14 +87,14 @@ private:
 	inline const static int32_t OFFSET = 0x10000000;
 
 	struct alignas(64) Data {
-		AabbCentered aabb;
+		Aabb aabb;
 		EntityType entity = 0;
 		MaskType mask = 0;
 		int32_t parent = 0;
 	};
 
 	struct alignas(64) NodeData {
-		AabbCentered aabb[2];
+		Aabb aabb[2];
 		MaskType mask = 0;
 		int32_t parent = 0;
 		// If (node > 0x10000000) than it is a leaf

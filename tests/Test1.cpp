@@ -116,7 +116,7 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			[](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
 			assert(entity > 0);
 			spp::Aabb aabb = (*globalEntityData)[entity - 1].aabb;
-			if (cb->IsRelevant((spp::AabbCentered)aabb)) {
+			if (cb->IsRelevant(aabb)) {
 				ret.entities.push_back(entity);
 				return {1.0f, true};
 			}
@@ -148,7 +148,7 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			[](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
 			float n, f;
 			spp::Aabb aabb = (*globalEntityData)[entity - 1].aabb;
-			if (cb->IsRelevant((spp::AabbCentered)aabb, n, f)) {
+			if (cb->IsRelevant(aabb, n, f)) {
 				if (n < 0.0f) {
 					n = 0.0f;
 				}
@@ -216,7 +216,7 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			[](_CbRay *cb, spp::EntityType entity) -> spp::RayPartialResult {
 			float n, f;
 			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
-			if (cb->IsRelevant((spp::AabbCentered)aabb, n, f)) {
+			if (cb->IsRelevant(aabb, n, f)) {
 				if (n < 0.0f) {
 					n = 0.0f;
 				}
@@ -514,18 +514,18 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 						b = hp.aabb.max;
 
 						printf("  %7i: %7lu    :     ", j, hp.e);
-						printf("%7.2f %7.2f %7.2f .. %7.2f %7.2f %7.2f", a.x,
+						printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}", a.x,
 							   a.y, a.z, b.x, b.y, b.z);
 
 						a = hp.point;
-						printf("     hit point: %7.2f %7.2f %7.2f", a.x, a.y,
+						printf("     hit point: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
 							   a.z);
 
 						a = hp.start;
-						printf("     start: %7.2f %7.2f %7.2f", a.x, a.y, a.z);
+						printf("     start: {%7.2f, %7.2f, %7.2f}", a.x, a.y, a.z);
 
 						a = hp.end;
-						printf("     end: %7.2f %7.2f %7.2f", a.x, a.y, a.z);
+						printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y, a.z);
 
 						printf("     dist: %7.2f", hp.n);
 
@@ -588,30 +588,25 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 					if (JJ < 10) {
 						printf("  %7i: %7lu == %7lu  ", j, p0.e, pi.e);
 						printf(
-							"%7.2f %7.2f %7.2f .. %7.2f %7.2f %7.2f <-> %7.2f "
-							"%7.2f "
-							"%7.2f .. %7.2f %7.2f %7.2f",
+							"{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}",
 							a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x,
 							d.y, d.z);
 
 						a = p0.point;
 						b = pi.point;
-						printf("     hit points: %7.2f %7.2f %7.2f <-> %7.2f "
-							   "%7.2f "
-							   "%7.2f",
-							   a.x, a.y, a.z, b.x, b.y, b.z);
+						printf("     hit points: {%7.2f, %7.2f, %7.2f} <-> {%7.2f, %7.2f, %7.2f}",
+							a.x, a.y, a.z, b.x, b.y, b.z);
 
 						a = p0.start;
 						b = pi.start;
-						printf("     start: %7.2f %7.2f %7.2f <-> %7.2f %7.2f "
-							   "%7.2f",
-							   a.x, a.y, a.z, b.x, b.y, b.z);
+						printf("     start: {%7.2f, %7.2f, %7.2f}",// <-> {%7.2f, %7.2f, %7.2f}",
+							   a.x, a.y, a.z);//, b.x, b.y, b.z);
 
 						a = p0.end;
 						b = pi.end;
 						printf(
-							"     end: %7.2f %7.2f %7.2f <-> %7.2f %7.2f %7.2f",
-							a.x, a.y, a.z, b.x, b.y, b.z);
+							"     end: {%7.2f, %7.2f, %7.2f}",// <-> {%7.2f, %7.2f, %7.2f}",
+							   a.x, a.y, a.z);//, b.x, b.y, b.z);
 
 						printf("     dist: %7.2f <-> %7.2f", p0.n, pi.n);
 
@@ -748,7 +743,7 @@ int main(int argc, char **argv)
 				   "\tDBVH       - Dbvh (DynamicBoundingVolumeHierarchy)\n"
 				   "\tBTDBVH     - BulletDbvh (Bullet dbvh - two stages)\n"
 				   "\tBTDBVT     - BulletDbvt (Bullet dbvt one stage)\n"
-				   "\tTSH_BT     - ThreeStageDbvh BvhMedian + BruteForce\n"
+				   "\tTSH_BF     - ThreeStageDbvh BvhMedian + BruteForce\n"
 				   "\tTSH_BTDBVT - ThreeStageDbvh BvhMedian + BulletDbvt\n"
 				   "\tTSH_DBVH   - ThreeStageDbvh BvhMedian + Dbvh\n"
 				   "\tHLO        - HashedLooseOctree\n"
@@ -826,7 +821,7 @@ int main(int argc, char **argv)
 				broadphases.push_back(new spp::BulletDbvh);
 			} else if (strcmp(str, "BTDBVT") == false) {
 				broadphases.push_back(new spp::BulletDbvt);
-			} else if (strcmp(str, "TSH_BT") == false) {
+			} else if (strcmp(str, "TSH_BF") == false) {
 				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
 					std::make_shared<spp::BvhMedianSplitHeap>(),
 					std::make_shared<spp::BvhMedianSplitHeap>(),

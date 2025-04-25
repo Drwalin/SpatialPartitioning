@@ -87,7 +87,7 @@ private:
 	inline const static int32_t OFFSET = 0x10000000;
 
 	struct Data {
-		AabbCentered aabb;
+		Aabb aabb;
 		EntityType entity = 0;
 		MaskType mask = 0;
 		int32_t parent = 0;

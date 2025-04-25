@@ -19,9 +19,8 @@ bool Assert(bool condition, const char *text, const char *function,
 #define ASSERT(COND)                                                           \
 	Assert(COND, #COND, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 
-#undef assert
-#define assert(COND)                                                           \
-	Assert(COND, #COND, __PRETTY_FUNCTION__, __FILE__, __LINE__)
+// #undef assert
+// #define assert(COND) ASSERT(COND)
 
 namespace spp
 {
@@ -84,11 +83,11 @@ void ThreeStageDbvh::ShrinkToFit()
 void ThreeStageDbvh::StartFastAdding()
 {
 	fastAdding = true;
-	
+
 	if (rebuild) {
 		clear = true;
 	}
-	
+
 	for (auto it = dynamic->RestartIterator(); it->Valid(); it->Next()) {
 		optimised->Add(it->entity, it->aabb, it->mask);
 	}
@@ -101,10 +100,7 @@ void ThreeStageDbvh::StartFastAdding()
 	tests = 0;
 }
 
-void ThreeStageDbvh::StopFastAdding()
-{
-	fastAdding = false;
-}
+void ThreeStageDbvh::StopFastAdding() { fastAdding = false; }
 
 void ThreeStageDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
@@ -121,7 +117,7 @@ void ThreeStageDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 {
 	assert(Exists(entity) == true);
-	
+
 	if (fastAdding) {
 		optimised->Update(entity, aabb);
 		return;
@@ -154,7 +150,7 @@ void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 void ThreeStageDbvh::Remove(EntityType entity)
 {
 	assert(Exists(entity) == true);
-	
+
 	if (fastAdding) {
 		optimised->Remove(entity);
 		return;

@@ -12,6 +12,8 @@
 namespace spp
 {
 inline static const float EPSILON = 0.000001f;
+inline const float BIG_EPSILON = 0.02f;
+
 struct AabbCentered;
 
 struct Aabb {
@@ -92,7 +94,18 @@ public:
 			tmax.x = tmax.z;
 		near = tmin.x;
 		far = tmax.x;
-		return near >= 0.0f && near <= 1.0f;
+		
+		if (far < 0.0f)
+			return false;
+		
+		if (near > far)
+			return false;
+		
+		if (near < 0.0f) {
+			near = 0.0f;
+		}
+		
+		return true;
 	}
 
 	inline bool FastRayTest2(glm::vec3 ro, const glm::vec3 invDir, float &near,
@@ -184,7 +197,7 @@ public:
 
 		float tN = near = glm::max(glm::max(t1.x, t1.y), t1.z);
 
-		if (near > 1.0) {
+		if (near > 1.0f) {
 			return false;
 		}
 
@@ -192,6 +205,10 @@ public:
 
 		if (tN > tF || tF < 0.0f) {
 			return false;
+		}
+		
+		if (near < 0.0f) {
+			near = 0.0f;
 		}
 
 		return true;

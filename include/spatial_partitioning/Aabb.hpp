@@ -92,7 +92,7 @@ public:
 			tmax.x = tmax.z;
 		near = tmin.x;
 		far = tmax.x;
-		return near >= 0;
+		return near >= 0.0f && near <= 1.0f;
 	}
 
 	inline bool FastRayTest2(glm::vec3 ro, const glm::vec3 invDir, float &near,
@@ -108,8 +108,6 @@ public:
 							 ) const
 	{
 		const glm::vec3 dir = end - start;
-		const float len = glm::length(dir);
-		const glm::vec3 dirNorm = dir / len;
 		const glm::vec3 invDir = glm::vec3(1.0f, 1.0f, 1.0f) / dir;//dirNorm;
 		return FastRayTest2(start, invDir, near, far);
 	}

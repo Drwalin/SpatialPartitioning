@@ -6,66 +6,80 @@
 
 namespace spp
 {
-BruteForce::BruteForce() : iterator(*this) {}
+BruteForce::BruteForce() : iterator(*this) { entitiesData[0] = {{}, 0, 0}; }
 BruteForce::~BruteForce() {}
 
 const char *BruteForce::GetName() const { return "BruteForce"; }
 
-void BruteForce::Clear() { entitiesData.clear(); }
+void BruteForce::Clear() { entitiesData.Clear(); }
 
 size_t BruteForce::GetMemoryUsage() const
 {
-	return entitiesData.bucket_count() * sizeof(void *) +
-		   entitiesData.size() *
-			   (sizeof(void *) * 2lu + sizeof(Data) + sizeof(EntityType));
+	return entitiesData.GetMemoryUsage();
 }
 
-void BruteForce::ShrinkToFit() {}
+void BruteForce::ShrinkToFit() { entitiesData.ShrinkToFit(); }
 
 void BruteForce::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	assert(Exists(entity) == false);
-	entitiesData[entity] = Data{aabb, entity, mask};
+	entitiesData.Add(entity, Data{aabb, entity, mask});
 }
 
 void BruteForce::Update(EntityType entity, Aabb aabb)
 {
-	entitiesData[entity].aabb = aabb;
+	assert(Exists(entity) == true);
+	int32_t offset = entitiesData.GetOffset(entity);
+	if (offset > 0) {
+		entitiesData[offset].aabb = aabb;
+	}
 }
 
-void BruteForce::Remove(EntityType entity) { entitiesData.erase(entity); }
+void BruteForce::Remove(EntityType entity)
+{
+	assert(Exists(entity) == true);
+	int32_t offset = entitiesData.GetOffset(entity);
+	if (offset > 0) {
+		entitiesData[offset].entity = 0;
+		entitiesData[offset].mask = 0;
+		entitiesData.RemoveByKey(entity);
+	}
+}
 
 void BruteForce::SetMask(EntityType entity, MaskType mask)
 {
-	entitiesData[entity].mask = mask;
+	assert(Exists(entity) == true);
+	int32_t offset = entitiesData.GetOffset(entity);
+	if (offset > 0) {
+		entitiesData[offset].mask = mask;
+	}
 }
 
-int32_t BruteForce::GetCount() const
-{
-	return entitiesData.size();
-}
+int32_t BruteForce::GetCount() const { return entitiesData.Size(); }
 
 bool BruteForce::Exists(EntityType entity) const
 {
-	return entitiesData.find(entity) != entitiesData.end();
+	return entitiesData.GetOffset(entity) > 0;
 }
 
 Aabb BruteForce::GetAabb(EntityType entity) const
 {
-	auto it = entitiesData.find(entity);
-	if (it != entitiesData.end()) {
-		return it->second.aabb;
+	assert(Exists(entity) == true);
+	int32_t offset = entitiesData.GetOffset(entity);
+	if (offset > 0) {
+		return entitiesData[offset].aabb;
 	}
 	return {};
 }
 
 MaskType BruteForce::GetMask(EntityType entity) const
 {
-	auto it = entitiesData.find(entity);
-	if (it != entitiesData.end()) {
-		return it->second.mask;
+	assert(Exists(entity) == true);
+	int32_t offset = entitiesData.GetOffset(entity);
+	if (offset > 0) {
+		return entitiesData[offset].mask;
 	}
-	return 0;
+	return {};
 }
 
 void BruteForce::Rebuild() {}
@@ -78,13 +92,15 @@ void BruteForce::IntersectAabb(IntersectionCallback &cb)
 
 	cb.broadphase = this;
 
-	for (const auto &it : entitiesData) {
-		if (it.second.mask & cb.mask) {
-			if (it.second.aabb && cb.aabb) {
-				cb.callback(&cb, it.first);
-				++cb.testedCount;
+	for (const auto &it : entitiesData._Data()._Data()) {
+		if (it.entity > 0) {
+			if (it.mask & cb.mask) {
+				if (it.aabb && cb.aabb) {
+					cb.callback(&cb, it.entity);
+					++cb.testedCount;
+				}
+				++cb.nodesTestedCount;
 			}
-			++cb.nodesTestedCount;
 		}
 	}
 }
@@ -98,9 +114,11 @@ void BruteForce::IntersectRay(RayCallback &cb)
 	cb.broadphase = this;
 	cb.InitVariables();
 
-	for (const auto &it : entitiesData) {
-		if (it.second.mask & cb.mask) {
-			cb.ExecuteIfRelevant(it.second.aabb, it.first);
+	for (const auto &it : entitiesData._Data()._Data()) {
+		if (it.entity > 0) {
+			if (it.mask & cb.mask) {
+				cb.ExecuteIfRelevant(it.aabb, it.entity);
+			}
 		}
 	}
 }
@@ -114,31 +132,30 @@ BroadphaseBaseIterator *BruteForce::RestartIterator()
 BruteForce::Iterator::Iterator(BruteForce &bp)
 {
 	map = &bp.entitiesData;
-	it = map->begin();
-	FetchData();
+	it = 0;
+	Next();
 }
 
 BruteForce::Iterator::~Iterator() {}
 
 bool BruteForce::Iterator::Next()
 {
-	++it;
+	do {
+		++it;
+	} while (Valid() && (*map)[it].entity == EMPTY_ENTITY);
 	return FetchData();
 }
 
 bool BruteForce::Iterator::FetchData()
 {
 	if (Valid()) {
-		entity = it->second.entity;
-		aabb = it->second.aabb;
-		mask = it->second.mask;
+		entity = (*map)[it].entity;
+		aabb = (*map)[it].aabb;
+		mask = (*map)[it].mask;
 		return true;
 	}
 	return false;
 }
 
-bool BruteForce::Iterator::Valid()
-{
-	return it != map->end();
-}
+bool BruteForce::Iterator::Valid() { return it < map->_Data()._Data().size(); }
 } // namespace spp

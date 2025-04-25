@@ -84,13 +84,13 @@ private:
 
 private:
 	struct alignas(32) Data {
-		Aabb aabb;
+		AabbCentered aabb;
 		EntityType entity;
 		MaskType mask;
 	};
 
 	struct alignas(32) NodeData {
-		Aabb aabb;
+		AabbCentered aabb;
 		MaskType mask;
 	};
 

@@ -40,7 +40,7 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
-	
+
 	virtual int32_t GetCount() const override;
 	virtual bool Exists(EntityType entity) const override;
 
@@ -84,13 +84,13 @@ private:
 
 private:
 	struct alignas(32) Data {
-		AabbCentered aabb;
+		Aabb aabb;
 		EntityType entity;
 		MaskType mask;
 	};
 
 	struct alignas(32) NodeData {
-		AabbCentered aabb;
+		Aabb aabb;
 		MaskType mask;
 	};
 

@@ -349,15 +349,15 @@ int32_t BvhMedianSplitHeap::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
 	struct SortFunctions {
 		inline static bool SortX(const Data &l, const Data &r)
 		{
-			return l.aabb.center.x < r.aabb.center.x;
+			return l.aabb.GetCenter().x < r.aabb.GetCenter().x;
 		}
 		inline static bool SortY(const Data &l, const Data &r)
 		{
-			return l.aabb.center.y < r.aabb.center.y;
+			return l.aabb.GetCenter().y < r.aabb.GetCenter().y;
 		}
 		inline static bool SortZ(const Data &l, const Data &r)
 		{
-			return l.aabb.center.z < r.aabb.center.z;
+			return l.aabb.GetCenter().z < r.aabb.GetCenter().z;
 		}
 	};
 	using CompareTypeFunc = bool (*)(const Data &, const Data &);

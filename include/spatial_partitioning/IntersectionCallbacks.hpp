@@ -53,13 +53,13 @@ struct RayCallback {
 	bool IsRelevant(Aabb aabb, float &near, float &far) const;
 	bool IsRelevant(AabbCentered aabb) const;
 	bool IsRelevant(Aabb aabb) const;
-	
+
 	RayPartialResult ExecuteCallback(EntityType entity);
 
-	RayPartialResult ExecuteIfRelevant(AabbCentered aabb, EntityType entity, float &near,
-						   float &far);
-	RayPartialResult ExecuteIfRelevant(Aabb aabb, EntityType entity, float &near,
-						   float &far);
+	RayPartialResult ExecuteIfRelevant(AabbCentered aabb, EntityType entity,
+									   float &near, float &far);
+	RayPartialResult ExecuteIfRelevant(Aabb aabb, EntityType entity,
+									   float &near, float &far);
 	RayPartialResult ExecuteIfRelevant(AabbCentered aabb, EntityType entity);
 	RayPartialResult ExecuteIfRelevant(Aabb aabb, EntityType entity);
 
@@ -72,6 +72,7 @@ struct RayCallback {
 	glm::vec3 dir;
 	glm::vec3 dirNormalized;
 	glm::vec3 invDir;
+	int signs[3];
 	float length;
 	float cutFactor;
 	bool initedVars = false;

@@ -32,11 +32,13 @@ public:
 
 	inline glm::vec3 GetCenter() const { return min + (max - min) * 0.5f; }
 	inline glm::vec3 GetSizes() const { return max - min; }
+	inline glm::vec3 GetMin() const { return min; }
+	inline glm::vec3 GetMax() const { return max; }
 
 	inline bool HasIntersection(const Aabb &r) const
 	{
-		return glm::all(glm::lessThanEqual(min-EPSILON, r.max) &
-						glm::lessThanEqual(r.min-EPSILON, max));
+		return glm::all(glm::lessThanEqual(min - EPSILON, r.max) &
+						glm::lessThanEqual(r.min - EPSILON, max));
 	}
 	inline Aabb Intersection(const Aabb &r) const
 	{
@@ -46,11 +48,11 @@ public:
 	{
 		return {glm::min(min, r.min), glm::max(max, r.max)};
 	}
-	
+
 	inline bool ContainsAll(const Aabb &r) const
 	{
-		return glm::all(glm::lessThanEqual(min-EPSILON, r.min) &
-						glm::lessThanEqual(r.max, max+EPSILON));
+		return glm::all(glm::lessThanEqual(min - EPSILON, r.min) &
+						glm::lessThanEqual(r.max, max + EPSILON));
 	}
 
 	inline bool FastRayTest(glm::vec3 ro, glm::vec3 rd, const glm::vec3 invDir,
@@ -58,16 +60,74 @@ public:
 	inline bool SlowRayTest(const glm::vec3 &start, const glm::vec3 &end,
 							float &near, float &far) const;
 
+	inline bool FastRayTest2(glm::vec3 ro, const glm::vec3 invDir,
+							 const int raySign[3], float &near,
+							 float &far) const
+	{
+		glm::vec3 bounds[2] = {min - ro, max - ro};
+		glm::vec3 tmin, tmax;
+
+		tmin.x = bounds[raySign[0]].x * invDir.x;
+		tmax.x = bounds[1 - raySign[0]].x * invDir.x;
+		tmin.y = bounds[raySign[1]].y * invDir.y;
+		tmax.y = bounds[1 - raySign[1]].y * invDir.y;
+
+		if ((tmin.x > tmax.y) || (tmin.y > tmax.x))
+			return false;
+
+		if (tmin.y > tmin.x)
+			tmin.x = tmin.y;
+
+		if (tmax.y < tmax.x)
+			tmax.x = tmax.y;
+
+		tmin.z = bounds[raySign[2]].z * invDir.z;
+		tmax.z = bounds[1 - raySign[2]].z * invDir.z;
+
+		if ((tmin.x > tmax.z) || (tmin.z > tmax.x))
+			return false;
+		if (tmin.z > tmin.x)
+			tmin.x = tmin.z;
+		if (tmax.z < tmax.x)
+			tmax.x = tmax.z;
+		near = tmin.x;
+		far = tmax.x;
+		return near >= 0;
+	}
+
+	inline bool FastRayTest2(glm::vec3 ro, const glm::vec3 invDir, float &near,
+							 float &far) const
+	{
+		int signs[3] = {invDir[0] < 0.0, invDir[1] < 0.0, invDir[2] < 0.0};
+		return FastRayTest2(ro, invDir, signs, near, far);
+	}
+
+	inline bool SlowRayTest2(
+			const glm::vec3 &start, const glm::vec3 &end,
+							float &near, float &far
+							 ) const
+	{
+		const glm::vec3 dir = end - start;
+		const float len = glm::length(dir);
+		const glm::vec3 dirNorm = dir / len;
+		const glm::vec3 invDir = glm::vec3(1.0f, 1.0f, 1.0f) / dir;//dirNorm;
+		return FastRayTest2(start, invDir, near, far);
+	}
+
 	inline operator AabbCentered() const;
 
 public:
 	inline bool operator&&(const Aabb &r) const { return HasIntersection(r); }
 	inline Aabb operator*(const Aabb &r) const { return Intersection(r); }
 	inline Aabb operator+(const Aabb &r) const { return Sum(r); }
-	inline bool operator==(const Aabb &r) const {
-		return min==r.min && max==r.max; }
-	inline bool operator!=(const Aabb &r) const {
-		return min!=r.min || max!=r.max; }
+	inline bool operator==(const Aabb &r) const
+	{
+		return min == r.min && max == r.max;
+	}
+	inline bool operator!=(const Aabb &r) const
+	{
+		return min != r.min || max != r.max;
+	}
 };
 
 struct AabbCentered {
@@ -95,7 +155,8 @@ public:
 
 	inline bool HasIntersection(const AabbCentered &r) const
 	{
-		return glm::all(glm::lessThanEqual(glm::abs(center-r.center), halfSize+r.halfSize+EPSILON));
+		return glm::all(glm::lessThanEqual(glm::abs(center - r.center),
+										   halfSize + r.halfSize + EPSILON));
 	}
 	inline Aabb Intersection(const AabbCentered &r) const
 	{
@@ -105,11 +166,11 @@ public:
 	{
 		return {glm::min(GetMin(), r.GetMin()), glm::max(GetMax(), r.GetMax())};
 	}
-	
+
 	inline bool ContainsAll(const AabbCentered &r) const
 	{
-		return glm::all(glm::lessThanEqual(glm::abs(center-r.center)+r.halfSize,
-					halfSize+EPSILON));
+		return glm::all(glm::lessThanEqual(
+			glm::abs(center - r.center) + r.halfSize, halfSize + EPSILON));
 	}
 
 	inline bool FastRayTest(glm::vec3 ro, glm::vec3 rd, const glm::vec3 invDir,
@@ -125,7 +186,7 @@ public:
 
 		float tN = near = glm::max(glm::max(t1.x, t1.y), t1.z);
 
-		if (near > length) {
+		if (near > 1.0) {
 			return false;
 		}
 
@@ -144,18 +205,28 @@ public:
 		const glm::vec3 dir = end - start;
 		const float len = glm::length(dir);
 		const glm::vec3 dirNorm = dir / len;
-		const glm::vec3 invDir = glm::vec3(1.0f, 1.0f, 1.0f) / dirNorm;
+		const glm::vec3 invDir = glm::vec3(1.0f, 1.0f, 1.0f) / dir;//dirNorm;
 		return FastRayTest(start, dirNorm, invDir, len, near, far);
 	}
 
 public:
-	inline bool operator&&(const AabbCentered &r) const { return HasIntersection(r); }
-	inline Aabb operator*(const AabbCentered &r) const { return Intersection(r); }
+	inline bool operator&&(const AabbCentered &r) const
+	{
+		return HasIntersection(r);
+	}
+	inline Aabb operator*(const AabbCentered &r) const
+	{
+		return Intersection(r);
+	}
 	inline Aabb operator+(const AabbCentered &r) const { return Sum(r); }
-	inline bool operator==(const AabbCentered &r) const {
-		return center==r.center && halfSize==r.halfSize; }
-	inline bool operator!=(const AabbCentered &r) const {
-		return center!=r.center || halfSize!=r.halfSize; }
+	inline bool operator==(const AabbCentered &r) const
+	{
+		return center == r.center && halfSize == r.halfSize;
+	}
+	inline bool operator!=(const AabbCentered &r) const
+	{
+		return center != r.center || halfSize != r.halfSize;
+	}
 };
 
 inline Aabb::operator AabbCentered() const
@@ -167,12 +238,13 @@ inline bool Aabb::FastRayTest(glm::vec3 ro, glm::vec3 rd,
 							  const glm::vec3 invDir, float length, float &near,
 							  float &far) const
 {
-	return ((AabbCentered)*this).FastRayTest(ro, rd, invDir, length, near, far);
+	return ((AabbCentered) * this)
+		.FastRayTest(ro, rd, invDir, length, near, far);
 }
 
 inline bool Aabb::SlowRayTest(const glm::vec3 &start, const glm::vec3 &end,
 							  float &near, float &far) const
 {
-	return ((AabbCentered)*this).SlowRayTest(start, end, near, far);
+	return ((AabbCentered) * this).SlowRayTest(start, end, near, far);
 }
 } // namespace spp

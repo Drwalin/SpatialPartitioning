@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <atomic>
-#include <unordered_set>
 
 #include "BroadPhaseBase.hpp"
 
@@ -17,8 +16,7 @@ class ThreeStageDbvh final : public BroadphaseBase
 public:
 	ThreeStageDbvh(std::shared_ptr<BroadphaseBase> optimised,
 				   std::shared_ptr<BroadphaseBase> rebuilding,
-				   std::unique_ptr<BroadphaseBase> &&dynamic,
-				   std::unique_ptr<BroadphaseBase> &&dynamic2);
+				   std::unique_ptr<BroadphaseBase> &&dynamic);
 	virtual ~ThreeStageDbvh();
 
 	virtual const char *GetName() const override;
@@ -31,7 +29,7 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
-	
+
 	virtual int32_t GetCount() const override;
 	virtual bool Exists(EntityType entity) const override;
 
@@ -50,19 +48,18 @@ public:
 			std::shared_ptr<std::atomic<bool>> finishedRebuilding,
 			std::shared_ptr<BroadphaseBase> dbvh, std::shared_ptr<void> data),
 		std::shared_ptr<void> scheduleUpdateUserData = nullptr);
-	
+
 private:
-	
 	void TryIntegrateOptimised();
 	void TryScheduleRebuild();
 
 private:
 	std::shared_ptr<BroadphaseBase> dbvhs[2];
-	
+
 	std::shared_ptr<std::atomic<bool>> _finishedRebuilding;
 	std::atomic<bool> *finishedRebuilding;
 	std::shared_ptr<BroadphaseBase> _rebuild;
-	std::unordered_set<EntityType> toRemoveAfterRebuild;
+	std::vector<EntityType> toRemoveAfterRebuild;
 	std::unordered_map<EntityType, MaskType> setMaskAfterRebuild;
 	int32_t optimisedUpdates = 0;
 	int32_t tests = 0;
@@ -71,21 +68,19 @@ private:
 	std::shared_ptr<BroadphaseBase> _optimised;
 
 	std::unique_ptr<BroadphaseBase> _dynamic;
-	std::unique_ptr<BroadphaseBase> _dynamic2;
-	
+
 	int32_t dynamicUpdates = 0;
-	
+
 	BroadphaseBase *rebuild = nullptr;
 	BroadphaseBase *optimised = nullptr;
 	BroadphaseBase *dynamic = nullptr;
-	BroadphaseBase *dynamic2 = nullptr;
 
 	void (*scheduleRebuildFunc)(
 		std::shared_ptr<std::atomic<bool>> finishedRebuilding,
 		std::shared_ptr<BroadphaseBase> dbvh,
 		std::shared_ptr<void> data) = nullptr;
 	std::shared_ptr<void> scheduleUpdateUserData;
-	
+
 	class Iterator final : public BroadphaseBaseIterator
 	{
 	public:

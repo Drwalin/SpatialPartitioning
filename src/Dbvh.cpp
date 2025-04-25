@@ -576,8 +576,9 @@ Aabb Dbvh::GetIndirectAabb(int32_t node) const
 		assert(!"cannot happen");
 		return {};
 	} else if (node > OFFSET) {
-		AabbCentered r = data[node - OFFSET].aabb;
-		r.halfSize += glm::vec3{1,1,1};
+		Aabb r = data[node - OFFSET].aabb;
+		r.max += 1.0f;
+		r.min -= 1.0f;
 		return r;
 	} else {
 		Aabb l = GetDirectAabb(nodes[node].children[0]);
@@ -601,8 +602,9 @@ Aabb Dbvh::GetDirectAabb(int32_t node) const
 		assert(!"cannot happen");
 		return {};
 	} else if (node > OFFSET) {
-		AabbCentered r = data[node - OFFSET].aabb;
-		r.halfSize += glm::vec3{1,1,1};
+		Aabb r = data[node - OFFSET].aabb;
+		r.max += 1.0f;
+		r.min -= 1.0f;
 		return r;
 	} else {
 		if (nodes[node].children[0] > 0) {

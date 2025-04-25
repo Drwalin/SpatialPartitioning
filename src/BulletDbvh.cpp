@@ -187,7 +187,6 @@ public:
 		if (cb->mask & data.mask) {
 			auto res = cb->ExecuteCallback(data.entity);
 			if (res.intersection) {
-				assert(res.dist >= 0);
 				hasHit = true;
 				m_lambda_max = lambdaOrig * res.dist;
 			}

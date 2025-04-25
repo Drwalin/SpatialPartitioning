@@ -289,9 +289,7 @@ void BvhMedianSplitHeap::Rebuild()
 	// set entitiesOffsets
 	for (int32_t i = 0; i < entitiesData.size(); ++i) {
 		EntityType entity = entitiesData[i].entity;
-		if (entitiesOffsets.count(entity) == 0) {
-			printf("DUPA: %lu\n", entity);
-		}
+		assert(entitiesOffsets.contains(entity));
 		entitiesOffsets[entity] = i;
 	}
 }
@@ -334,6 +332,8 @@ int32_t BvhMedianSplitHeap::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
 		totalAabb = totalAabb + entitiesData[i].aabb;
 		mask |= entitiesData[i].mask;
 	}
+	totalAabb.min -= BIG_EPSILON;
+	totalAabb.max += BIG_EPSILON;
 	nodesHeapAabb[nodeId] = {totalAabb, mask};
 
 	if (count <= 2) {
@@ -404,7 +404,10 @@ void BvhMedianSplitHeap::UpdateAabb(int32_t offset)
 	}
 
 	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> 1; n > 0; n >>= 1) {
-		nodesHeapAabb[n].aabb = aabb;
+		Aabb aabb2 = aabb;
+		aabb2.min -= BIG_EPSILON;
+		aabb2.max += BIG_EPSILON;
+		nodesHeapAabb[n].aabb = aabb2;
 		nodesHeapAabb[n].mask = mask;
 		n ^= 1;
 		if (n < nodesHeapAabb.size() && n > 0) {

@@ -85,9 +85,6 @@ RayPartialResult RayCallback::ExecuteIfRelevant(AabbCentered aabb,
 	++nodesTestedCount;
 	if (IsRelevant(aabb, near, far)) {
 		float n = near;
-		if (n < 0.0f) {
-			n = 0.0f;
-		}
 		if (n < cutFactor) {
 			return ExecuteCallback(entity);
 		}
@@ -101,9 +98,6 @@ RayPartialResult RayCallback::ExecuteIfRelevant(Aabb aabb, EntityType entity,
 	++nodesTestedCount;
 	if (IsRelevant(aabb, near, far)) {
 		float n = near;
-		if (n < 0.0f) {
-			n = 0.0f;
-		}
 		if (n < cutFactor) {
 			return ExecuteCallback(entity);
 		}

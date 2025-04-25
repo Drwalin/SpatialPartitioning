@@ -84,13 +84,13 @@ private:
 
 private:
 	struct Data {
-		AabbCentered aabb;
+		Aabb aabb;
 		EntityType entity;
 		MaskType mask;
 	};
 
 	struct NodeData {
-		AabbCentered aabb;
+		Aabb aabb;
 		MaskType mask;
 	};
 

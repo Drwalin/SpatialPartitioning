@@ -23,16 +23,15 @@ void BulletDbvt::Clear()
 	dbvt.clear();
 }
 
-size_t BulletDbvt::GetMemoryUsage() const {
+size_t BulletDbvt::GetMemoryUsage() const
+{
 	return ents.GetMemoryUsage() +
-		(GetCount() * 2 - 1) * sizeof(bullet::btDbvtNode) +
-		dbvt.m_stkStack.capacity() * sizeof(bullet::btDbvt::sStkNN) +
-		stack.capacity() * sizeof(const bullet::btDbvtNode*);
+		   (GetCount() * 2 - 1) * sizeof(bullet::btDbvtNode) +
+		   dbvt.m_stkStack.capacity() * sizeof(bullet::btDbvt::sStkNN) +
+		   stack.capacity() * sizeof(const bullet::btDbvtNode *);
 }
 
-void BulletDbvt::ShrinkToFit() {
-	ents.ShrinkToFit();
-}
+void BulletDbvt::ShrinkToFit() { ents.ShrinkToFit(); }
 
 void BulletDbvt::SmallRebuildIfNeeded()
 {
@@ -49,12 +48,11 @@ void BulletDbvt::IncrementalOptimize(int iterations)
 
 void BulletDbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
-	if (Exists(entity)) {
-		assert(false && "Entity already exists");
-		return;
-	}
+	assert(Exists(entity) == false);
+	
 	int32_t offset = ents.Add(entity, Data{entity, mask, aabb, nullptr});
-
+	aabb.min -= BIG_EPSILON;
+	aabb.min += BIG_EPSILON;
 	bullet::btDbvtAabbMm volume = bt(aabb);
 	bullet::btDbvtNode *node = dbvt.insert(volume, (void *)(int64_t)offset);
 	ents[offset].node = node;
@@ -64,24 +62,38 @@ void BulletDbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
 void BulletDbvt::Update(EntityType entity, Aabb aabb)
 {
 	int32_t offset = ents.GetOffset(entity);
-	ents[offset].aabb = aabb;
-	bullet::btDbvtAabbMm volume = bt(aabb);
-	dbvt.update(ents[offset].node, volume);
-	requiresRebuild++;
+	if (offset > 0) {
+		ents[offset].aabb = aabb;
+		aabb.min -= BIG_EPSILON;
+		aabb.min += BIG_EPSILON;
+		bullet::btDbvtAabbMm volume = bt(aabb);
+		dbvt.update(ents[offset].node, volume);
+		requiresRebuild++;
+	} else {
+		assert(Exists(entity) == true);
+	}
 }
 
 void BulletDbvt::Remove(EntityType entity)
 {
 	int32_t offset = ents.GetOffset(entity);
-	dbvt.remove(ents[offset].node);
-	ents.RemoveByKey(entity);
-	requiresRebuild++;
+	if (offset > 0) {
+		dbvt.remove(ents[offset].node);
+		ents.RemoveByKey(entity);
+		requiresRebuild++;
+	} else {
+		assert(Exists(entity) == true);
+	}
 }
 
 void BulletDbvt::SetMask(EntityType entity, MaskType mask)
 {
 	int32_t offset = ents.GetOffset(entity);
-	ents[offset].mask = mask;
+	if (offset > 0) {
+		ents[offset].mask = mask;
+	} else {
+		assert(Exists(entity) == true);
+	}
 }
 
 int32_t BulletDbvt::GetCount() const { return ents.Size(); }
@@ -93,12 +105,22 @@ bool BulletDbvt::Exists(EntityType entity) const
 
 Aabb BulletDbvt::GetAabb(EntityType entity) const
 {
-	return ents[ents.GetOffset(entity)].aabb;
+	int32_t offset = ents.GetOffset(entity);
+	if (offset > 0) {
+		return ents[offset].aabb;
+	}
+	assert(Exists(entity) == true);
+	return {};
 }
 
 MaskType BulletDbvt::GetMask(EntityType entity) const
 {
-	return ents[ents.GetOffset(entity)].mask;
+	assert(Exists(entity) == true);
+	int32_t offset = ents.GetOffset(entity);
+	if (offset > 0) {
+		return ents[offset].mask;
+	}
+	return 0;
 }
 
 void BulletDbvt::Rebuild()
@@ -136,8 +158,7 @@ void BulletDbvt::IntersectAabb(IntersectionCallback &cb)
 	cb.broadphase = this;
 	btDbvtAabbCb btCb{this, &cb};
 
-	const ATTRIBUTE_ALIGNED16(bullet::btDbvtVolume) bounds = bt(cb.aabb);
-// 	dbvt.collideTV(dbvt.m_root, bounds, btCb);
+	bullet::btDbvtVolume bounds = bt(cb.aabb);
 	dbvt.collideTVNoStackAlloc(dbvt.m_root, bounds, stack, btCb);
 }
 
@@ -204,17 +225,10 @@ void BulletDbvt::IntersectRay(RayCallback &cb)
 
 	btDbvtRayCb btCb{this, &cb};
 
-	dbvt.rayTestInternal(
-			dbvt.m_root,
-			bt(cb.start),
-			bt(cb.end),
-			btCb.m_rayDirectionInverse,
-			btCb.m_signs,
-			btCb.m_lambda_max,
-			bullet::btVector3(0, 0, 0),
-			bullet::btVector3(0, 0, 0),
-			stack,
-			btCb);
+	dbvt.rayTestInternal(dbvt.m_root, bt(cb.start), bt(cb.end),
+						 btCb.m_rayDirectionInverse, btCb.m_signs,
+						 btCb.m_lambda_max, bullet::btVector3(0, 0, 0),
+						 bullet::btVector3(0, 0, 0), stack, btCb);
 }
 
 BroadphaseBaseIterator *BulletDbvt::RestartIterator()

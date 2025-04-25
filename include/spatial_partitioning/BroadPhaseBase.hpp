@@ -37,6 +37,9 @@ public:
 	virtual void Clear() = 0;
 	virtual size_t GetMemoryUsage() const = 0;
 	virtual void ShrinkToFit() = 0;
+	
+	virtual void StartFastAdding();
+	virtual void StopFastAdding();
 
 	virtual void Add(EntityType entity, Aabb aabb, MaskType mask) = 0;
 	virtual void Update(EntityType entity, Aabb aabb) = 0;

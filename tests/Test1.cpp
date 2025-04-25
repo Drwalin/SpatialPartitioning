@@ -19,12 +19,12 @@
 #include "../include/spatial_partitioning/BulletDbvt.hpp"
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
-const int32_t TOTAL_ENTITIES = 100000;
-const int32_t MAX_ENTITIES = TOTAL_ENTITIES + 1000;
+const int32_t TOTAL_ENTITIES = 1000000;
+const int32_t MAX_ENTITIES = TOTAL_ENTITIES + 10000;
 const size_t TOTAL_AABB_TESTS = 200000;
 const size_t TOTAL_AABB_MOVEMENTS = 1000000;
-const size_t TOTAL_MOVES_AND_TESTS = 100000;
-const size_t MAX_MOVING_ENTITIES = 250;
+const size_t TOTAL_MOVES_AND_TESTS = 1000000;
+const size_t MAX_MOVING_ENTITIES = 2500;
 const size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
 
 std::mt19937_64 mt(12345);
@@ -738,7 +738,7 @@ int main(int argc, char **argv)
 	tsdbvh3.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 
 	std::vector<spp::BroadphaseBase *> broadphases = {
-		&bf,
+		// &bf,
 		// &bvh,
 		&dbvh,
 		// &hlo,
@@ -762,10 +762,12 @@ int main(int argc, char **argv)
 
 		for (auto bp : broadphases) {
 			auto beg = std::chrono::steady_clock::now();
+			bp->StartFastAdding();
 			for (const auto &e : entities) {
 				assert(e.id > 0);
 				bp->Add(e.id, e.aabb, e.mask);
 			}
+			bp->StopFastAdding();
 			auto end = std::chrono::steady_clock::now();
 			auto diff = end - beg;
 			int64_t ns =
@@ -970,12 +972,14 @@ int main(int argc, char **argv)
 
 	for (auto bp : broadphases) {
 		auto beg = std::chrono::steady_clock::now();
+		bp->StartFastAdding();
 		for (const auto &e : entities) {
 			assert(e.id > 0);
 			if (bp->Exists(e.id) == false) {
 				bp->Add(e.id, e.aabb, e.mask);
 			}
 		}
+		bp->StopFastAdding();
 		auto end = std::chrono::steady_clock::now();
 		auto diff = end - beg;
 		int64_t ns =

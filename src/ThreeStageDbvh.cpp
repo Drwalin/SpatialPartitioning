@@ -81,17 +81,51 @@ void ThreeStageDbvh::ShrinkToFit()
 	toRemoveAfterRebuild.shrink_to_fit();
 }
 
+void ThreeStageDbvh::StartFastAdding()
+{
+	fastAdding = true;
+	
+	if (rebuild) {
+		clear = true;
+	}
+	
+	for (auto it = dynamic->RestartIterator(); it->Valid(); it->Next()) {
+		optimised->Add(it->entity, it->aabb, it->mask);
+	}
+	dynamic->Clear();
+
+	tests = 0;
+	dynamicUpdates = 0;
+	optimisedUpdates = 0;
+	finishedRebuilding->store(false);
+	tests = 0;
+}
+
+void ThreeStageDbvh::StopFastAdding()
+{
+	fastAdding = false;
+}
+
 void ThreeStageDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	assert(Exists(entity) == false);
 
-	dynamicUpdates++;
-	dynamic->Add(entity, aabb, mask);
+	if (fastAdding) {
+		optimised->Add(entity, aabb, mask);
+	} else {
+		dynamicUpdates++;
+		dynamic->Add(entity, aabb, mask);
+	}
 }
 
 void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 {
 	assert(Exists(entity) == true);
+	
+	if (fastAdding) {
+		optimised->Update(entity, aabb);
+		return;
+	}
 
 	TryIntegrateOptimised();
 
@@ -120,6 +154,11 @@ void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 void ThreeStageDbvh::Remove(EntityType entity)
 {
 	assert(Exists(entity) == true);
+	
+	if (fastAdding) {
+		optimised->Remove(entity);
+		return;
+	}
 
 	TryIntegrateOptimised();
 

@@ -51,7 +51,6 @@ std::vector<EntityData> *globalEntityData = nullptr;
 std::vector<uint64_t> totalErrorsInBroadphase;
 
 struct SingleTestResult {
-	std::vector<spp::EntityType> entities;
 	size_t nodesTestedCount = 0;
 	size_t testedCount = 0;
 	size_t hitCount = 0;
@@ -59,9 +58,13 @@ struct SingleTestResult {
 
 struct StartEndPoint {
 	spp::Aabb aabb;
+	spp::Aabb aabb2;
 	glm::vec3 start, end, point;
-	float n;
-	spp::EntityType e;
+	float n = -3;
+	spp::EntityType e = -3;
+	bool isAabbTest;
+
+	bool operator<(const StartEndPoint &o) const { return e < o.e; }
 };
 
 std::vector<spp::EntityType> ee;
@@ -78,8 +81,6 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 							 std::vector<StartEndPoint> &hitPoints)
 {
 	static SingleTestResult ret;
-	ret.entities.reserve(10000000);
-	ret.entities.clear();
 	ret.nodesTestedCount = 0;
 	ret.testedCount = 0;
 	ret.hitCount = 0;
@@ -87,16 +88,31 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 	case TEST_AABB: {
 
 		struct _Cb : public spp::IntersectionCallback {
-		} static cb;
+			std::vector<StartEndPoint> *hitPoints = nullptr;
+		} cb;
+		cb.hitPoints = &hitPoints;
 		cb.mask = ~(uint32_t)0;
 		typedef void (*CbT)(spp::IntersectionCallback *, spp::EntityType);
 		cb.callback = (CbT) + [](_Cb *cb, spp::EntityType entity) {
-			ret.entities.push_back(entity);
+			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
+			if (cb->IsRelevant(aabb)) {
+				cb->hitPoints->push_back(
+					StartEndPoint{cb->broadphase->GetAabb(entity),
+								  cb->aabb,
+								  {},
+								  {},
+								  {0, 0, 0},
+								  -2,
+								  entity,
+								  true});
+			}
 		};
 		testsCount = std::min(testsCount, aabbsToTest.size());
 		for (size_t i = 0; i < testsCount; ++i) {
-			offsetOfPatch.push_back(ret.entities.size());
+			offsetOfPatch.push_back(hitPoints.size());
 			cb.aabb = aabbsToTest[i];
+			cb.aabb = {glm::min(cb.aabb.min, cb.aabb.max),
+					   glm::max(cb.aabb.min, cb.aabb.max)};
 			broadphase->IntersectAabb(cb);
 		}
 
@@ -108,7 +124,9 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 	case TEST_RAY: {
 
 		struct _Cb : public spp::RayCallback {
-		} static cb;
+			std::vector<StartEndPoint> *hitPoints = nullptr;
+		} cb;
+		cb.hitPoints = &hitPoints;
 		cb.mask = ~(uint32_t)0;
 		typedef spp::RayPartialResult (*CbT)(spp::RayCallback *,
 											 spp::EntityType);
@@ -116,16 +134,25 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			(CbT) +
 			[](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
 			assert(entity > 0);
-			spp::Aabb aabb = (*globalEntityData)[entity - 1].aabb;
-			if (cb->IsRelevant(aabb)) {
-				ret.entities.push_back(entity);
+			float n, f;
+			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
+			if (cb->IsRelevant(aabb, n, f)) {
+				assert(n >= 0);
+				cb->hitPoints->push_back(StartEndPoint{aabb,
+													   {},
+													   cb->start,
+													   cb->end,
+													   cb->start + cb->dir * n,
+													   n,
+													   entity,
+													   false});
 				return {1.0f, true};
 			}
 			return {1.0f, false};
 		};
 		testsCount = std::min(testsCount, aabbsToTest.size());
 		for (size_t i = 0; i < testsCount; ++i) {
-			offsetOfPatch.push_back(ret.entities.size());
+			offsetOfPatch.push_back(hitPoints.size());
 			cb.start = aabbsToTest[i].GetCenter();
 			cb.end = aabbsToTest[(i + 17) % testsCount].GetCenter();
 			cb.initedVars = false;
@@ -140,7 +167,7 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 	} break;
 	case TEST_RAY_FIRST: {
 		struct _Cb : public spp::RayCallbackFirstHit {
-		} static cb;
+		} cb;
 		cb.mask = ~(uint32_t)0;
 		typedef spp::RayPartialResult (*CbT)(spp::RayCallback *,
 											 spp::EntityType);
@@ -148,7 +175,7 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			(CbT) +
 			[](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
 			float n, f;
-			spp::Aabb aabb = (*globalEntityData)[entity - 1].aabb;
+			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
 			if (cb->IsRelevant(aabb, n, f)) {
 				if (n < 0.0f) {
 					n = 0.0f;
@@ -174,20 +201,25 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 		testsCount = std::min(testsCount, aabbsToTest.size());
 		for (size_t i = 0; i < testsCount; ++i) {
 			cb.hasHit = false;
-			offsetOfPatch.push_back(ret.entities.size());
+			offsetOfPatch.push_back(hitPoints.size());
 			cb.start = aabbsToTest[i].GetCenter();
 			glm::vec3 end = cb.end =
 				aabbsToTest[(i + 1) % testsCount].GetCenter();
 			cb.initedVars = false;
 			broadphase->IntersectRay(cb);
 			if (cb.hasHit) {
-				ret.entities.push_back(cb.hitEntity);
-				hitPoints.push_back({broadphase->GetAabb(cb.hitEntity),
-									 cb.start, end, cb.hitPoint, cb.cutFactor,
-									 cb.hitEntity});
+				hitPoints.push_back(
+					StartEndPoint{broadphase->GetAabb(cb.hitEntity),
+								  {},
+								  cb.start,
+								  end,
+								  cb.hitPoint,
+								  cb.cutFactor,
+								  cb.hitEntity,
+								  false});
 			} else {
-				ret.entities.push_back(0);
-				hitPoints.push_back({{}, cb.start, end, {}, -1, 0});
+				hitPoints.push_back(
+					StartEndPoint{{}, {}, cb.start, end, {}, -1, 0, false});
 			}
 		}
 
@@ -200,11 +232,24 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 	case TEST_MIXED: {
 
 		struct _CbAabb : public spp::IntersectionCallback {
+			std::vector<StartEndPoint> *hitPoints = nullptr;
 		} cbAabb;
+		cbAabb.hitPoints = &hitPoints;
 		cbAabb.mask = ~(uint32_t)0;
 		typedef void (*CbTAabb)(spp::IntersectionCallback *, spp::EntityType);
 		cbAabb.callback = (CbTAabb) + [](_CbAabb *cb, spp::EntityType entity) {
-			ret.entities.push_back(entity);
+			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
+			if (cb->IsRelevant(aabb)) {
+				cb->hitPoints->push_back(
+					StartEndPoint{cb->broadphase->GetAabb(entity),
+								  cb->aabb,
+								  {},
+								  {},
+								  {0, 0, 0},
+								  -2,
+								  entity,
+								  true});
+			}
 		};
 
 		struct _CbRay : public spp::RayCallbackFirstHit {
@@ -292,8 +337,10 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 		};
 
 		for (size_t i = 0; i < testsCount; i += 5) {
-			offsetOfPatch.push_back(ret.entities.size());
+			offsetOfPatch.push_back(hitPoints.size());
 			cbAabb.aabb = aabbsToTest[i + 0];
+			cbAabb.aabb = {glm::min(cbAabb.aabb.min, cbAabb.aabb.max),
+						   glm::max(cbAabb.aabb.min, cbAabb.aabb.max)};
 			broadphase->IntersectAabb(cbAabb);
 
 			auto e = ee[i + 1];
@@ -322,25 +369,32 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 				broadphase->Update(e, aabb);
 			}
 
-			offsetOfPatch.push_back(ret.entities.size());
+			offsetOfPatch.push_back(hitPoints.size());
 			cbAabb.aabb = aabbsToTest[i + 2];
+			cbAabb.aabb = {glm::min(cbAabb.aabb.min, cbAabb.aabb.max),
+						   glm::max(cbAabb.aabb.min, cbAabb.aabb.max)};
 			broadphase->IntersectAabb(cbAabb);
 
 			for (int j = 3; j < 5; ++j) {
 				cbRay.hasHit = false;
-				offsetOfPatch.push_back(ret.entities.size());
+				offsetOfPatch.push_back(hitPoints.size());
 				cbRay.start = aabbsToTest[i + j].GetCenter();
 				glm::vec3 end = cbRay.end = vv[i + j];
 				cbRay.initedVars = false;
 				broadphase->IntersectRay(cbRay);
 				if (cbRay.hasHit) {
-					ret.entities.push_back(cbRay.hitEntity);
-					hitPoints.push_back({broadphase->GetAabb(cbRay.hitEntity),
-										 cbRay.start, cbRay.end, cbRay.hitPoint,
-										 cbRay.cutFactor, cbRay.hitEntity});
+					hitPoints.push_back(
+						StartEndPoint{broadphase->GetAabb(cbRay.hitEntity),
+									  {},
+									  cbRay.start,
+									  cbRay.end,
+									  cbRay.hitPoint,
+									  cbRay.cutFactor,
+									  cbRay.hitEntity,
+									  false});
 				} else {
-					ret.entities.push_back(0);
-					hitPoints.push_back({{}, cbRay.start, end, {}, -1, 0});
+					hitPoints.push_back(StartEndPoint{
+						{}, {}, cbRay.start, end, {}, -1, 0, false});
 				}
 			}
 		}
@@ -356,9 +410,8 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 }
 
 std::vector<spp::Aabb> globalAabbs;
-std::vector<std::vector<spp::EntityType>>
-Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
-	 TestType testType)
+void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
+		  TestType testType)
 {
 	TEST_RANDOM_SEED = mt();
 	totalErrorsInBroadphase.resize(broadphases.size(), 0);
@@ -378,13 +431,12 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 	}
 
 	std::vector<std::vector<StartEndPoint>> hitPoints;
-	std::vector<std::vector<spp::EntityType>> ents;
 	std::vector<std::vector<uint64_t>> offsetOfPatch;
 	for (int i = 0; i < broadphases.size(); ++i) {
 		offsetOfPatch.push_back({});
-		offsetOfPatch.back().reserve(testsCount * 5);
+		offsetOfPatch.back().reserve(testsCount);
 		hitPoints.push_back({});
-		hitPoints.back().reserve(testsCount * 10);
+		hitPoints.back().reserve(testsCount * 50);
 		auto &it = broadphases[i];
 		size_t tC =
 			i ? aabbs.size() : aabbs.size() / BRUTE_FROCE_TESTS_COUNT_DIVISOR;
@@ -394,16 +446,13 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 		auto end = std::chrono::steady_clock::now();
 		for (size_t i = 0; i < offsetOfPatch.back().size(); ++i) {
 			size_t of = offsetOfPatch.back()[i];
-			size_t en = vec.entities.size();
+			size_t en = hitPoints.back().size();
 			if (i + 1 < offsetOfPatch.back().size()) {
 				en = offsetOfPatch.back()[i + 1];
 			}
-			if (testType != TEST_RAY_FIRST) {
-				std::sort(vec.entities.begin() + of, vec.entities.begin() + en);
-			}
+			std::sort(hitPoints.back().begin() + of,
+					  hitPoints.back().begin() + en);
 		}
-		ents.push_back(std::vector<spp::EntityType>(vec.entities.begin(),
-													vec.entities.end()));
 		auto diff = end - beg;
 		int64_t ns =
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
@@ -413,7 +462,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			   it->GetName(), tC, us / double(tC));
 		printf("    \t   nodesTested: %11lu,   testedCount: %10lu     [count = "
 			   "%lu]:\n",
-			   vec.nodesTestedCount, vec.testedCount, ents.back().size());
+			   vec.nodesTestedCount, vec.testedCount, hitPoints.back().size());
 		fflush(stdout);
 	}
 
@@ -494,8 +543,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 				if (hp.e <= 0) {
 					continue;
 				}
-				if (spp::Aabb{hp.aabb.min - 0.01f, hp.aabb.max + 0.01f}
-						.ContainsAll({hp.point, hp.point}) == false) {
+				if (!hp.isAabbTest && !(hp.aabb.Expanded(0.01f) && hp.point)) {
 					++cardinalErrors;
 					if (I < 10) {
 
@@ -528,96 +576,311 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 						printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
 							   a.z);
 
-						printf("     dist: %7.2f", hp.n);
+						printf("     dist: %11.6f", hp.n);
 
 						printf("     second result %s     near: %f   far: %f",
 							   r ? "HIT" : "MISS", near, far);
 
 						printf("\n");
+						++I;
 					}
-					++I;
+				} else if (hp.isAabbTest &&
+						   (!(hp.aabb.Expanded(0.01f) && hp.aabb2))) {
+					++cardinalErrors;
+					if (I < 10) {
+						printf("6. CARDINAL ERROR: AABB TEST ERROR VALUE, "
+							   "AABBS DOES NOT INTERSECT");
+
+						glm::vec3 a, b;
+						a = hp.aabb.min;
+						b = hp.aabb.max;
+
+						printf("  %7i: %7lu    :     ", j, hp.e);
+						printf(
+							"{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}",
+							a.x, a.y, a.z, b.x, b.y, b.z);
+
+						a = hp.aabb2.min;
+						b = hp.aabb2.max;
+						printf("     aabb2: {{%7.2f, %7.2f, %7.2f} , {%7.2f, "
+							   "%7.2f, %7.2f}}",
+							   a.x, a.y, a.z, b.x, b.y, b.z);
+
+						printf("\n");
+						++I;
+					}
 				}
 			}
 		}
 
-		size_t errs = glm::abs<int64_t>(ents[i].size() - ents[0].size());
+		size_t errs = 0;
+		/*
+			glm::abs<int64_t>(hitPoints[i].size() - hitPoints[0].size());
+		if (errs != 0) {
+			printf("  base test entities count (%lu) != tested (%lu)\n",
+				   hitPoints[0].size(), hitPoints[i].size());
+		}
+		*/
 		int JJ = 0;
-		for (int j = 0; j < hitPoints[0].size() && j < hitPoints[i].size();
-			 ++j) {
-			auto p0 = hitPoints[0][j];
-			auto pi = hitPoints[i][j];
-			if (p0.e != pi.e) {
-				spp::Aabb aabb0 = p0.aabb;
-				spp::Aabb aabbi = pi.aabb;
 
-				aabb0.min -= 0.0025;
-				aabbi.min -= 0.0025;
-				aabb0.max += 0.0025;
-				aabbi.max += 0.0025;
+		for (size_t patch = 0; patch < offsetOfPatch[i].size(); ++patch) {
+			const size_t patchStarti = offsetOfPatch[i][patch];
+			const size_t patchStart0 = offsetOfPatch[0][patch];
+			const size_t patchEndi = patch + 1 < offsetOfPatch[i].size()
+										 ? offsetOfPatch[i][patch + 1]
+										 : hitPoints[i].size();
+			const size_t patchEnd0 = patch + 1 < offsetOfPatch[0].size()
+										 ? offsetOfPatch[0][patch + 1]
+										 : hitPoints[0].size();
+			for (size_t entry = patchStarti; entry < patchEndi; ++entry) {
+				const size_t ji = entry;
+				auto pi = hitPoints[i][ji];
+				auto p0 = StartEndPoint{};
 
-				bool er = true;
-				if (p0.e && pi.e) {
-					if (aabb0 && aabbi) {
-						if (aabb0 && spp::Aabb{p0.point, p0.point}) {
-							if (aabbi && spp::Aabb{p0.point, p0.point}) {
-								if (aabb0 && spp::Aabb{pi.point, pi.point}) {
-									if (aabbi &&
-										spp::Aabb{pi.point, pi.point}) {
-										if (glm::length(pi.point - p0.point) <
-												0.01 &&
-											fabs(p0.n - pi.n) < 0.0001) {
-											er = false;
-										}
-									}
+				size_t j0 = patchStart0;
+				if ((patchEnd0 - patchStart0) == 1 &&
+					(patchEndi - patchStarti) == 1) {
+					p0 = hitPoints[0][patchStart0];
+				} else {
+					for (; j0 < patchEnd0 && hitPoints[0][j0].e != p0.e; ++j0) {
+					}
+					if (j0 < patchEnd0) {
+						p0 = hitPoints[0][j0];
+					} else {
+						continue;
+					}
+				}
+
+				if (p0.e <= 0 && pi.e <= 0) {
+					continue;
+				}
+
+				if (pi.isAabbTest == false && p0.isAabbTest == false) {
+					spp::Aabb aabb0 = p0.aabb.Expanded(0.0025);
+					spp::Aabb aabbi = pi.aabb.Expanded(0.0025);
+
+					bool er = true;
+					if (p0.e && pi.e) {
+						if ((aabb0 && p0.point) && (aabbi && p0.point) &&
+							(aabb0 && pi.point) && (aabbi && pi.point) &&
+							(aabb0 && aabbi)) {
+							if (glm::length(pi.point - p0.point) < 0.01) {
+								if (fabs(p0.n - pi.n) < 0.001) {
+									er = false;
 								}
 							}
 						}
 					}
+
+					if (er == true) {
+						aabb0 = p0.aabb;
+						aabbi = pi.aabb;
+
+						++JJ;
+						++errs;
+						if (JJ < 10) {
+							glm::vec3 a, b, c, d;
+							a = aabb0.min;
+							b = aabb0.max;
+							c = aabbi.min;
+							d = aabbi.max;
+							printf("ray   %7ld: %7lu == %7lu  ", ji, p0.e,
+								   pi.e);
+							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+								   "%7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , "
+								   "{%7.2f, "
+								   "%7.2f, %7.2f}}",
+								   a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z,
+								   d.x, d.y, d.z);
+
+							a = p0.point;
+							b = pi.point;
+							printf("     hit points: {%7.2f, %7.2f, %7.2f} "
+								   "<-> "
+								   "{%7.2f, %7.2f, %7.2f}",
+								   a.x, a.y, a.z, b.x, b.y, b.z);
+
+							a = p0.start;
+							b = pi.start;
+							printf("     start: {%7.2f, %7.2f, %7.2f}", a.x,
+								   a.y, a.z);
+
+							a = p0.end;
+							b = pi.end;
+							printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
+								   a.z);
+
+							printf("     dist: %11.6f <-> %11.6f", p0.n, pi.n);
+
+							printf("\n");
+						}
+					}
+				} else {
+					// TODO: check aabb equality
+
+					bool er = false;
+
+					if (p0.e != pi.e) {
+						er = true;
+					} else {
+						if (glm::length(pi.aabb.min - p0.aabb.min) > 0.001 &&
+							glm::length(pi.aabb.max - p0.aabb.max) > 0.001) {
+							er = false;
+						}
+					}
+
+					if (er == true) {
+						spp::Aabb aabb0 = p0.aabb;
+						spp::Aabb aabbi = pi.aabb;
+
+						++JJ;
+						++errs;
+						glm::vec3 a, b, c, d;
+						a = aabb0.min;
+						b = aabb0.max;
+						c = aabbi.min;
+						d = aabbi.max;
+						if (JJ < 10) {
+							printf("aabb  %7ld: %7lu == %7lu  ", ji, p0.e,
+								   pi.e);
+							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+								   "%7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , "
+								   "{%7.2f, "
+								   "%7.2f, %7.2f}}",
+								   a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z,
+								   d.x, d.y, d.z);
+
+							a = p0.aabb2.min;
+							b = p0.aabb2.max;
+							printf("      test: {{%7.2f, %7.2f, %7.2f} , "
+								   "{%7.2f, %7.2f, %7.2f}}",
+								   a.x, a.y, a.z, b.x, b.y, b.z);
+
+							printf("\n");
+						}
+					}
 				}
-
-				if (er == true) {
-					aabb0 = p0.aabb;
-					aabbi = pi.aabb;
-
+			}
+			
+			std::map<spp::EntityType, size_t> e0, ei;
+			for (size_t entry = patchStarti; entry < patchEndi; ++entry) {
+				ei[hitPoints[i][entry].e] = entry;
+			}
+			for (size_t entry = patchStart0; entry < patchEnd0; ++entry) {
+				e0[hitPoints[0][entry].e] = entry;
+			}
+			
+			if ((patchEnd0 - patchStart0) == 1 &&
+				(patchEndi - patchStarti) == 1) {
+				e0.clear();
+				ei.clear();
+			}
+			
+			for (auto it : e0) {
+				if (ei.find(it.first) == ei.end()) {
 					++JJ;
 					++errs;
-					glm::vec3 a, b, c, d;
-					a = aabb0.min;
-					b = aabb0.max;
-					c = aabbi.min;
-					d = aabbi.max;
+					glm::vec3 a, b;
+					auto hp = hitPoints[0][it.second];
 					if (JJ < 10) {
-						printf("  %7i: %7lu == %7lu  ", j, p0.e, pi.e);
-						printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
-							   "%7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , {%7.2f, "
-							   "%7.2f, %7.2f}}",
-							   a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x,
-							   d.y, d.z);
+						if (hp.isAabbTest) {
+							a = hp.aabb.min;
+							b = hp.aabb.max;
+							printf("aabb missing       ji %7ld[%lu] (j0 %7ld[%lu]): "
+								   "%7lu  ",
+								   patchStart0, patchEnd0-patchStart0, it.second, patchEndi-patchStarti, hp.e);
+							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+								   "%7.2f}}",
+								   a.x, a.y, a.z, b.x, b.y, b.z);
 
-						a = p0.point;
-						b = pi.point;
-						printf("     hit points: {%7.2f, %7.2f, %7.2f} <-> "
-							   "{%7.2f, %7.2f, %7.2f}",
-							   a.x, a.y, a.z, b.x, b.y, b.z);
+							a = hp.aabb2.min;
+							b = hp.aabb2.max;
+							printf("      test: {{%7.2f, %7.2f, %7.2f} , "
+								   "{%7.2f, %7.2f, %7.2f}}",
+								   a.x, a.y, a.z, b.x, b.y, b.z);
 
-						a = p0.start;
-						b = pi.start;
-						printf(
-							"     start: {%7.2f, %7.2f, %7.2f}", // <-> {%7.2f,
-																 // %7.2f,
-																 // %7.2f}",
-							a.x, a.y, a.z); //, b.x, b.y, b.z);
+							printf("\n");
+						} else {
+							glm::vec3 a, b;
+							a = hp.aabb.min;
+							b = hp.aabb.max;
+							printf("ray missing        ji %7ld[%lu] (j0 %7ld[%lu]): "
+								   "%7lu  ",
+								   patchStart0, patchEnd0-patchStart0, it.second, patchEndi-patchStarti, hp.e);
+							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+								   "%7.2f}}",
+								   a.x, a.y, a.z, b.x, b.y, b.z);
 
-						a = p0.end;
-						b = pi.end;
-						printf("     end: {%7.2f, %7.2f, %7.2f}", // <-> {%7.2f,
-																  // %7.2f,
-																  // %7.2f}",
-							   a.x, a.y, a.z); //, b.x, b.y, b.z);
+							a = hp.point;
+							printf("     hit point: {%7.2f, %7.2f, %7.2f}", a.x,
+								   a.y, a.z);
 
-						printf("     dist: %7.2f <-> %7.2f", p0.n, pi.n);
+							a = hp.start;
+							printf("     start: {%7.2f, %7.2f, %7.2f}", a.x,
+								   a.y, a.z);
 
-						printf("\n");
+							a = hp.end;
+							printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
+								   a.z);
+
+							printf("     dist: %11.9f", hp.n);
+
+							printf("\n");
+						}
+					}
+				}
+			}
+			for (auto it : ei) {
+				if (e0.find(it.first) == e0.end()) {
+					++JJ;
+					++errs;
+					glm::vec3 a, b;
+					auto hp = hitPoints[i][it.second];
+					if (JJ < 10) {
+						if (hp.isAabbTest) {
+							a = hp.aabb.min;
+							b = hp.aabb.max;
+							printf("aabb shouldn't be  ji %7ld[%lu] (j0 %7ld[%lu]): "
+								   "%7lu  ",
+								   patchStart0, patchEnd0-patchStart0, it.second, patchEndi-patchStarti, hp.e);
+							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+								   "%7.2f}}",
+								   a.x, a.y, a.z, b.x, b.y, b.z);
+
+							a = hp.aabb2.min;
+							b = hp.aabb2.max;
+							printf("      test: {{%7.2f, %7.2f, %7.2f} , "
+								   "{%7.2f, %7.2f, %7.2f}}",
+								   a.x, a.y, a.z, b.x, b.y, b.z);
+
+							printf("\n");
+						} else {
+							glm::vec3 a, b;
+							a = hp.aabb.min;
+							b = hp.aabb.max;
+							printf("ray shouldn't be   ji %7ld[%lu] (j0 %7ld[%lu]): "
+								   "%7lu  ",
+								   patchStart0, patchEnd0-patchStart0, it.second, patchEndi-patchStarti, hp.e);
+							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+								   "%7.2f}}",
+								   a.x, a.y, a.z, b.x, b.y, b.z);
+
+							a = hp.point;
+							printf("     hit point: {%7.2f, %7.2f, %7.2f}", a.x,
+								   a.y, a.z);
+
+							a = hp.start;
+							printf("     start: {%7.2f, %7.2f, %7.2f}", a.x,
+								   a.y, a.z);
+
+							a = hp.end;
+							printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
+								   a.z);
+
+							printf("     dist: %11.9f", hp.n);
+
+							printf("\n");
+						}
 					}
 				}
 			}
@@ -633,8 +896,6 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 		printf("\n");
 		fflush(stdout);
 	}
-
-	return ents;
 }
 
 void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
@@ -795,34 +1056,6 @@ int main(int argc, char **argv)
 		e.aabb.max += e.aabb.min;
 	}
 
-	spp::BvhMedianSplitHeap bvh(TOTAL_ENTITIES);
-
-	spp::BruteForce bf;
-	spp::Dbvh dbvh;
-	spp::experimental::HashLooseOctree hlo(1.0, 13, 1.6);
-	spp::experimental::LooseOctree lo(-glm::vec3(1, 1, 1) * (1024 * 16.f), 15,
-									  1.6);
-	spp::BulletDbvh btDbvh;
-	spp::BulletDbvt btDbvt;
-
-	spp::ThreeStageDbvh tsdbvh(
-		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-		std::make_unique<spp::BulletDbvt>());
-	tsdbvh.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
-
-	spp::ThreeStageDbvh tsdbvh2(
-		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-		std::make_unique<spp::BruteForce>());
-	tsdbvh2.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
-
-	spp::ThreeStageDbvh tsdbvh3(
-		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-		std::make_unique<spp::Dbvh>());
-	tsdbvh3.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
-
 	std::vector<spp::BroadphaseBase *> broadphases;
 
 	if (customizeStructures) {
@@ -831,7 +1064,7 @@ int main(int argc, char **argv)
 			char *str = argv[i];
 			if (false) {
 			} else if (strcmp(str, "BF") == false) {
-				broadphases.push_back(new spp::BruteForce);
+				broadphases.push_back(new spp::BruteForce());
 			} else if (strcmp(str, "BVH") == false) {
 				spp::BvhMedianSplitHeap *bvh;
 				bvh = new spp::BvhMedianSplitHeap(TOTAL_ENTITIES);
@@ -923,11 +1156,10 @@ int main(int argc, char **argv)
 		printf("\n");
 
 		for (auto bp : broadphases) {
-			printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n", bp->GetName(),
-				   bp->GetMemoryUsage(),
+			printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n",
+				   bp->GetName(), bp->GetMemoryUsage(),
 				   bp->GetMemoryUsage() / (1024.0 * 1024.0),
-				   (double)bp->GetMemoryUsage() / (double)bp->GetCount()
-				   );
+				   (double)bp->GetMemoryUsage() / (double)bp->GetCount());
 			fflush(stdout);
 		}
 		printf("\n");
@@ -1119,13 +1351,11 @@ int main(int argc, char **argv)
 		fflush(stdout);
 	}
 	printf("\n");
-	
+
 	for (auto bp : broadphases) {
 		printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n", bp->GetName(),
-			   bp->GetMemoryUsage(),
-			   bp->GetMemoryUsage() / (1024.0 * 1024.0),
-			   (double)bp->GetMemoryUsage() / (double)bp->GetCount()
-			   );
+			   bp->GetMemoryUsage(), bp->GetMemoryUsage() / (1024.0 * 1024.0),
+			   (double)bp->GetMemoryUsage() / (double)bp->GetCount());
 		fflush(stdout);
 	}
 	printf("\n");
@@ -1143,13 +1373,11 @@ int main(int argc, char **argv)
 		fflush(stdout);
 	}
 	printf("\n");
-	
+
 	for (auto bp : broadphases) {
 		printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n", bp->GetName(),
-			   bp->GetMemoryUsage(),
-			   bp->GetMemoryUsage() / (1024.0 * 1024.0),
-			   (double)bp->GetMemoryUsage() / (double)bp->GetCount()
-			   );
+			   bp->GetMemoryUsage(), bp->GetMemoryUsage() / (1024.0 * 1024.0),
+			   (double)bp->GetMemoryUsage() / (double)bp->GetCount());
 		fflush(stdout);
 	}
 	printf("\n");
@@ -1177,11 +1405,10 @@ int main(int argc, char **argv)
 
 		printf("\n");
 		for (auto bp : broadphases) {
-			printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n", bp->GetName(),
-				   bp->GetMemoryUsage(),
+			printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n",
+				   bp->GetName(), bp->GetMemoryUsage(),
 				   bp->GetMemoryUsage() / (1024.0 * 1024.0),
-				   (double)bp->GetMemoryUsage() / (double)bp->GetCount()
-				   );
+				   (double)bp->GetMemoryUsage() / (double)bp->GetCount());
 			fflush(stdout);
 		}
 		printf("\n");

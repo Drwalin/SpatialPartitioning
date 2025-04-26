@@ -252,25 +252,21 @@ bool ChunkedLooseOctree::FitsInChunk(Aabb aabb) const
 int32_t ChunkedLooseOctree::GetCreateChunkId(glm::vec3 pos)
 {
 	assert(false);
-	assert(true); // TODO
 	return 0;
 }
 int32_t ChunkedLooseOctree::GetChunkId(glm::vec3 pos) const
 {
 	assert(false);
-	assert(true); // TODO
 	return 0;
 }
 int32_t ChunkedLooseOctree::GetChunkId(EntityType entity) const
 {
 	assert(false);
-	assert(true); // TODO
 	return 0;
 }
 int32_t ChunkedLooseOctree::GetCreateNodeId(Aabb aabb)
 {
 	assert(false);
-	assert(true); // TODO
 	return 0;
 }
 
@@ -366,7 +362,6 @@ void ChunkedLooseOctree::SetChunkData(int32_t chunkId,
 void ChunkedLooseOctree::GetChunks(Aabb aabb, std::vector<int32_t> chunks)
 {
 	assert(false);
-	assert(true); // TODO
 }
 
 void ChunkedLooseOctree::GetChunks(bool (*isIn)(Aabb test, void *testData),
@@ -374,7 +369,6 @@ void ChunkedLooseOctree::GetChunks(bool (*isIn)(Aabb test, void *testData),
 								   std::vector<int32_t> chunksData)
 {
 	assert(false);
-	assert(true); // TODO
 }
 
 void ChunkedLooseOctree::ForEachChunkData(
@@ -383,7 +377,6 @@ void ChunkedLooseOctree::ForEachChunkData(
 	void *userData)
 {
 	assert(false);
-	assert(true); // TODO
 }
 
 BroadphaseBaseIterator *ChunkedLooseOctree::RestartIterator()

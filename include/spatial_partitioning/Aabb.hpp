@@ -36,11 +36,21 @@ public:
 	inline glm::vec3 GetSizes() const { return max - min; }
 	inline glm::vec3 GetMin() const { return min; }
 	inline glm::vec3 GetMax() const { return max; }
+	
+	inline Aabb Expanded(float by) const {
+		return {min-by, max+by};
+	}
 
-	inline bool HasIntersection(const Aabb &r) const
+	inline bool HasIntersection(const Aabb &r, float eps = EPSILON) const
 	{
-		return glm::all(glm::lessThanEqual(min - EPSILON, r.max) &
-						glm::lessThanEqual(r.min - EPSILON, max));
+		return glm::all(glm::lessThanEqual(min - eps, r.max) &
+						glm::lessThanEqual(r.min - eps, max));
+	}
+
+	inline bool IsIn(const glm::vec3 &r, float eps = EPSILON) const
+	{
+		return glm::all(glm::lessThanEqual(min - eps, r) &
+						glm::lessThanEqual(r - eps, max));
 	}
 	inline Aabb Intersection(const Aabb &r) const
 	{
@@ -50,11 +60,15 @@ public:
 	{
 		return {glm::min(min, r.min), glm::max(max, r.max)};
 	}
-
-	inline bool ContainsAll(const Aabb &r) const
+	inline Aabb Sum(const glm::vec3 &r) const
 	{
-		return glm::all(glm::lessThanEqual(min - EPSILON, r.min) &
-						glm::lessThanEqual(r.max, max + EPSILON));
+		return {glm::min(min, r), glm::max(max, r)};
+	}
+
+	inline bool ContainsAll(const Aabb &r, float eps = EPSILON) const
+	{
+		return glm::all(glm::lessThanEqual(min - eps, r.min) &
+						glm::lessThanEqual(r.max, max + eps));
 	}
 
 	inline bool FastRayTest(glm::vec3 ro, glm::vec3 rd, const glm::vec3 invDir,
@@ -124,11 +138,13 @@ public:
 	}
 
 	inline operator AabbCentered() const;
-
+	
 public:
 	inline bool operator&&(const Aabb &r) const { return HasIntersection(r); }
+	inline bool operator&&(const glm::vec3 &r) const { return IsIn(r); }
 	inline Aabb operator*(const Aabb &r) const { return Intersection(r); }
 	inline Aabb operator+(const Aabb &r) const { return Sum(r); }
+	inline Aabb operator+(const glm::vec3 &r) const { return Sum(r); }
 	inline bool operator==(const Aabb &r) const
 	{
 		return min == r.min && max == r.max;
@@ -156,16 +172,26 @@ public:
 		const glm::vec3 v = halfSize;
 		return (v.x * v.y + v.x * v.z + v.y * v.z) * 2.0f * 4.0f;
 	}
+	
+	inline AabbCentered Expanded(float by) const {
+		return {center, halfSize+by};
+	}
 
 	inline glm::vec3 GetCenter() const { return center; }
 	inline glm::vec3 GetSizes() const { return halfSize * 2.0f; }
 	inline glm::vec3 GetMin() const { return center - halfSize; }
 	inline glm::vec3 GetMax() const { return center + halfSize; }
 
-	inline bool HasIntersection(const AabbCentered &r) const
+	inline bool HasIntersection(const AabbCentered &r, float eps = EPSILON) const
 	{
 		return glm::all(glm::lessThanEqual(glm::abs(center - r.center),
-										   halfSize + r.halfSize + EPSILON));
+										   halfSize + r.halfSize + eps));
+	}
+
+	inline bool IsIn(const glm::vec3 &r, float eps = EPSILON) const
+	{
+		return glm::all(glm::lessThanEqual(glm::abs(center - r),
+										   halfSize + eps));
 	}
 	inline Aabb Intersection(const AabbCentered &r) const
 	{
@@ -175,11 +201,15 @@ public:
 	{
 		return {glm::min(GetMin(), r.GetMin()), glm::max(GetMax(), r.GetMax())};
 	}
+	inline Aabb Sum(const glm::vec3 &r) const
+	{
+		return {glm::min(GetMin(), r), glm::max(GetMax(), r)};
+	}
 
-	inline bool ContainsAll(const AabbCentered &r) const
+	inline bool ContainsAll(const AabbCentered &r, float eps = EPSILON) const
 	{
 		return glm::all(glm::lessThanEqual(
-			glm::abs(center - r.center) + r.halfSize, halfSize + EPSILON));
+			glm::abs(center - r.center) + r.halfSize, halfSize + eps));
 	}
 
 	inline bool FastRayTest(glm::vec3 ro, glm::vec3 rd, const glm::vec3 invDir,
@@ -232,6 +262,7 @@ public:
 		return Intersection(r);
 	}
 	inline Aabb operator+(const AabbCentered &r) const { return Sum(r); }
+	inline Aabb operator+(const glm::vec3 &r) const { return Sum(r); }
 	inline bool operator==(const AabbCentered &r) const
 	{
 		return center == r.center && halfSize == r.halfSize;

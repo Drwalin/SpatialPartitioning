@@ -55,7 +55,7 @@ void BvhMedianSplitHeap::ShrinkToFit()
 void BvhMedianSplitHeap::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	if (entitiesOffsets.find(entity) != nullptr) {
-		assert(false && "Entity already exists");
+		assert(!"Entity already exists");
 		return;
 	}
 	entitiesOffsets.Set(entity, entitiesData.size());
@@ -335,9 +335,7 @@ int32_t BvhMedianSplitHeap::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
 		totalAabb = totalAabb + entitiesData[i].aabb;
 		mask |= entitiesData[i].mask;
 	}
-	totalAabb.min -= BIG_EPSILON;
-	totalAabb.max += BIG_EPSILON;
-	nodesHeapAabb[nodeId] = {totalAabb, mask};
+	nodesHeapAabb[nodeId] = {totalAabb.Expanded(BIG_EPSILON), mask};
 
 	if (count <= 2) {
 		return -1;
@@ -407,10 +405,7 @@ void BvhMedianSplitHeap::UpdateAabb(int32_t offset)
 	}
 
 	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> 1; n > 0; n >>= 1) {
-		Aabb aabb2 = aabb;
-		aabb2.min -= BIG_EPSILON;
-		aabb2.max += BIG_EPSILON;
-		nodesHeapAabb[n].aabb = aabb2;
+		nodesHeapAabb[n].aabb = aabb.Expanded(BIG_EPSILON);
 		nodesHeapAabb[n].mask = mask;
 		n ^= 1;
 		if (n < nodesHeapAabb.size() && n > 0) {

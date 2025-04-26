@@ -62,7 +62,8 @@ void BulletDbvh::IncrementalOptimize(int iterations)
 
 void BulletDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
-	int32_t offset = ents.Add(entity, Data{entity, mask});
+	int32_t offset = ents.Add(entity, Data{aabb, entity, mask});
+	aabb = aabb.Expanded(BIG_EPSILON);
 	bullet::btBroadphaseProxy *proxy =
 		broadphase.createProxy(bt(aabb.min), bt(aabb.max), 0,
 							   (void *)(uint64_t)offset, mask, mask, nullptr);
@@ -73,6 +74,8 @@ void BulletDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 void BulletDbvh::Update(EntityType entity, Aabb aabb)
 {
 	int32_t offset = ents.GetOffset(entity);
+	ents[offset].aabb = aabb;
+	aabb = aabb.Expanded(BIG_EPSILON);
 	broadphase.setAabb(ents[offset].proxy, bt(aabb.min), bt(aabb.max), nullptr);
 	requiresRebuild++;
 }
@@ -103,7 +106,7 @@ bool BulletDbvh::Exists(EntityType entity) const
 Aabb BulletDbvh::GetAabb(EntityType entity) const
 {
 	const Data &data = ents[ents.GetOffset(entity)];
-	return {gl(data.proxy->m_aabbMin), gl(data.proxy->m_aabbMax)};
+	return data.aabb;
 }
 
 MaskType BulletDbvh::GetMask(EntityType entity) const

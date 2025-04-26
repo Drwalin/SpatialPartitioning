@@ -50,10 +50,8 @@ void BulletDbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	assert(Exists(entity) == false);
 
-	int32_t offset = ents.Add(entity, Data{entity, mask, aabb, nullptr});
-	aabb.min -= BIG_EPSILON;
-	aabb.min += BIG_EPSILON;
-	bullet::btDbvtAabbMm volume = bt(aabb);
+	int32_t offset = ents.Add(entity, Data{aabb, nullptr, entity, mask});
+	bullet::btDbvtAabbMm volume = bt(aabb.Expanded(BIG_EPSILON));
 	bullet::btDbvtNode *node = dbvt.insert(volume, (void *)(int64_t)offset);
 	ents[offset].node = node;
 	requiresRebuild++;
@@ -64,9 +62,7 @@ void BulletDbvt::Update(EntityType entity, Aabb aabb)
 	int32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
 		ents[offset].aabb = aabb;
-		aabb.min -= BIG_EPSILON;
-		aabb.min += BIG_EPSILON;
-		bullet::btDbvtAabbMm volume = bt(aabb);
+		bullet::btDbvtAabbMm volume = bt(aabb.Expanded(BIG_EPSILON));
 		dbvt.update(ents[offset].node, volume);
 		requiresRebuild++;
 	} else {

@@ -53,10 +53,10 @@ private:
 
 private:
 	struct Data {
-		EntityType entity;
-		MaskType mask;
 		Aabb aabb;
-		bullet::btDbvtNode *node;
+		bullet::btDbvtNode *node = nullptr;
+		EntityType entity = 0;
+		MaskType mask = 0;
 	};
 	AssociativeArray<EntityType, int32_t, Data, false> ents;
 	bullet::btDbvt dbvt;

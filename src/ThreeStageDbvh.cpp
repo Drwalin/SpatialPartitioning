@@ -301,7 +301,7 @@ Aabb ThreeStageDbvh::GetAabb(EntityType entity) const
 	} else if (dynamic->Exists(entity)) {
 		return dynamic->GetAabb(entity);
 	} else {
-		ASSERT(false && "DUPA DUPA DUPA DUP DUP DUP DUP DUP DUPAAAAAA DUPA");
+		ASSERT(!"Entity does not exist");
 		return {};
 	}
 }
@@ -313,7 +313,7 @@ MaskType ThreeStageDbvh::GetMask(EntityType entity) const
 	} else if (dynamic->Exists(entity)) {
 		return dynamic->GetMask(entity);
 	} else {
-		ASSERT(false && "DUPA DUPA DUPA DUP DUP DUP DUP DUP DUPAAAAAA DUPA");
+		ASSERT(!"Entity does not exist");
 		return 0;
 	}
 }

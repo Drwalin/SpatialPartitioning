@@ -46,7 +46,7 @@ private:
 		MaskType mask = 0;
 	};
 
-	AssociativeArray<EntityType, int32_t, Data> entitiesData;
+	AssociativeArray<EntityType, int32_t, Data, false> entitiesData;
 
 	class Iterator final : public BroadphaseBaseIterator
 	{
@@ -60,7 +60,7 @@ private:
 		virtual bool Valid() override;
 		bool FetchData();
 
-		AssociativeArray<EntityType, int32_t, Data> *map;
+		AssociativeArray<EntityType, int32_t, Data, false> *map;
 		int32_t it = 0;
 	} iterator;
 };

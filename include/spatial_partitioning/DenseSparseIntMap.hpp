@@ -12,11 +12,13 @@
 
 namespace spp
 {
-template <typename KeyUIntType, typename ValueIntType, bool enableDense = false,
-		  ValueIntType NULL_VALUE = 0>
+template <typename KeyUIntType, typename ValueType, bool enableDense = false,
+		  ValueType NULL_VALUE = 0>
 class DenseSparseIntMap final
 {
 public:
+	inline const static bool IS_INTEGRAL = std::is_integral_v<ValueType>;
+
 	inline DenseSparseIntMap(KeyUIntType denseRange)
 		: denseRange(denseRange + 1)
 	{
@@ -30,30 +32,32 @@ public:
 
 	inline void Reserve(KeyUIntType capacity)
 	{
-		/*
-		if (capacity > denseRange) {
+		if constexpr (enableDense == false) {
+			sparse.reserve(capacity);
+		} else {
 			sparse.reserve(capacity - denseRange);
 		}
-		*/
 	}
 
 	inline void Clear()
 	{
+		size = 0;
 		sparse.clear();
 		if constexpr (enableDense) {
 			dense.resize(denseRange);
-			if constexpr (NULL_VALUE == 0) {
-				memset(dense.data(), 0, denseRange * sizeof(ValueIntType));
-			} else {
-				for (auto &v : dense) {
-					v = NULL_VALUE;
+			if constexpr (IS_INTEGRAL) {
+				if constexpr (NULL_VALUE == 0) {
+					memset(dense.data(), 0, denseRange * sizeof(ValueType));
+					return;
 				}
 			}
+			for (auto &v : dense) {
+				v = NULL_VALUE;
+			}
 		}
-		size = 0;
 	}
 
-	inline void Insert(KeyUIntType key, ValueIntType value) { Set(key, value); }
+	inline void Insert(KeyUIntType key, ValueType value) { Set(key, value); }
 
 	inline void Remove(KeyUIntType key)
 	{
@@ -70,15 +74,15 @@ public:
 		}
 	}
 
-	inline void Set(KeyUIntType key, ValueIntType value)
+	inline void Set(KeyUIntType key, ValueType value)
 	{
 		if (enableDense && (key < denseRange)) {
-			if (dense[key] == NULL_VALUE && value != NULL_VALUE) {
+			if (!(dense[key] != NULL_VALUE) && value != NULL_VALUE) {
 				++size;
 			}
 			dense[key] = value;
 		} else {
-			if (value == NULL_VALUE) {
+			if (!(value != NULL_VALUE)) {
 				Remove(key);
 			} else {
 				if (sparse.contains(key) == false) {
@@ -89,7 +93,7 @@ public:
 		}
 	}
 
-	inline ValueIntType Get(KeyUIntType key) const
+	inline ValueType Get(KeyUIntType key) const
 	{
 		if (enableDense && (key < denseRange)) {
 			return dense[key];
@@ -115,7 +119,7 @@ public:
 		return false;
 	}
 
-	inline ValueIntType *find(KeyUIntType key)
+	inline ValueType *find(KeyUIntType key)
 	{
 		if (enableDense && (key < denseRange)) {
 			if (dense[key] != NULL_VALUE) {
@@ -132,7 +136,7 @@ public:
 		return nullptr;
 	}
 
-	inline const ValueIntType *find(KeyUIntType key) const
+	inline const ValueType *find(KeyUIntType key) const
 	{
 		if (enableDense && (key < denseRange)) {
 			if (dense[key] != NULL_VALUE) {
@@ -149,7 +153,7 @@ public:
 		return nullptr;
 	}
 
-	inline ValueIntType operator[](KeyUIntType key) const { return Get(key); }
+	inline ValueType operator[](KeyUIntType key) const { return Get(key); }
 
 	inline void ShrinkToFit() { sparse.rehash(0); }
 
@@ -157,8 +161,7 @@ public:
 
 	inline size_t GetMemoryUsage() const
 	{
-		return sparse.GetMemoryUsage() +
-			   dense.capacity() * sizeof(ValueIntType);
+		return sparse.GetMemoryUsage() + dense.capacity() * sizeof(ValueType);
 	}
 
 public:
@@ -194,13 +197,13 @@ public:
 		bool end = false;
 		DenseSparseIntMap *map;
 		KeyUIntType first;
-		ValueIntType second;
-		std::unordered_map<KeyUIntType, ValueIntType>::iterator it2;
+		ValueType second;
+		std::unordered_map<KeyUIntType, ValueType>::iterator it2;
 
 		void operator++(int) { Next(); }
 		void operator++() { Next(); }
 
-		std::pair<KeyUIntType, ValueIntType> operator*()
+		std::pair<KeyUIntType, ValueType> operator*()
 		{
 			return {first, second};
 		}
@@ -211,7 +214,7 @@ public:
 				do {
 					++first;
 				} while (first < map->denseRange &&
-						 map->dense[first] == NULL_VALUE);
+						 !(map->dense[first] != NULL_VALUE));
 				if (first < map->denseRange) {
 					second = map->dense[first];
 					return;
@@ -241,8 +244,8 @@ public:
 	Iterator end() { return Iterator(this).SetEnd(); }
 
 private:
-	HashMap<KeyUIntType, ValueIntType> sparse;
-	std::vector<ValueIntType> dense;
+	HashMap<KeyUIntType, ValueType> sparse;
+	std::vector<ValueType> dense;
 	const KeyUIntType denseRange;
 	KeyUIntType size = 0;
 };

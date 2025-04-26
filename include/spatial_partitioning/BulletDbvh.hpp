@@ -53,9 +53,10 @@ private:
 
 private:
 	struct Data {
-		EntityType entity;
-		MaskType mask;
-		bullet::btBroadphaseProxy *proxy;
+		Aabb aabb;
+		EntityType entity = 0;
+		MaskType mask = 0;
+		bullet::btBroadphaseProxy *proxy = 0;
 	};
 	AssociativeArray<EntityType, int32_t, Data> ents;
 	bullet::btNullPairCache cache;

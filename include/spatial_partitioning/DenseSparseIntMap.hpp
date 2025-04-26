@@ -1,0 +1,250 @@
+// This file is part of SpatialPartitioning.
+// Copyright (c) 2024-2025 Marek Zalewski aka Drwalin
+// You should have received a copy of the MIT License along with this program.
+
+#pragma once
+
+#include <cstring>
+
+#include <vector>
+#include <unordered_map>
+
+namespace spp
+{
+template <typename KeyUIntType, typename ValueIntType, bool enableDense = false,
+		  ValueIntType NULL_VALUE = 0>
+class DenseSparseIntMap final
+{
+public:
+	inline DenseSparseIntMap(KeyUIntType denseRange)
+		: denseRange(denseRange + 1)
+	{
+		Clear();
+	}
+	inline ~DenseSparseIntMap() {}
+
+	inline DenseSparseIntMap(const DenseSparseIntMap &) = default;
+	inline DenseSparseIntMap(DenseSparseIntMap &) = default;
+	inline DenseSparseIntMap(DenseSparseIntMap &&) = default;
+
+	inline void Reserve(KeyUIntType capacity)
+	{
+		/*
+		if (capacity > denseRange) {
+			sparse.reserve(capacity - denseRange);
+		}
+		*/
+	}
+
+	inline void Clear()
+	{
+		sparse.clear();
+		if constexpr (enableDense) {
+			dense.resize(denseRange);
+			if constexpr (NULL_VALUE == 0) {
+				memset(dense.data(), 0, denseRange * sizeof(ValueIntType));
+			} else {
+				for (auto &v : dense) {
+					v = NULL_VALUE;
+				}
+			}
+		}
+		size = 0;
+	}
+
+	inline void Insert(KeyUIntType key, ValueIntType value) { Set(key, value); }
+
+	inline void Remove(KeyUIntType key)
+	{
+		if (enableDense && (key < denseRange)) {
+			if (dense[key] != NULL_VALUE) {
+				--size;
+			}
+			dense[key] = NULL_VALUE;
+		} else {
+			if (sparse.contains(key)) {
+				--size;
+			}
+			sparse.erase(key);
+		}
+	}
+
+	inline void Set(KeyUIntType key, ValueIntType value)
+	{
+		if (enableDense && (key < denseRange)) {
+			if (dense[key] == NULL_VALUE && value != NULL_VALUE) {
+				++size;
+			}
+			dense[key] = value;
+		} else {
+			if (value == NULL_VALUE) {
+				Remove(key);
+			} else {
+				if (sparse.contains(key) == false) {
+					++size;
+				}
+				sparse[key] = value;
+			}
+		}
+	}
+
+	inline ValueIntType Get(KeyUIntType key) const
+	{
+		if (enableDense && (key < denseRange)) {
+			return dense[key];
+		} else {
+			auto it = sparse.find(key);
+			if (it != sparse.end()) {
+				return it->second;
+			}
+		}
+		return NULL_VALUE;
+	}
+
+	inline bool Has(KeyUIntType key) const
+	{
+		if (enableDense && (key < denseRange)) {
+			return dense[key] != NULL_VALUE;
+		} else {
+			auto it = sparse.find(key);
+			if (it != sparse.end()) {
+				return it->second != NULL_VALUE;
+			}
+		}
+		return false;
+	}
+
+	inline ValueIntType *find(KeyUIntType key)
+	{
+		if (enableDense && (key < denseRange)) {
+			if (dense[key] != NULL_VALUE) {
+				return &(dense[key]);
+			}
+		} else {
+			auto it = sparse.find(key);
+			if (it != sparse.end()) {
+				if (it->second != NULL_VALUE) {
+					return &(it->second);
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	inline const ValueIntType *find(KeyUIntType key) const
+	{
+		if (enableDense && (key < denseRange)) {
+			if (dense[key] != NULL_VALUE) {
+				return &(dense[key]);
+			}
+		} else {
+			auto it = sparse.find(key);
+			if (it != sparse.end()) {
+				if (it->second != NULL_VALUE) {
+					return &(it->second);
+				}
+			}
+		}
+		return nullptr;
+	}
+
+	inline ValueIntType operator[](KeyUIntType key) const { return Get(key); }
+
+	inline void ShrinkToFit() { sparse.rehash(0); }
+
+	inline KeyUIntType Size() const { return size; }
+
+	inline size_t GetMemoryUsage() const
+	{
+		return sparse.bucket_count() * sizeof(void *) +
+			   sparse.size() * (sizeof(void *) * 2lu + sizeof(ValueIntType) +
+								sizeof(KeyUIntType)) +
+			   dense.capacity() * sizeof(ValueIntType);
+	}
+
+public:
+	struct Iterator {
+		Iterator(DenseSparseIntMap *map) : map(map)
+		{
+			if (map) {
+				first = 0;
+				Next();
+			} else {
+				first = -1;
+			}
+		}
+
+		bool operator==(Iterator o) const
+		{
+			if (o.end && end) {
+				return true;
+			}
+			return it2 == o.it2 && first == o.first;
+		}
+
+		bool operator!=(Iterator o) const { return !((*this) == o); }
+
+		Iterator SetEnd()
+		{
+			end = true;
+			first = map->denseRange;
+			it2 = map->sparse.end();
+			return *this;
+		}
+
+		bool end = false;
+		DenseSparseIntMap *map;
+		KeyUIntType first;
+		ValueIntType second;
+		std::unordered_map<KeyUIntType, ValueIntType>::iterator it2;
+
+		void operator++(int) { Next(); }
+		void operator++() { Next(); }
+
+		std::pair<KeyUIntType, ValueIntType> operator*()
+		{
+			return {first, second};
+		}
+
+		void Next()
+		{
+			if (first < map->denseRange) {
+				do {
+					++first;
+				} while (first < map->denseRange &&
+						 map->dense[first] == NULL_VALUE);
+				if (first < map->denseRange) {
+					second = map->dense[first];
+					return;
+				}
+				it2 = map->sparse.begin();
+				if (it2 != map->sparse.end()) {
+					first = it2->first;
+					second = it2->second;
+				} else {
+					end = true;
+				}
+				return;
+			}
+			++it2;
+			if (it2 != map->sparse.end()) {
+				first = it2->first;
+				second = it2->second;
+			} else {
+				end = true;
+			}
+			return;
+		}
+	};
+
+	Iterator begin() { return Iterator(this); }
+
+	Iterator end() { return Iterator(this).SetEnd(); }
+
+private:
+	std::unordered_map<KeyUIntType, ValueIntType> sparse;
+	std::vector<ValueIntType> dense;
+	const KeyUIntType denseRange;
+	KeyUIntType size = 0;
+};
+} // namespace spp

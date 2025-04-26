@@ -26,7 +26,7 @@ public:
 		OffsetType offset = -1;
 		if (freeOffsets.size() > 0) {
 			offset = freeOffsets.back();
-			freeOffsets.resize(freeOffsets.size()-1);
+			freeOffsets.resize(freeOffsets.size() - 1);
 			data[offset] = std::move(value);
 		} else {
 			offset = data.size();
@@ -77,11 +77,7 @@ public:
 	}
 
 	std::vector<ValueType> &_Data() { return data; }
-	std::vector<OffsetType> &
-	_FreeOffsets()
-	{
-		return freeOffsets;
-	}
+	std::vector<OffsetType> &_FreeOffsets() { return freeOffsets; }
 
 private:
 	std::vector<ValueType> data;

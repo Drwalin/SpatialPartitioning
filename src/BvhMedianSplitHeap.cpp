@@ -10,7 +10,7 @@
 
 namespace spp
 {
-BvhMedianSplitHeap::BvhMedianSplitHeap() : iterator(*this) {}
+BvhMedianSplitHeap::BvhMedianSplitHeap(EntityType denseEntityRange) : entitiesOffsets(denseEntityRange), iterator(*this) {}
 BvhMedianSplitHeap::~BvhMedianSplitHeap() {}
 
 const char *BvhMedianSplitHeap::GetName() const { return "BvhMedianSplitHeap"; }
@@ -30,7 +30,7 @@ void BvhMedianSplitHeap::Clear()
 {
 	entitiesData.clear();
 	nodesHeapAabb.clear();
-	entitiesOffsets.clear();
+	entitiesOffsets.Clear();
 	rebuildTree = false;
 	entitiesCount = 0;
 	entitiesPowerOfTwoCount = 0;
@@ -38,9 +38,7 @@ void BvhMedianSplitHeap::Clear()
 
 size_t BvhMedianSplitHeap::GetMemoryUsage() const
 {
-	return entitiesOffsets.bucket_count() * sizeof(void *) +
-		   entitiesOffsets.size() *
-			   (sizeof(void *) * 2lu + sizeof(uint32_t) + sizeof(EntityType)) +
+	return entitiesOffsets.GetMemoryUsage() +
 		   nodesHeapAabb.capacity() * sizeof(NodeData) +
 		   entitiesData.capacity() * sizeof(Data);
 }
@@ -53,11 +51,11 @@ void BvhMedianSplitHeap::ShrinkToFit()
 
 void BvhMedianSplitHeap::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
-	if (entitiesOffsets.find(entity) != entitiesOffsets.end()) {
+	if (entitiesOffsets.find(entity) != nullptr) {
 		assert(false && "Entity already exists");
 		return;
 	}
-	entitiesOffsets[entity] = entitiesData.size();
+	entitiesOffsets.Set(entity, entitiesData.size());
 	entitiesData.push_back({aabb, entity, mask});
 	rebuildTree = true;
 	++entitiesCount;
@@ -77,12 +75,14 @@ void BvhMedianSplitHeap::Update(EntityType entity, Aabb aabb)
 void BvhMedianSplitHeap::Remove(EntityType entity)
 {
 	auto it = entitiesOffsets.find(entity);
-	if (it == entitiesOffsets.end()) {
+	if (it == nullptr) {
 		return;
 	}
+	
+	assert(*it != -1);
 
-	uint32_t offset = it->second;
-	entitiesOffsets.erase(it);
+	uint32_t offset = *it;
+	entitiesOffsets.Remove(entity);
 	entitiesData[offset].entity = EMPTY_ENTITY;
 	entitiesData[offset].mask = 0;
 
@@ -104,11 +104,11 @@ void BvhMedianSplitHeap::Remove(EntityType entity)
 void BvhMedianSplitHeap::SetMask(EntityType entity, MaskType mask)
 {
 	auto it = entitiesOffsets.find(entity);
-	if (it == entitiesOffsets.end()) {
+	if (it == nullptr) {
 		return;
 	}
 
-	uint32_t offset = it->second;
+	uint32_t offset = *it;
 
 	if (entitiesData[offset].mask == mask) {
 		return;
@@ -133,14 +133,14 @@ int32_t BvhMedianSplitHeap::GetCount() const { return entitiesCount; }
 
 bool BvhMedianSplitHeap::Exists(EntityType entity) const
 {
-	return entitiesOffsets.find(entity) != entitiesOffsets.end();
+	return entitiesOffsets.Has(entity);
 }
 
 Aabb BvhMedianSplitHeap::GetAabb(EntityType entity) const
 {
 	auto it = entitiesOffsets.find(entity);
-	if (it != entitiesOffsets.end()) {
-		return entitiesData[it->second].aabb;
+	if (it != nullptr) {
+		return entitiesData[*it].aabb;
 	}
 	return {};
 }
@@ -148,8 +148,8 @@ Aabb BvhMedianSplitHeap::GetAabb(EntityType entity) const
 MaskType BvhMedianSplitHeap::GetMask(EntityType entity) const
 {
 	auto it = entitiesOffsets.find(entity);
-	if (it != entitiesOffsets.end()) {
-		return entitiesData[it->second].mask;
+	if (it != nullptr) {
+		return entitiesData[*it].mask;
 	}
 	return 0;
 }
@@ -272,7 +272,7 @@ void BvhMedianSplitHeap::Rebuild()
 		n.mask = 0;
 	}
 
-	entitiesOffsets.reserve(((entitiesCount + 7) * 3) / 2);
+	entitiesOffsets.Reserve(((entitiesCount + 7) * 3) / 2);
 
 	{ // prune empty entities data
 		PruneEmptyEntitiesAtEnd();
@@ -289,8 +289,8 @@ void BvhMedianSplitHeap::Rebuild()
 	// set entitiesOffsets
 	for (int32_t i = 0; i < entitiesData.size(); ++i) {
 		EntityType entity = entitiesData[i].entity;
-		assert(entitiesOffsets.contains(entity));
-		entitiesOffsets[entity] = i;
+		assert(entitiesOffsets.Has(entity));
+		entitiesOffsets.Set(entity, i);
 	}
 }
 
@@ -449,7 +449,7 @@ bool BvhMedianSplitHeap::RebuildStep(RebuildProgress &progress)
 		break;
 
 	case 2:
-		entitiesOffsets.reserve(((entitiesCount + 7) * 3) / 2);
+		entitiesOffsets.Reserve(((entitiesCount + 7) * 3) / 2);
 		progress.stage = 3;
 		break;
 
@@ -498,7 +498,7 @@ bool BvhMedianSplitHeap::RebuildStep(RebuildProgress &progress)
 	case 6: {
 		for (int32_t i = 0; progress.it < entitiesData.size() && i < 64;
 			 ++i, ++progress.it) {
-			entitiesOffsets[entitiesData[progress.it].entity] = progress.it;
+			entitiesOffsets.Set(entitiesData[progress.it].entity,  progress.it);
 		}
 	}
 

@@ -6,9 +6,9 @@
 
 #include <cstdint>
 
-#include <unordered_map>
 #include <vector>
 
+#include "DenseSparseIntMap.hpp"
 #include "BroadPhaseBase.hpp"
 
 namespace spp
@@ -27,7 +27,7 @@ namespace spp
 class BvhMedianSplitHeap final : public BroadphaseBase
 {
 public:
-	BvhMedianSplitHeap();
+	BvhMedianSplitHeap(EntityType denseEntityRange);
 	virtual ~BvhMedianSplitHeap();
 
 	virtual const char *GetName() const override;
@@ -94,7 +94,7 @@ private:
 		MaskType mask;
 	};
 
-	std::unordered_map<EntityType, int32_t> entitiesOffsets;
+	DenseSparseIntMap<EntityType, int32_t, true, -1> entitiesOffsets;
 	// [0] - ignored, because heap works faster starting from 1
 	std::vector<NodeData> nodesHeapAabb;
 	std::vector<Data> entitiesData;

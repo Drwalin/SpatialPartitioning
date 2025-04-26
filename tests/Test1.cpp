@@ -48,6 +48,7 @@ struct EntityData {
 };
 
 std::vector<EntityData> *globalEntityData = nullptr;
+std::vector<uint64_t> totalErrorsInBroadphase;
 
 struct SingleTestResult {
 	std::vector<spp::EntityType> entities;
@@ -360,6 +361,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 	 TestType testType)
 {
 	TEST_RANDOM_SEED = mt();
+	totalErrorsInBroadphase.resize(broadphases.size(), 0);
 
 	std::uniform_real_distribution<float> distPos(-520, 520);
 	std::uniform_real_distribution<float> distSize(pow(2.0 / 16.0, 1.0 / 3.0),
@@ -432,9 +434,7 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			}
 
 			int I = 0;
-			int j = 0;
 			for (; it0->Valid(); it0->Next()) {
-				++j;
 				if (bpi.Exists(it0->entity) == false) {
 					++cardinalErrors;
 					if (I < 10) {
@@ -463,7 +463,6 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 
 			I = 0;
 			for (; iti->Valid(); iti->Next()) {
-				++j;
 				if (bp0.Exists(iti->entity) == false) {
 					++cardinalErrors;
 					if (I < 10) {
@@ -624,9 +623,15 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			}
 		}
 		errs += cardinalErrors;
-		printf(" %s: (cardinal err: %lu) errors count: %lu ... %s\n",
+		totalErrorsInBroadphase[i] += errs;
+		printf(" %s: (cardinal err: %lu) errors count: %lu ... %s",
 			   broadphases[i]->GetName(), cardinalErrors, errs,
 			   errs ? "ERRORS" : "OK");
+		if (totalErrorsInBroadphase[i] > 0) {
+			printf("    TOTAL ERRORS: %lu", totalErrorsInBroadphase[i]);
+		}
+		printf("\n");
+		fflush(stdout);
 	}
 
 	return ents;
@@ -746,6 +751,8 @@ int main(int argc, char **argv)
 				   "\t-aabb-movements=\n"
 				   "\t-mixed-tests=\n"
 				   "\t-moving-entities=\n"
+				   "\t-random-seed=random\n"
+				   "\t-random-seed=$NUMBER\n"
 				   "\tBF         - BruteForce\n"
 				   "\tBVH        - BvhMedianSplitHeap\n"
 				   "\tDBVH       - Dbvh (DynamicBoundingVolumeHierarchy)\n"
@@ -758,6 +765,11 @@ int main(int argc, char **argv)
 				   "\tLO         - LooseOctree\n");
 
 			return 0;
+		} else if (std::string(argv[i]).starts_with("-random-seed=random")) {
+			std::random_device rd;
+			mt = std::mt19937_64(rd());
+		} else if (std::string(argv[i]).starts_with("-random-seed=")) {
+			mt = std::mt19937_64(atoll(argv[i] + strlen("-random-seed=")));
 		}
 	}
 
@@ -787,8 +799,9 @@ int main(int argc, char **argv)
 
 	spp::BruteForce bf;
 	spp::Dbvh dbvh;
-	spp::HashLooseOctree hlo(1.0, 13, 1.6);
-	spp::LooseOctree lo(-glm::vec3(1, 1, 1) * (1024 * 16.f), 15, 1.6);
+	spp::experimental::HashLooseOctree hlo(1.0, 13, 1.6);
+	spp::experimental::LooseOctree lo(-glm::vec3(1, 1, 1) * (1024 * 16.f), 15,
+									  1.6);
 	spp::BulletDbvh btDbvh;
 	spp::BulletDbvt btDbvt;
 
@@ -851,9 +864,10 @@ int main(int argc, char **argv)
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "HLO") == false) {
-				broadphases.push_back(new spp::HashLooseOctree(1.0, 13, 1.6));
+				broadphases.push_back(
+					new spp::experimental::HashLooseOctree(1.0, 13, 1.6));
 			} else if (strcmp(str, "LO") == false) {
-				broadphases.push_back(new spp::LooseOctree(
+				broadphases.push_back(new spp::experimental::LooseOctree(
 					-glm::vec3(1, 1, 1) * (1024 * 16.f), 15, 1.6));
 			} else if (strcmp(str, "CLO") == false) {
 				printf("ChunkedLooseOctree not implemented\n");
@@ -909,9 +923,11 @@ int main(int argc, char **argv)
 		printf("\n");
 
 		for (auto bp : broadphases) {
-			printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(),
+			printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n", bp->GetName(),
 				   bp->GetMemoryUsage(),
-				   bp->GetMemoryUsage() / (1024.0 * 1024.0));
+				   bp->GetMemoryUsage() / (1024.0 * 1024.0),
+				   (double)bp->GetMemoryUsage() / (double)bp->GetCount()
+				   );
 			fflush(stdout);
 		}
 		printf("\n");
@@ -1103,6 +1119,16 @@ int main(int argc, char **argv)
 		fflush(stdout);
 	}
 	printf("\n");
+	
+	for (auto bp : broadphases) {
+		printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n", bp->GetName(),
+			   bp->GetMemoryUsage(),
+			   bp->GetMemoryUsage() / (1024.0 * 1024.0),
+			   (double)bp->GetMemoryUsage() / (double)bp->GetCount()
+			   );
+		fflush(stdout);
+	}
+	printf("\n");
 
 	for (auto bp : broadphases) {
 		auto beg = std::chrono::steady_clock::now();
@@ -1114,6 +1140,16 @@ int main(int argc, char **argv)
 				.count();
 		double us = double(ns) / 1000.0;
 		printf("%s build: %.3f us\n", bp->GetName(), us);
+		fflush(stdout);
+	}
+	printf("\n");
+	
+	for (auto bp : broadphases) {
+		printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n", bp->GetName(),
+			   bp->GetMemoryUsage(),
+			   bp->GetMemoryUsage() / (1024.0 * 1024.0),
+			   (double)bp->GetMemoryUsage() / (double)bp->GetCount()
+			   );
 		fflush(stdout);
 	}
 	printf("\n");
@@ -1141,9 +1177,11 @@ int main(int argc, char **argv)
 
 		printf("\n");
 		for (auto bp : broadphases) {
-			printf("%s memory: %lu B , %.6f MiB\n", bp->GetName(),
+			printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n", bp->GetName(),
 				   bp->GetMemoryUsage(),
-				   bp->GetMemoryUsage() / (1024.0 * 1024.0));
+				   bp->GetMemoryUsage() / (1024.0 * 1024.0),
+				   (double)bp->GetMemoryUsage() / (double)bp->GetCount()
+				   );
 			fflush(stdout);
 		}
 		printf("\n");

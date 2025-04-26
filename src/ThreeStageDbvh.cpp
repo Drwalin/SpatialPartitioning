@@ -67,9 +67,7 @@ size_t ThreeStageDbvh::GetMemoryUsage() const
 
 		   toRemoveAfterRebuild.capacity() * sizeof(EntityType) +
 
-		   setMaskAfterRebuild.bucket_count() * sizeof(void *) +
-		   setMaskAfterRebuild.size() *
-			   (sizeof(void *) * 2lu + sizeof(EntityType) + sizeof(MaskType));
+		   setMaskAfterRebuild.GetMemoryUsage();
 }
 
 void ThreeStageDbvh::ShrinkToFit()

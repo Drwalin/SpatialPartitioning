@@ -14,6 +14,8 @@
 
 namespace spp
 {
+namespace experimental
+{
 /*
  * Limit of entities count is 268435456 (2^28-1)
  */
@@ -21,8 +23,7 @@ class LooseOctree final : public BroadphaseBase
 {
 public:
 	// example usage LooseOctree(glm::ivec3(1,1,1)<<(levels-1), 1.0, levels)
-	LooseOctree(glm::vec3 offset, int32_t levels,
-				float loosnessFactor = 1.6);
+	LooseOctree(glm::vec3 offset, int32_t levels, float loosnessFactor = 1.6);
 	virtual ~LooseOctree();
 
 	virtual const char *GetName() const override;
@@ -35,7 +36,7 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
-	
+
 	virtual int32_t GetCount() const override;
 	virtual bool Exists(EntityType entity) const override;
 
@@ -46,7 +47,7 @@ public:
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	virtual void Rebuild() override;
-	
+
 	virtual BroadphaseBaseIterator *RestartIterator() override;
 
 private:
@@ -58,20 +59,24 @@ private:
 	void PruneEmptyEntitiesAtEnd();
 	void UpdateAabb(int32_t entityId);
 
-	void _Internal_IntersectAabb(IntersectionCallback &cb, const int32_t nodeId);
-	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId, int32_t level);
+	void _Internal_IntersectAabb(IntersectionCallback &cb,
+								 const int32_t nodeId);
+	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId,
+								int32_t level);
 
-// 	int32_t GetChildIdFromCenter(glm::vec3 p) const;
-// 	glm::vec3 GetCenterOffset(int32_t depth);
-// 	// offset from parent node
-// 	glm::vec3 GetPosOffsetOfNodeAtDepth(int32_t depth, int32_t childId) const;
+	// 	int32_t GetChildIdFromCenter(glm::vec3 p) const;
+	// 	glm::vec3 GetCenterOffset(int32_t depth);
+	// 	// offset from parent node
+	// 	glm::vec3 GetPosOffsetOfNodeAtDepth(int32_t depth, int32_t childId)
+	// const;
 
 	void RemoveStructureFor(int32_t offset);
 
 	AabbCentered GetAabbOfNode(int32_t nodeId) const;
 	IPosLevel CalcIPosLevel(Aabb aabb) const;
-	
-	static int32_t CalcChildId(glm::ivec3 parentPos, glm::ivec3 childPos, int32_t childLevel);
+
+	static int32_t CalcChildId(glm::ivec3 parentPos, glm::ivec3 childPos,
+							   int32_t childLevel);
 
 private:
 	int32_t GetNodeIdAt(Aabb aabb);
@@ -93,7 +98,7 @@ private:
 		// MaskType mask = 0;
 		int32_t firstEntity = 0;
 		int32_t parentId = 0;
-		
+
 		bool HasData() const;
 	};
 
@@ -125,4 +130,5 @@ private:
 		int it;
 	} iterator;
 };
+} // namespace experimental
 } // namespace spp

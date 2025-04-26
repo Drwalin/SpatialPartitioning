@@ -94,17 +94,17 @@ public:
 			tmax.x = tmax.z;
 		near = tmin.x;
 		far = tmax.x;
-		
+
 		if (far < 0.0f)
 			return false;
-		
+
 		if (near > far)
 			return false;
-		
+
 		if (near < 0.0f) {
 			near = 0.0f;
 		}
-		
+
 		return true;
 	}
 
@@ -115,13 +115,11 @@ public:
 		return FastRayTest2(ro, invDir, signs, near, far);
 	}
 
-	inline bool SlowRayTest2(
-			const glm::vec3 &start, const glm::vec3 &end,
-							float &near, float &far
-							 ) const
+	inline bool SlowRayTest2(const glm::vec3 &start, const glm::vec3 &end,
+							 float &near, float &far) const
 	{
 		const glm::vec3 dir = end - start;
-		const glm::vec3 invDir = glm::vec3(1.0f, 1.0f, 1.0f) / dir;//dirNorm;
+		const glm::vec3 invDir = glm::vec3(1.0f, 1.0f, 1.0f) / dir; // dirNorm;
 		return FastRayTest2(start, invDir, near, far);
 	}
 
@@ -206,7 +204,7 @@ public:
 		if (tN > tF || tF < 0.0f) {
 			return false;
 		}
-		
+
 		if (near < 0.0f) {
 			near = 0.0f;
 		}
@@ -220,7 +218,7 @@ public:
 		const glm::vec3 dir = end - start;
 		const float len = glm::length(dir);
 		const glm::vec3 dirNorm = dir / len;
-		const glm::vec3 invDir = glm::vec3(1.0f, 1.0f, 1.0f) / dir;//dirNorm;
+		const glm::vec3 invDir = glm::vec3(1.0f, 1.0f, 1.0f) / dir; // dirNorm;
 		return FastRayTest(start, dirNorm, invDir, len, near, far);
 	}
 

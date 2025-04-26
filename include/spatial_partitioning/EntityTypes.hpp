@@ -17,8 +17,8 @@ using EntityType = SPP_ENTITY_TYPE
 #ifndef SPP_MASK_TYPE
 using MaskType = uint32_t;
 #else
-using MaskType = SPP_MASK_TYPE
+	using MaskType = SPP_MASK_TYPE
 #endif
 
 inline const EntityType EMPTY_ENTITY = 0;
-}
+} // namespace spp

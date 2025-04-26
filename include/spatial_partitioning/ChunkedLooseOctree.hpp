@@ -17,6 +17,8 @@
 
 namespace spp
 {
+namespace experimental
+{
 class ChunkedLooseOctree final : public BroadphaseBase
 {
 public:
@@ -53,10 +55,10 @@ public:
 	int32_t GetChunkId(glm::vec3 pos) const;
 	int32_t GetChunkId(EntityType entity) const;
 	int32_t GetCreateNodeId(Aabb aabb);
-	
+
 	void AddToChunk(int32_t chunkId, int32_t entityOffset);
 	void RemoveFromChunk(int32_t entityOffset);
-	
+
 	void UnlinkFromChunk(int32_t entityOffset);
 	void CleanIfEmptyNodes(int32_t nodeId);
 
@@ -78,10 +80,11 @@ private:
 	glm::ivec3 GetMinChunk(glm::vec3 point) const;
 	glm::ivec4 GetNodePosSize(Aabb aabb) const;
 	bool FitsInChunk(Aabb aabb) const;
-	
-	void _Internal_IntersectAabb(IntersectionCallback &cb, const int32_t nodeId);
+
+	void _Internal_IntersectAabb(IntersectionCallback &cb,
+								 const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
-	
+
 private:
 	struct Data {
 		Aabb aabb;
@@ -113,7 +116,7 @@ private:
 		int32_t firstEntity = 0;
 		int32_t halfSize = 0;
 		int32_t cx, cy, cz;
-		
+
 		AabbCentered GetAabb() const;
 	};
 
@@ -150,4 +153,5 @@ private:
 		int it;
 	} iterator;
 };
+} // namespace experimental
 } // namespace spp

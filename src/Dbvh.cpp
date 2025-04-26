@@ -206,10 +206,7 @@ void Dbvh::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
-int32_t Dbvh::GetCount() const
-{
-	return data.Size();
-}
+int32_t Dbvh::GetCount() const { return data.Size(); }
 
 bool Dbvh::Exists(EntityType entity) const
 {
@@ -258,7 +255,7 @@ void Dbvh::_Internal_IntersectAabb(IntersectionCallback &cb, const int32_t node)
 		}
 	} else if (data[node - OFFSET].mask & cb.mask) {
 		++cb.nodesTestedCount;
-		if (data[node-OFFSET].aabb && cb.aabb) {
+		if (data[node - OFFSET].aabb && cb.aabb) {
 			++cb.testedCount;
 			cb.callback(&cb, data[node - OFFSET].entity);
 		}
@@ -323,10 +320,7 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 	}
 }
 
-void Dbvh::Rebuild()
-{
-	FastRebalance();
-}
+void Dbvh::Rebuild() { FastRebalance(); }
 
 void Dbvh::FastRebalance()
 {

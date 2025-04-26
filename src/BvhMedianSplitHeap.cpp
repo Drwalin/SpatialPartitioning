@@ -10,7 +10,10 @@
 
 namespace spp
 {
-BvhMedianSplitHeap::BvhMedianSplitHeap(EntityType denseEntityRange) : entitiesOffsets(denseEntityRange), iterator(*this) {}
+BvhMedianSplitHeap::BvhMedianSplitHeap(EntityType denseEntityRange)
+	: entitiesOffsets(denseEntityRange), iterator(*this)
+{
+}
 BvhMedianSplitHeap::~BvhMedianSplitHeap() {}
 
 const char *BvhMedianSplitHeap::GetName() const { return "BvhMedianSplitHeap"; }
@@ -78,7 +81,7 @@ void BvhMedianSplitHeap::Remove(EntityType entity)
 	if (it == nullptr) {
 		return;
 	}
-	
+
 	assert(*it != -1);
 
 	uint32_t offset = *it;
@@ -498,7 +501,7 @@ bool BvhMedianSplitHeap::RebuildStep(RebuildProgress &progress)
 	case 6: {
 		for (int32_t i = 0; progress.it < entitiesData.size() && i < 64;
 			 ++i, ++progress.it) {
-			entitiesOffsets.Set(entitiesData[progress.it].entity,  progress.it);
+			entitiesOffsets.Set(entitiesData[progress.it].entity, progress.it);
 		}
 	}
 

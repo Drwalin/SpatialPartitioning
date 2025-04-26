@@ -98,10 +98,7 @@ void BvhMedianSplitHeap::Remove(EntityType entity)
 
 	PruneEmptyEntitiesAtEnd();
 
-	offset = (offset | 1) ^ 1;
-	if (offset < entitiesData.size()) {
-		UpdateAabb(offset);
-	}
+	UpdateAabb(offset);
 }
 
 void BvhMedianSplitHeap::SetMask(EntityType entity, MaskType mask)
@@ -178,17 +175,17 @@ void BvhMedianSplitHeap::_Internal_IntersectAabb(IntersectionCallback &cb,
 	const int32_t n = nodeId << 1;
 	if (n >= entitiesPowerOfTwoCount) {
 		int32_t o = n - entitiesPowerOfTwoCount;
-		for (int i = o; i <= o + 1 && i < entitiesData.size(); ++i) {
-			if (entitiesData[i].mask & cb.mask) {
+		for (int i = 0; i <= 1 && o < entitiesData.size(); ++i, ++o) {
+			if (entitiesData[o].mask & cb.mask) {
 				++cb.nodesTestedCount;
-				if (entitiesData[i].aabb && cb.aabb) {
+				if (entitiesData[o].aabb && cb.aabb) {
 					++cb.testedCount;
-					cb.callback(&cb, entitiesData[i].entity);
+					cb.callback(&cb, entitiesData[o].entity);
 				}
 			}
 		}
 	} else {
-		for (int i = 0; i <= 1; ++i) {
+		for (int i = 0; i <= 1 && n + i < nodesHeapAabb.size(); ++i) {
 			if (nodesHeapAabb[n + i].mask & cb.mask) {
 				++cb.nodesTestedCount;
 				if (nodesHeapAabb[n + i].aabb && cb.aabb) {
@@ -221,27 +218,27 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 	const int32_t n = nodeId << 1;
 	if (n >= entitiesPowerOfTwoCount) {
 		int32_t o = n - entitiesPowerOfTwoCount;
-		for (int i = 0; i <= 1 && (o ^ i) < entitiesData.size(); ++i) {
-			if ((entitiesData[o ^ i].mask & cb.mask) &&
-				entitiesData[o ^ i].entity != EMPTY_ENTITY) {
-				auto &ed = entitiesData[o ^ i];
+		for (int i = 0; i <= 1 && o < entitiesData.size(); ++i, ++o) {
+			if ((entitiesData[o].mask & cb.mask) &&
+				entitiesData[o].entity != EMPTY_ENTITY) {
+				auto &ed = entitiesData[o];
 				cb.ExecuteIfRelevant(ed.aabb, ed.entity);
 			}
 		}
 	} else {
 		float __n[2], __f[2];
 		int __has = 0;
-		for (int i = 0; i <= 1; ++i) {
-			if (nodesHeapAabb[n ^ i].mask & cb.mask) {
+		for (int i = 0; i <= 1 && n + i < nodesHeapAabb.size(); ++i) {
+			if (nodesHeapAabb[n + i].mask & cb.mask) {
 				++cb.nodesTestedCount;
-				if (cb.IsRelevant(nodesHeapAabb[n ^ i].aabb, __n[i], __f[i])) {
-					if (__n[i] < 0.0f)
-						__n[i] = 0.0f;
+				if (cb.IsRelevant(nodesHeapAabb[n + i].aabb, __n[i], __f[i])) {
 					__has += i + 1;
 				}
 			}
 		}
 		switch (__has) {
+		case 0:
+			break;
 		case 1:
 			_Internal_IntersectRay(cb, n);
 			break;
@@ -270,12 +267,12 @@ void BvhMedianSplitHeap::Rebuild()
 	rebuildTree = false;
 	entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)entitiesCount);
 
-	nodesHeapAabb.resize(entitiesPowerOfTwoCount);
+	nodesHeapAabb.resize(entitiesPowerOfTwoCount / 2 + (entitiesCount + 1) / 2);
 	for (auto &n : nodesHeapAabb) {
 		n.mask = 0;
 	}
 
-	entitiesOffsets.Reserve(((entitiesCount + 7) * 3) / 2);
+	entitiesOffsets.Reserve(entitiesCount);
 
 	{ // prune empty entities data
 		PruneEmptyEntitiesAtEnd();
@@ -288,20 +285,13 @@ void BvhMedianSplitHeap::Rebuild()
 	}
 
 	RebuildNode(1);
-
-	// set entitiesOffsets
-	for (int32_t i = 0; i < entitiesData.size(); ++i) {
-		EntityType entity = entitiesData[i].entity;
-		assert(entitiesOffsets.Has(entity));
-		entitiesOffsets.Set(entity, i);
-	}
 }
 
 void BvhMedianSplitHeap::RebuildNode(int32_t nodeId)
 {
 	int32_t tcount = 0;
 	nodeId = RebuildNodePartial(nodeId, &tcount);
-	if (nodeId > 1) {
+	if (nodeId > 1 && nodeId < nodesHeapAabb.size()) {
 		RebuildNode(nodeId);
 		RebuildNode(nodeId + 1);
 	}
@@ -321,9 +311,9 @@ int32_t BvhMedianSplitHeap::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
 		return -1;
 	}
 	int32_t orgCount = count;
-	count = std::min<int32_t>(count, entitiesData.size() - offset);
+	count = std::min<int32_t>(count, ((int32_t)entitiesData.size()) - offset);
 
-	if (count == 0) {
+	if (count < 0) {
 		return -1;
 	}
 
@@ -331,13 +321,16 @@ int32_t BvhMedianSplitHeap::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
 
 	Aabb totalAabb = entitiesData[offset].aabb;
 	MaskType mask = entitiesData[offset].mask;
-	for (int32_t i = offset + 1; i < offset + count; ++i) {
+	for (int32_t i = offset; i < offset + count; ++i) {
 		totalAabb = totalAabb + entitiesData[i].aabb;
 		mask |= entitiesData[i].mask;
 	}
 	nodesHeapAabb[nodeId] = {totalAabb.Expanded(BIG_EPSILON), mask};
 
 	if (count <= 2) {
+		for (int32_t i = offset; i < offset + count; ++i) {
+			entitiesOffsets.Set(entitiesData[i].entity, i);
+		}
 		return -1;
 	}
 
@@ -404,11 +397,11 @@ void BvhMedianSplitHeap::UpdateAabb(int32_t offset)
 		}
 	}
 
-	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> 1; n > 0; n >>= 1) {
+	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> 1; n > 1; n >>= 1) {
 		nodesHeapAabb[n].aabb = aabb.Expanded(BIG_EPSILON);
 		nodesHeapAabb[n].mask = mask;
 		n ^= 1;
-		if (n < nodesHeapAabb.size() && n > 0) {
+		if (n < nodesHeapAabb.size()) {
 			if (nodesHeapAabb[n].mask) {
 				if (mask) {
 					aabb = aabb + nodesHeapAabb[n].aabb;
@@ -418,6 +411,10 @@ void BvhMedianSplitHeap::UpdateAabb(int32_t offset)
 				mask |= nodesHeapAabb[n].mask;
 			}
 		}
+	}
+	if (1 < nodesHeapAabb.size()) {
+		nodesHeapAabb[1].aabb = aabb.Expanded(BIG_EPSILON);
+		nodesHeapAabb[1].mask = mask;
 	}
 }
 
@@ -447,7 +444,7 @@ bool BvhMedianSplitHeap::RebuildStep(RebuildProgress &progress)
 		break;
 
 	case 2:
-		entitiesOffsets.Reserve(((entitiesCount + 7) * 3) / 2);
+		entitiesOffsets.Reserve(entitiesCount);
 		progress.stage = 3;
 		break;
 
@@ -491,22 +488,13 @@ bool BvhMedianSplitHeap::RebuildStep(RebuildProgress &progress)
 			}
 			sum += tcount;
 		}
-	} break;
-
-	case 6: {
-		for (int32_t i = 0; progress.it < entitiesData.size() && i < 64;
-			 ++i, ++progress.it) {
-			entitiesOffsets.Set(entitiesData[progress.it].entity, progress.it);
-		}
-	}
-
-		if (progress.it >= entitiesData.size()) {
-			progress.stage = 7;
+		if (progress.size <= 0) {
+			progress.stage = 6;
 		}
 		break;
+	}
 
-	case 7:
-		// TODO: remove removed during updating
+	case 6:
 		progress.done = true;
 		progress.stage = 8;
 		break;

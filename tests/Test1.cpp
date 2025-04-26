@@ -465,6 +465,8 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			   vec.nodesTestedCount, vec.testedCount, hitPoints.back().size());
 		fflush(stdout);
 	}
+	
+	printf("Number of entities %i\n", broadphases[0]->GetCount());
 
 	printf("\n");
 	for (int i = 1; i < broadphases.size(); ++i) {

@@ -34,7 +34,7 @@ bool IntersectionCallback::IsRelevant(Aabb aabb) const
 bool RayCallback::IsRelevant(AabbCentered aabb, float &near, float &far) const
 {
 	if (aabb.FastRayTest(start, dirNormalized, invDir, length, near, far)) {
-		if (near >= cutFactor) {
+		if (near > cutFactor) {
 			return false;
 		} else {
 			return true;
@@ -45,7 +45,7 @@ bool RayCallback::IsRelevant(AabbCentered aabb, float &near, float &far) const
 bool RayCallback::IsRelevant(Aabb aabb, float &near, float &far) const
 {
 	if (aabb.FastRayTest2(start, invDir, signs, near, far)) {
-		if (near >= cutFactor) {
+		if (near > cutFactor) {
 			return false;
 		} else {
 			return true;

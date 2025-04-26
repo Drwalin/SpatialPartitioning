@@ -24,14 +24,14 @@ public:
 	virtual void Clear() override;
 	virtual size_t GetMemoryUsage() const override;
 	virtual void ShrinkToFit() override;
-	
+
 	void IncrementalOptimize(int iterations);
 
 	virtual void Add(EntityType entity, Aabb aabb, MaskType mask) override;
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
-	
+
 	virtual int32_t GetCount() const override;
 	virtual bool Exists(EntityType entity) const override;
 
@@ -42,12 +42,12 @@ public:
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	virtual void Rebuild() override;
-	
+
 	friend class btDbvtAabbCb;
 	friend class btDbvtRayCb;
-	
+
 	virtual BroadphaseBaseIterator *RestartIterator() override;
-	
+
 private:
 	void SmallRebuildIfNeeded();
 
@@ -60,22 +60,22 @@ private:
 	};
 	AssociativeArray<EntityType, int32_t, Data, false> ents;
 	bullet::btDbvt dbvt;
-	bullet::btAlignedObjectArray<const bullet::btDbvtNode*> stack;
-	
+	bullet::btAlignedObjectArray<const bullet::btDbvtNode *> stack;
+
 	size_t requiresRebuild = 0;
-	
+
 	class Iterator final : public BroadphaseBaseIterator
 	{
 	public:
 		Iterator(BulletDbvt &bp);
 		virtual ~Iterator();
-		
-		Iterator &operator = (Iterator &&other) = default;
-		
+
+		Iterator &operator=(Iterator &&other) = default;
+
 		virtual bool Next() override;
 		virtual bool Valid() override;
 		bool FetchData();
-		
+
 		std::vector<Data> *data;
 		int it;
 	} iterator;

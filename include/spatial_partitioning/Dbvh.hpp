@@ -37,7 +37,7 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
-	
+
 	virtual int32_t GetCount() const override;
 	virtual bool Exists(EntityType entity) const override;
 
@@ -48,7 +48,7 @@ public:
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	virtual void Rebuild() override;
-	
+
 	virtual BroadphaseBaseIterator *RestartIterator() override;
 
 private:
@@ -106,19 +106,19 @@ private:
 
 	int32_t rootNode = 0;
 	bool fastRebalance = false;
-	
+
 	class Iterator final : public BroadphaseBaseIterator
 	{
 	public:
 		Iterator(Dbvh &bp);
 		virtual ~Iterator();
-		
-		Iterator &operator = (Iterator &&other) = default;
-		
+
+		Iterator &operator=(Iterator &&other) = default;
+
 		virtual bool Next() override;
 		virtual bool Valid() override;
 		bool FetchData();
-		
+
 		std::vector<Data> *data;
 		int it;
 	} iterator;

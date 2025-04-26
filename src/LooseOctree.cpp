@@ -5,15 +5,19 @@
 #include <cassert>
 #include <cstring>
 
+/*
 #include "../../thirdparty/glm/glm/ext/vector_uint3.hpp"
 #include "../../thirdparty/glm/glm/vector_relational.hpp"
+*/
 
 #include "../include/spatial_partitioning/LooseOctree.hpp"
 
 namespace spp
 {
-LooseOctree::LooseOctree(glm::vec3 centerOffset,
-						 int32_t levels, float loosnessFactor)
+namespace experimental
+{
+LooseOctree::LooseOctree(glm::vec3 centerOffset, int32_t levels,
+						 float loosnessFactor)
 	: data(), nodes(), centerOffset(centerOffset), levels(levels),
 	  loosnessFactor(loosnessFactor), invLoosenessFactor(1.0f / loosnessFactor),
 	  maxExtent(1 << (levels - 1)), margin((loosnessFactor - 1.0) / 2.0),
@@ -27,7 +31,8 @@ const char *LooseOctree::GetName() const { return "LooseOctree"; }
 
 void LooseOctree::Clear()
 {
-// 	printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count: %i\n", nodes.Size());
+	// 	printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count:
+	// %i\n", nodes.Size());
 	data.Clear();
 	nodes.Clear();
 	rootNode = nodes.Add({});
@@ -44,7 +49,8 @@ void LooseOctree::ShrinkToFit()
 {
 	data.ShrinkToFit();
 	nodes.ShrinkToFit();
-// 	printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count: %i\n", nodes.Size());
+	// 	printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count:
+	// %i\n", nodes.Size());
 }
 
 void LooseOctree::Add(EntityType entity, Aabb aabb, MaskType mask)
@@ -52,7 +58,7 @@ void LooseOctree::Add(EntityType entity, Aabb aabb, MaskType mask)
 	const int32_t did = data.Add(entity, {aabb, entity, mask});
 	data[did].prev = 0;
 	const int32_t nodeId = GetNodeIdAt(aabb);
-	
+
 	const int32_t nextEntity = nodes[nodeId].firstEntity;
 	data[did].next = nextEntity;
 	if (nextEntity) {
@@ -70,12 +76,12 @@ void LooseOctree::Update(EntityType entity, Aabb aabb)
 	}
 
 	const int32_t nodeId = GetNodeIdAt(aabb);
-	
+
 	if (nodeId == data[did].parent) {
 		// TODO: make tests/checks, because this should not happen
 		return;
 	}
-	
+
 	const int32_t nextEntity = nodes[nodeId].firstEntity;
 	nodes[nodeId].firstEntity = did;
 
@@ -106,30 +112,30 @@ LooseOctree::IPosLevel LooseOctree::CalcIPosLevel(Aabb aabb) const
 
 	const int32_t level = std::bit_width<uint32_t>(
 		std::bit_ceil<uint32_t>(glm::ceil(size / (loosnessFactor - 1.0f))));
-	
+
 	glm::ivec3 c = center;
-	c = ((c>>level)<<level);
-	
+	c = ((c >> level) << level);
+
 	const IPosLevel ret{c, level};
 
 	printf("Calc IPos = {{%i %i %i} %i}    for  %f.1 %.1f %.1f  (%.1f)\n",
-			ret.ipos.x, ret.ipos.y, ret.ipos.z, ret.level,
-			center.x, center.y, center.z, size);
-	
+		   ret.ipos.x, ret.ipos.y, ret.ipos.z, ret.level, center.x, center.y,
+		   center.z, size);
+
 	return ret;
 }
 
 AabbCentered LooseOctree::GetAabbOfNode(int32_t nodeId) const
 {
 	glm::vec3 center = nodes[nodeId].center;
-	float extent = (1 << (nodes[nodeId].level-1)) * loosnessFactor;
+	float extent = (1 << (nodes[nodeId].level - 1)) * loosnessFactor;
 	return {center, glm::vec3(extent, extent, extent)};
 }
 
 int32_t LooseOctree::GetNodeIdAt(Aabb aabb)
 {
 	const IPosLevel id = CalcIPosLevel(aabb);
-	
+
 	if (id.level > levels) {
 		return rootNode;
 	}
@@ -137,43 +143,41 @@ int32_t LooseOctree::GetNodeIdAt(Aabb aabb)
 	if (max_comp(pp) > maxExtent) {
 		return rootNode;
 	}
-	
+
 	int32_t i = levels;
 	int32_t n = rootNode;
-	
-	for (; i>id.level; --i) {
-		int32_t cid = CalcChildId(nodes[n].center, id.ipos, i-1);
+
+	for (; i > id.level; --i) {
+		int32_t cid = CalcChildId(nodes[n].center, id.ipos, i - 1);
 		int32_t c = nodes[n].children[cid];
 		if (c == 0) {
 			c = nodes.Add({});
 			nodes[n].children[cid] = c;
-			nodes[c].level = i-1;
-			
+			nodes[c].level = i - 1;
+
 			const glm::ivec3 par = nodes[n].center;
-			
-			
-			const glm::ivec3 s = glm::sign(id.ipos - par) | glm::ivec3(1,1,1);
-			const glm::ivec3 of = s * (1<<(i-1));
-			
-			
+
+			const glm::ivec3 s = glm::sign(id.ipos - par) | glm::ivec3(1, 1, 1);
+			const glm::ivec3 of = s * (1 << (i - 1));
+
 			nodes[c].center = nodes[n].center + of;
-			printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count: %i\n", nodes.Size());
-			
+			printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes "
+				   "count: %i\n",
+				   nodes.Size());
+
 			auto a = nodes[n].center;
 			auto b = nodes[c].center;
 			auto c = id.ipos;
-			printf(" new child: %i %i %i -[%i]> %i %i %i   for ipos: %i %i %i\n",
-					a.x, a.y, a.z,
-					cid,
-					b.x, b.y, b.z,
-					c.x, c.y, c.z);
-// 		} else {
-// 			auto a = nodes[n].pos;
-// 			auto b = nodes[c].pos;
-// 			printf(" parent %i %i %i has child [%i] %i %i %i\n",
-// 					a.x, a.y, a.z,
-// 					cid,
-// 					b.x, b.y, b.z);
+			printf(
+				" new child: %i %i %i -[%i]> %i %i %i   for ipos: %i %i %i\n",
+				a.x, a.y, a.z, cid, b.x, b.y, b.z, c.x, c.y, c.z);
+			// 		} else {
+			// 			auto a = nodes[n].pos;
+			// 			auto b = nodes[c].pos;
+			// 			printf(" parent %i %i %i has child [%i] %i %i %i\n",
+			// 					a.x, a.y, a.z,
+			// 					cid,
+			// 					b.x, b.y, b.z);
 		}
 		n = c;
 	}
@@ -202,9 +206,12 @@ void LooseOctree::RemoveStructureFor(int32_t did)
 		}
 		const int32_t parentId = nodes[n].parentId;
 		if (nodes[n].firstEntity == 0) {
-// 			printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count: %i\n", nodes.Size());
-			const int32_t childId = CalcChildId(nodes[parentId].center, nodes[n].center, nodes[n].level);
-			assert(nodes[parentId].children[childId] == n && "Failed calculating child id");
+			// 			printf(" ^^^^^^^^^^^^^^^^^^^^^^^ nodes count: %i\n",
+			// nodes.Size());
+			const int32_t childId = CalcChildId(
+				nodes[parentId].center, nodes[n].center, nodes[n].level);
+			assert(nodes[parentId].children[childId] == n &&
+				   "Failed calculating child id");
 			nodes[parentId].children[childId] = 0;
 			nodes.Remove(n);
 		} else {
@@ -214,18 +221,19 @@ void LooseOctree::RemoveStructureFor(int32_t did)
 	}
 }
 
-int32_t LooseOctree::CalcChildId(glm::ivec3 parentCenter, glm::ivec3 childCenter, int32_t childLevel)
+int32_t LooseOctree::CalcChildId(glm::ivec3 parentCenter,
+								 glm::ivec3 childCenter, int32_t childLevel)
 {
-	const glm::ivec3 s = glm::sign(childCenter - parentCenter) | glm::ivec3(1,1,1);
-	const glm::ivec3 p = (s+1)>>1;
+	const glm::ivec3 s =
+		glm::sign(childCenter - parentCenter) | glm::ivec3(1, 1, 1);
+	const glm::ivec3 p = (s + 1) >> 1;
 
-	
-// 	const glm::ivec3 p = (parentCenter - childCenter) >> childLevel;
-	const int32_t ret = (p.x&1) | ((p.y<<1)&2) | ((p.z<<2)&4);
-// 	printf(" calc child diff: %i %i %i -> %i         from %i %i %i  >  %i %i %i\n", p.x, p.y, p.z, ret,
-// 			parentPos.x, parentPos.y, parentPos.z,
-// 			childPos.x, childPos.y, childPos.z
-// 			);
+	// 	const glm::ivec3 p = (parentCenter - childCenter) >> childLevel;
+	const int32_t ret = (p.x & 1) | ((p.y << 1) & 2) | ((p.z << 2) & 4);
+	// 	printf(" calc child diff: %i %i %i -> %i         from %i %i %i  >  %i %i
+	// %i\n", p.x, p.y, p.z, ret, 			parentPos.x, parentPos.y, parentPos.z,
+	// 			childPos.x, childPos.y, childPos.z
+	// 			);
 	return ret;
 }
 
@@ -250,10 +258,7 @@ void LooseOctree::SetMask(EntityType entity, MaskType mask)
 	// TODO: update masks of tree
 }
 
-int32_t LooseOctree::GetCount() const
-{
-	return data.Size();
-}
+int32_t LooseOctree::GetCount() const { return data.Size(); }
 
 bool LooseOctree::Exists(EntityType entity) const
 {
@@ -272,8 +277,11 @@ MaskType LooseOctree::GetMask(EntityType entity) const
 	return data[did].mask;
 }
 
-void LooseOctree::Rebuild() {
-	printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count: %i\n", nodes.Size());
+void LooseOctree::Rebuild()
+{
+	printf(
+		"                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count: %i\n",
+		nodes.Size());
 }
 
 void LooseOctree::IntersectAabb(IntersectionCallback &cb)
@@ -283,12 +291,12 @@ void LooseOctree::IntersectAabb(IntersectionCallback &cb)
 	}
 
 	cb.broadphase = this;
-	
+
 	_Internal_IntersectAabb(cb, rootNode);
 }
 
 void LooseOctree::_Internal_IntersectAabb(IntersectionCallback &cb,
-		const int32_t n)
+										  const int32_t n)
 {
 	++cb.nodesTestedCount;
 	if (n == rootNode || (GetAabbOfNode(n) && cb.aabb)) {
@@ -301,7 +309,7 @@ void LooseOctree::_Internal_IntersectAabb(IntersectionCallback &cb,
 				}
 			}
 		}
-		for (int32_t i=0; i<8; ++i) {
+		for (int32_t i = 0; i < 8; ++i) {
 			const int32_t c = nodes[n].children[i];
 			if (c) {
 				_Internal_IntersectAabb(cb, c);
@@ -318,19 +326,20 @@ void LooseOctree::IntersectRay(RayCallback &cb)
 
 	cb.broadphase = this;
 	cb.InitVariables();
-	
+
 	_Internal_IntersectRay(cb, rootNode, levels);
 }
 
-void LooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n, int32_t level)
+void LooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n,
+										 int32_t level)
 {
 	const Aabb aabb = GetAabbOfNode(n);
-	
+
 	++cb.nodesTestedCount;
 	if (n != rootNode && !cb.IsRelevant(aabb)) {
 		return;
 	}
-	
+
 	for (int32_t c = nodes[n].firstEntity; c; c = data[c].next) {
 		Data &N = data[c];
 		++cb.testedCount;
@@ -338,39 +347,39 @@ void LooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n, int32
 			cb.ExecuteIfRelevant(N.aabb, N.entity);
 		}
 	}
-	
+
 	if (level == 0) {
 		return;
 	}
-	
+
 	struct Ords {
 		float near;
 		int32_t n;
 	} ords[8];
 	int32_t ordsCount = 0;
-	
-	for (int32_t i=0; i<8; ++i) {
+
+	for (int32_t i = 0; i < 8; ++i) {
 		const int32_t c = nodes[n].children[i];
 		if (c == 0) {
 			continue;
 		}
-		
+
 		float __n, __f;
 		if (cb.IsRelevant(GetAabbOfNode(c), __n, __f)) {
-			int j=0;
-			for (; i<ordsCount; ++j) {
+			int j = 0;
+			for (; i < ordsCount; ++j) {
 				if (ords[j].near > __n) {
 					break;
 				}
 			}
 			if (ordsCount != j) {
-				memmove(ords+j+1, ords+j, (ordsCount-j)*sizeof(Ords));
+				memmove(ords + j + 1, ords + j, (ordsCount - j) * sizeof(Ords));
 			}
 			ords[j] = {__n, nodes[n].children[i]};
 		}
 	}
-	
-	for (int32_t _i=0; _i<ordsCount; ++_i) {
+
+	for (int32_t _i = 0; _i < ordsCount; ++_i) {
 		int32_t c = ords[_i].n;
 		if (ords[_i].near < cb.cutFactor) {
 			_Internal_IntersectRay(cb, c, level - 1);
@@ -415,4 +424,5 @@ bool LooseOctree::Iterator::FetchData()
 }
 
 bool LooseOctree::Iterator::Valid() { return it < data->size(); }
+} // namespace experimental
 } // namespace spp

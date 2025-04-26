@@ -7,6 +7,7 @@
 #include <memory>
 #include <atomic>
 
+#include "HashMap.hpp"
 #include "BroadPhaseBase.hpp"
 
 namespace spp
@@ -24,7 +25,7 @@ public:
 	virtual void Clear() override;
 	virtual size_t GetMemoryUsage() const override;
 	virtual void ShrinkToFit() override;
-	
+
 	virtual void StartFastAdding() override;
 	virtual void StopFastAdding() override;
 
@@ -63,7 +64,7 @@ private:
 	std::atomic<bool> *finishedRebuilding;
 	std::shared_ptr<BroadphaseBase> _rebuild;
 	std::vector<EntityType> toRemoveAfterRebuild;
-	std::unordered_map<EntityType, MaskType> setMaskAfterRebuild;
+	HashMap<EntityType, MaskType> setMaskAfterRebuild;
 	int32_t optimisedUpdates = 0;
 	int32_t tests = 0;
 	bool clear = false;

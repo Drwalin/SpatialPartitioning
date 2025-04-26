@@ -9,7 +9,7 @@ namespace spp
 BroadphaseBaseIterator::~BroadphaseBaseIterator() {}
 BroadphaseBase::BroadphaseBase() {}
 BroadphaseBase::~BroadphaseBase() {}
-	
+
 void BroadphaseBase::StartFastAdding() {}
 void BroadphaseBase::StopFastAdding() {}
-}
+} // namespace spp

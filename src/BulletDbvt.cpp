@@ -49,7 +49,7 @@ void BulletDbvt::IncrementalOptimize(int iterations)
 void BulletDbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	assert(Exists(entity) == false);
-	
+
 	int32_t offset = ents.Add(entity, Data{entity, mask, aabb, nullptr});
 	aabb.min -= BIG_EPSILON;
 	aabb.min += BIG_EPSILON;

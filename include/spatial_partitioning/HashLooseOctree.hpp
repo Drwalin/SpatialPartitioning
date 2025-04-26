@@ -15,6 +15,8 @@
 
 namespace spp
 {
+namespace experimental
+{
 /*
  * Max objects count: 2<<30
  *
@@ -38,7 +40,7 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
-	
+
 	virtual int32_t GetCount() const override;
 	virtual bool Exists(EntityType entity) const override;
 
@@ -49,7 +51,7 @@ public:
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	virtual void Rebuild() override;
-	
+
 	virtual BroadphaseBaseIterator *RestartIterator() override;
 
 private:
@@ -124,7 +126,7 @@ private:
 		int32_t level;
 	};
 
-	std::unordered_map<Key, NodeData, spp::HashLooseOctree::Key::Hash> nodes;
+	std::unordered_map<Key, NodeData, HashLooseOctree::Key::Hash> nodes;
 
 public:
 	const float loosenessFactor;
@@ -150,4 +152,5 @@ public:
 		int it;
 	} iterator;
 };
+} // namespace experimental
 } // namespace spp

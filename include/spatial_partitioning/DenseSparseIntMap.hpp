@@ -7,7 +7,8 @@
 #include <cstring>
 
 #include <vector>
-#include <unordered_map>
+
+#include "HashMap.hpp"
 
 namespace spp
 {
@@ -156,9 +157,7 @@ public:
 
 	inline size_t GetMemoryUsage() const
 	{
-		return sparse.bucket_count() * sizeof(void *) +
-			   sparse.size() * (sizeof(void *) * 2lu + sizeof(ValueIntType) +
-								sizeof(KeyUIntType)) +
+		return sparse.GetMemoryUsage() +
 			   dense.capacity() * sizeof(ValueIntType);
 	}
 
@@ -242,7 +241,7 @@ public:
 	Iterator end() { return Iterator(this).SetEnd(); }
 
 private:
-	std::unordered_map<KeyUIntType, ValueIntType> sparse;
+	HashMap<KeyUIntType, ValueIntType> sparse;
 	std::vector<ValueIntType> dense;
 	const KeyUIntType denseRange;
 	KeyUIntType size = 0;

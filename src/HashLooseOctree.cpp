@@ -94,7 +94,7 @@ void HashLooseOctree::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	const int32_t offset = data.Add(entity, {aabb, entity, mask});
 
-	if (offset < 0) {
+	if (offset <= 0) {
 		Data &d = data[data.GetOffset(entity)];
 		if (d.mask != mask) {
 			SetMask(entity, mask);

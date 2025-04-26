@@ -425,6 +425,9 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			auto iti = bpi.RestartIterator();
 
 			if (bp0.GetCount() != bpi.GetCount()) {
+				printf("0. CARDINAL ERROR: DIFFERENT NUMBER OF ELEMENTS IN "
+					   "BROADPHASES: %i != %i\n",
+					   bp0.GetCount(), bpi.GetCount());
 				++cardinalErrors;
 			}
 
@@ -438,7 +441,6 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 						printf(
 							"1. CARDINAL ERROR: ENTITY DOES NOT EXIST: %lu\n",
 							it0->entity);
-						printf("j = %i\n", j);
 					}
 					++I;
 				} else {
@@ -453,7 +455,6 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 							printf("2. CARDINAL ERROR: ENTITY AABBS DOES NOT "
 								   "MATCH: %lu (sum diff dist corners: %.1f)\n",
 								   it0->entity, sum);
-							printf("j = %i\n", j);
 						}
 						++I;
 					}
@@ -469,7 +470,6 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 						printf("3. CARDINAL ERROR: ENTITY SHOULD NOT EXIST BUT "
 							   "DOES: %lu\n",
 							   iti->entity);
-						printf("j = %i\n", j);
 					}
 					++I;
 				} else {
@@ -484,7 +484,6 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 							printf("4. CARDINAL ERROR: ENTITY AABBS DOES NOT "
 								   "MATCH: %lu (sum diff dist corners: %.1f)\n",
 								   iti->entity, sum);
-							printf("j = %i\n", j);
 						}
 						++I;
 					}
@@ -514,18 +513,21 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 						b = hp.aabb.max;
 
 						printf("  %7i: %7lu    :     ", j, hp.e);
-						printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}", a.x,
-							   a.y, a.z, b.x, b.y, b.z);
+						printf(
+							"{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}",
+							a.x, a.y, a.z, b.x, b.y, b.z);
 
 						a = hp.point;
-						printf("     hit point: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
-							   a.z);
+						printf("     hit point: {%7.2f, %7.2f, %7.2f}", a.x,
+							   a.y, a.z);
 
 						a = hp.start;
-						printf("     start: {%7.2f, %7.2f, %7.2f}", a.x, a.y, a.z);
+						printf("     start: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
+							   a.z);
 
 						a = hp.end;
-						printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y, a.z);
+						printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
+							   a.z);
 
 						printf("     dist: %7.2f", hp.n);
 
@@ -587,26 +589,32 @@ Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 					d = aabbi.max;
 					if (JJ < 10) {
 						printf("  %7i: %7lu == %7lu  ", j, p0.e, pi.e);
-						printf(
-							"{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}",
-							a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x,
-							d.y, d.z);
+						printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+							   "%7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , {%7.2f, "
+							   "%7.2f, %7.2f}}",
+							   a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z, d.x,
+							   d.y, d.z);
 
 						a = p0.point;
 						b = pi.point;
-						printf("     hit points: {%7.2f, %7.2f, %7.2f} <-> {%7.2f, %7.2f, %7.2f}",
-							a.x, a.y, a.z, b.x, b.y, b.z);
+						printf("     hit points: {%7.2f, %7.2f, %7.2f} <-> "
+							   "{%7.2f, %7.2f, %7.2f}",
+							   a.x, a.y, a.z, b.x, b.y, b.z);
 
 						a = p0.start;
 						b = pi.start;
-						printf("     start: {%7.2f, %7.2f, %7.2f}",// <-> {%7.2f, %7.2f, %7.2f}",
-							   a.x, a.y, a.z);//, b.x, b.y, b.z);
+						printf(
+							"     start: {%7.2f, %7.2f, %7.2f}", // <-> {%7.2f,
+																 // %7.2f,
+																 // %7.2f}",
+							a.x, a.y, a.z); //, b.x, b.y, b.z);
 
 						a = p0.end;
 						b = pi.end;
-						printf(
-							"     end: {%7.2f, %7.2f, %7.2f}",// <-> {%7.2f, %7.2f, %7.2f}",
-							   a.x, a.y, a.z);//, b.x, b.y, b.z);
+						printf("     end: {%7.2f, %7.2f, %7.2f}", // <-> {%7.2f,
+																  // %7.2f,
+																  // %7.2f}",
+							   a.x, a.y, a.z); //, b.x, b.y, b.z);
 
 						printf("     dist: %7.2f <-> %7.2f", p0.n, pi.n);
 
@@ -775,8 +783,7 @@ int main(int argc, char **argv)
 		e.aabb.max += e.aabb.min;
 	}
 
-	spp::BvhMedianSplitHeap bvh;
-	bvh.SetAabbUpdatePolicy(spp::BvhMedianSplitHeap::ON_UPDATE_EXTEND_AABB);
+	spp::BvhMedianSplitHeap bvh(TOTAL_ENTITIES);
 
 	spp::BruteForce bf;
 	spp::Dbvh dbvh;
@@ -785,19 +792,22 @@ int main(int argc, char **argv)
 	spp::BulletDbvh btDbvh;
 	spp::BulletDbvt btDbvt;
 
-	spp::ThreeStageDbvh tsdbvh(std::make_shared<spp::BvhMedianSplitHeap>(),
-							   std::make_shared<spp::BvhMedianSplitHeap>(),
-							   std::make_unique<spp::BulletDbvt>());
+	spp::ThreeStageDbvh tsdbvh(
+		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+		std::make_unique<spp::BulletDbvt>());
 	tsdbvh.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 
-	spp::ThreeStageDbvh tsdbvh2(std::make_shared<spp::BvhMedianSplitHeap>(),
-								std::make_shared<spp::BvhMedianSplitHeap>(),
-								std::make_unique<spp::BruteForce>());
+	spp::ThreeStageDbvh tsdbvh2(
+		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+		std::make_unique<spp::BruteForce>());
 	tsdbvh2.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 
-	spp::ThreeStageDbvh tsdbvh3(std::make_shared<spp::BvhMedianSplitHeap>(),
-								std::make_shared<spp::BvhMedianSplitHeap>(),
-								std::make_unique<spp::Dbvh>());
+	spp::ThreeStageDbvh tsdbvh3(
+		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+		std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+		std::make_unique<spp::Dbvh>());
 	tsdbvh3.SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 
 	std::vector<spp::BroadphaseBase *> broadphases;
@@ -811,10 +821,8 @@ int main(int argc, char **argv)
 				broadphases.push_back(new spp::BruteForce);
 			} else if (strcmp(str, "BVH") == false) {
 				spp::BvhMedianSplitHeap *bvh;
-				bvh = new spp::BvhMedianSplitHeap;
+				bvh = new spp::BvhMedianSplitHeap(TOTAL_ENTITIES);
 				broadphases.push_back(bvh);
-				bvh->SetAabbUpdatePolicy(
-					spp::BvhMedianSplitHeap::ON_UPDATE_EXTEND_AABB);
 			} else if (strcmp(str, "DBVH") == false) {
 				broadphases.push_back(new spp::Dbvh);
 			} else if (strcmp(str, "BTDBVH") == false) {
@@ -823,22 +831,22 @@ int main(int argc, char **argv)
 				broadphases.push_back(new spp::BulletDbvt);
 			} else if (strcmp(str, "TSH_BF") == false) {
 				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
-					std::make_shared<spp::BvhMedianSplitHeap>(),
-					std::make_shared<spp::BvhMedianSplitHeap>(),
+					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
 					std::make_unique<spp::BruteForce>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "TSH_BTDBVT") == false) {
 				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
-					std::make_shared<spp::BvhMedianSplitHeap>(),
-					std::make_shared<spp::BvhMedianSplitHeap>(),
+					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
 					std::make_unique<spp::BulletDbvt>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "TSH_DBVH") == false) {
 				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
-					std::make_shared<spp::BvhMedianSplitHeap>(),
-					std::make_shared<spp::BvhMedianSplitHeap>(),
+					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
 					std::make_unique<spp::Dbvh>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
@@ -854,13 +862,13 @@ int main(int argc, char **argv)
 		}
 	} else {
 		spp::ThreeStageDbvh *s;
-		broadphases = {new spp::Dbvh,
-					   (s = new spp::ThreeStageDbvh(
-							std::make_shared<spp::BvhMedianSplitHeap>(),
-							std::make_shared<spp::BvhMedianSplitHeap>(),
-							std::make_unique<spp::BulletDbvt>()),
-						s->SetRebuildSchedulerFunction(EnqueueRebuildThreaded),
-						s)};
+		broadphases = {
+			new spp::Dbvh,
+			(s = new spp::ThreeStageDbvh(
+				 std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+				 std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+				 std::make_unique<spp::BulletDbvt>()),
+			 s->SetRebuildSchedulerFunction(EnqueueRebuildThreaded), s)};
 	}
 
 	if (enablePrepass) {

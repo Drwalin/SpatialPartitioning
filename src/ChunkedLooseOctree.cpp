@@ -12,7 +12,7 @@ namespace spp
 {
 ChunkedLooseOctree::ChunkedLooseOctree(int32_t chunkSize, int32_t worldSize,
 									   float loosness)
-	: iterator(*this)
+	: bigObjects(0), iterator(*this)
 {
 	this->loosness = loosness;
 	this->loosnessInv = 1.0f / loosness;

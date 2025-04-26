@@ -58,7 +58,7 @@ private:
 		Aabb aabb;
 		bullet::btDbvtNode *node;
 	};
-	AssociativeArray<EntityType, int32_t, Data> ents;
+	AssociativeArray<EntityType, int32_t, Data, false> ents;
 	bullet::btDbvt dbvt;
 	bullet::btAlignedObjectArray<const bullet::btDbvtNode*> stack;
 	

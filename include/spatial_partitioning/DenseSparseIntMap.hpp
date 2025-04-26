@@ -34,7 +34,7 @@ public:
 	{
 		if constexpr (enableDense == false) {
 			sparse.reserve(capacity);
-		} else {
+		} else if (capacity > denseRange) {
 			sparse.reserve(capacity - denseRange);
 		}
 	}

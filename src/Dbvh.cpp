@@ -154,10 +154,6 @@ void Dbvh::Update(EntityType entity, Aabb aabb)
 	int32_t offset = data.GetOffset(entity);
 	data[offset].aabb = aabb;
 	UpdateAabb(data[offset].parent);
-
-	// 	const MaskType mask = data[offset].mask;
-	// 	Remove(entity);
-	// 	Add(entity, aabb, mask);
 }
 
 void Dbvh::Remove(EntityType entity)
@@ -170,7 +166,12 @@ void Dbvh::Remove(EntityType entity)
 
 	if (id == rootNode) {
 		nodes[id].children[i] = 0;
-		nodes[id].mask = GetDirectMask(nodes[id].children[i ^ 1]);
+		nodes[id].aabb[i] = {};
+		if (nodes[id].children[i ^ 1] > 0) {
+			nodes[id].mask = GetDirectMask(nodes[id].children[i ^ 1]);
+		} else {
+			nodes[id].mask = 0; 
+		}
 	} else {
 		const int32_t otherId = nodes[id].children[i ^ 1];
 		const Aabb aabb = nodes[id].aabb[i ^ 1];
@@ -596,10 +597,7 @@ Aabb Dbvh::GetDirectAabb(int32_t node) const
 		assert(!"cannot happen");
 		return {};
 	} else if (node > OFFSET) {
-		Aabb r = data[node - OFFSET].aabb;
-		r.max += 1.0f;
-		r.min -= 1.0f;
-		return r;
+		return data[node - OFFSET].aabb.Expanded(BIG_EPSILON);
 	} else {
 		if (nodes[node].children[0] > 0) {
 			if (nodes[node].children[1] > 0) {
@@ -816,8 +814,10 @@ void Dbvh::UpdateAabbAndMask(const int32_t nodeId)
 	}
 	MaskType mask = 0;
 	for (int i = 0; i < 2; ++i) {
-		nodes[nodeId].aabb[i] = GetDirectAabb(nodes[nodeId].children[i]);
-		mask |= GetDirectMask(nodes[nodeId].children[i]);
+		if (nodes[nodeId].children[i] > 0) {
+			nodes[nodeId].aabb[i] = GetDirectAabb(nodes[nodeId].children[i]);
+			mask |= GetDirectMask(nodes[nodeId].children[i]);
+		}
 	}
 	Aabb aabb = nodes[nodeId].aabb[0] + nodes[nodeId].aabb[1];
 	int32_t id = nodes[nodeId].parent;

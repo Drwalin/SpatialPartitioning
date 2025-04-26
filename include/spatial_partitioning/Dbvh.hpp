@@ -97,7 +97,7 @@ private:
 		AabbCentered aabb[2];
 		MaskType mask = 0;
 		int32_t parent = 0;
-		// If (node > 0x10000000) than it is a leaf
+		// If (children[i] > 0x10000000) than it is a leaf
 		int32_t children[2] = {0, 0};
 	};
 

@@ -62,8 +62,6 @@ public:
 
 	virtual BroadphaseBaseIterator *RestartIterator() override;
 	
-	virtual void PrintEntity() override;
-
 public:
 	struct RebuildProgress {
 		int32_t stack[64];

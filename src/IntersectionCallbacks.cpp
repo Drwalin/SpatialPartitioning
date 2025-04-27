@@ -14,7 +14,7 @@ void RayCallback::InitVariables()
 		cutFactor = 1.0f;
 		length = glm::length(dir);
 		dirNormalized = glm::normalize(dir);
-		invDir = glm::vec3(1.f, 1.f, 1.f) / dir; // dirNormalized;
+		invDir = glm::vec3(1.f, 1.f, 1.f) / dir;
 		signs[0] = invDir[0] < 0.0 ? 1 : 0;
 		signs[1] = invDir[1] < 0.0 ? 1 : 0;
 		signs[2] = invDir[2] < 0.0 ? 1 : 0;

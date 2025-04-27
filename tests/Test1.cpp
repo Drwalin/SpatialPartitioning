@@ -1,7 +1,6 @@
 #include <cstdio>
 
 #include <string>
-#include <unordered_set>
 #include <thread>
 #include <mutex>
 #include <queue>
@@ -326,24 +325,28 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			+[](uint64_t &s, size_t i,
 				std::vector<spp::EntityType> &removeEntities)
 			-> spp::EntityType {
-			if (!removeEntities.empty() && (Random(s, i) & 7) > 5) {
+			if (!removeEntities.empty() && (Random(s, i) % 13) > 10) {
 				size_t x = Random(s, i) % removeEntities.size();
 				auto r = removeEntities[x];
 				removeEntities[x] = removeEntities.back();
 				removeEntities.resize(removeEntities.size() - 1);
 				return r;
 			} else {
-				return (Random(s, i) % MAX_ENTITIES) + 1;
+				return (((Random(s, i) % MAX_ENTITIES) + 1 +
+						 (Random(s, i) % MAX_ENTITIES) + 1 +
+						 (Random(s, i) % MAX_ENTITIES) + 1 +
+						 (Random(s, i) % MAX_ENTITIES) + 1 +
+						 (Random(s, i) % MAX_ENTITIES) + 1 +
+						 (Random(s, i) % MAX_ENTITIES) + 1 +
+						 (Random(s, i) % MAX_ENTITIES) + 1 +
+						 (Random(s, i) % MAX_ENTITIES) + 1) /
+						8) %
+					   MAX_ENTITIES;
 			}
 		};
 
-		const static std::unordered_set<spp::EntityType> SSS{280541, 361427,
-															 186393, 656222};
-
 		for (size_t i = 0; i < testsCount; i += 5) {
 			offsetOfPatch.push_back(hitPoints.size());
-			if (SSS.contains(hitPoints.size()))
-				broadphase->PrintEntity();
 			cbAabb.aabb = aabbsToTest[i + 0];
 			cbAabb.aabb = {glm::min(cbAabb.aabb.min, cbAabb.aabb.max),
 						   glm::max(cbAabb.aabb.min, cbAabb.aabb.max)};
@@ -376,8 +379,6 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			}
 
 			offsetOfPatch.push_back(hitPoints.size());
-			if (SSS.contains(hitPoints.size()))
-				broadphase->PrintEntity();
 			cbAabb.aabb = aabbsToTest[i + 2];
 			cbAabb.aabb = {glm::min(cbAabb.aabb.min, cbAabb.aabb.max),
 						   glm::max(cbAabb.aabb.min, cbAabb.aabb.max)};
@@ -386,8 +387,6 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			for (int j = 3; j < 5; ++j) {
 				cbRay.hasHit = false;
 				offsetOfPatch.push_back(hitPoints.size());
-				if (SSS.contains(hitPoints.size()))
-					broadphase->PrintEntity();
 				cbRay.start = aabbsToTest[i + j].GetCenter();
 				glm::vec3 end = cbRay.end = vv[i + j];
 				cbRay.initedVars = false;
@@ -440,28 +439,32 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 		aabb = {p, p + s};
 	}
 
-	std::vector<std::vector<StartEndPoint>> hitPoints;
-	std::vector<std::vector<uint64_t>> offsetOfPatch;
+	static std::vector<std::vector<StartEndPoint>> hitPoints;
+	static std::vector<std::vector<uint64_t>> offsetOfPatch;
+	offsetOfPatch.resize(broadphases.size());
+	hitPoints.resize(broadphases.size());
 	for (int i = 0; i < broadphases.size(); ++i) {
-		offsetOfPatch.push_back({});
-		offsetOfPatch.back().reserve(testsCount);
-		hitPoints.push_back({});
-		hitPoints.back().reserve(testsCount * 50);
+		offsetOfPatch[i].clear();
+		offsetOfPatch[i].reserve(testsCount);
+		hitPoints[i].clear();
+		printf("Max capacity: %lu (%lu bytes)\n", hitPoints[i].max_size(), sizeof(StartEndPoint));
+		fflush(stdout);
+		hitPoints[i].reserve(testsCount*10);
 		auto &it = broadphases[i];
 		size_t tC =
 			i ? aabbs.size() : aabbs.size() / BRUTE_FROCE_TESTS_COUNT_DIVISOR;
 		auto beg = std::chrono::steady_clock::now();
-		auto &vec = SingleTest(it, aabbs, tC, offsetOfPatch.back(), testType,
-							   hitPoints.back());
+		auto &vec = SingleTest(it, aabbs, tC, offsetOfPatch[i], testType,
+							   hitPoints[i]);
 		auto end = std::chrono::steady_clock::now();
-		for (size_t i = 0; i < offsetOfPatch.back().size(); ++i) {
-			size_t of = offsetOfPatch.back()[i];
-			size_t en = hitPoints.back().size();
-			if (i + 1 < offsetOfPatch.back().size()) {
-				en = offsetOfPatch.back()[i + 1];
+		for (size_t j = 0; j < offsetOfPatch[i].size(); ++j) {
+			size_t of = offsetOfPatch[i][j];
+			size_t en = hitPoints[i].size();
+			if (j + 1 < offsetOfPatch[i].size()) {
+				en = offsetOfPatch[i][j + 1];
 			}
-			std::sort(hitPoints.back().begin() + of,
-					  hitPoints.back().begin() + en);
+			std::sort(hitPoints[i].begin() + of,
+					  hitPoints[i].begin() + en);
 		}
 		auto diff = end - beg;
 		int64_t ns =
@@ -472,7 +475,7 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			   it->GetName(), tC, us / double(tC));
 		printf("    \t   nodesTested: %11lu,   testedCount: %10lu     [count = "
 			   "%lu]:\n",
-			   vec.nodesTestedCount, vec.testedCount, hitPoints.back().size());
+			   vec.nodesTestedCount, vec.testedCount, hitPoints[i].size());
 		fflush(stdout);
 	}
 
@@ -626,13 +629,6 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 		}
 
 		size_t errs = 0;
-		/*
-			glm::abs<int64_t>(hitPoints[i].size() - hitPoints[0].size());
-		if (errs != 0) {
-			printf("  base test entities count (%lu) != tested (%lu)\n",
-				   hitPoints[0].size(), hitPoints[i].size());
-		}
-		*/
 		int JJ = 0;
 
 		for (size_t patch = 0; patch < offsetOfPatch[i].size(); ++patch) {
@@ -649,15 +645,21 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 				auto pi = hitPoints[i][ji];
 				auto p0 = StartEndPoint{};
 
-				size_t j0 = patchStart0;
 				if ((patchEnd0 - patchStart0) == 1 &&
 					(patchEndi - patchStarti) == 1) {
 					p0 = hitPoints[0][patchStart0];
 				} else {
-					for (; j0 < patchEnd0 && hitPoints[0][j0].e != p0.e; ++j0) {
-					}
-					if (j0 < patchEnd0) {
-						p0 = hitPoints[0][j0];
+					auto start = hitPoints[0].begin()+patchStart0;
+					auto end = hitPoints[0].begin()+patchEnd0;
+					const static auto comp = +[](StartEndPoint a, StartEndPoint b)->bool{
+							return a.e < b.e;
+							};
+					auto it = std::lower_bound(start, end, pi, comp);
+					if (it != end) {
+						p0 = *it;
+						if (p0.e != pi.e) {
+							continue;
+						}
 					} else {
 						continue;
 					}
@@ -773,7 +775,7 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 					}
 				}
 			}
-
+			
 			std::map<spp::EntityType, size_t> e0, ei;
 			for (size_t entry = patchStarti; entry < patchEndi; ++entry) {
 				ei[hitPoints[i][entry].e] = entry;
@@ -781,7 +783,7 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			for (size_t entry = patchStart0; entry < patchEnd0; ++entry) {
 				e0[hitPoints[0][entry].e] = entry;
 			}
-
+			
 			if ((patchEnd0 - patchStart0) == 1 &&
 				(patchEndi - patchStarti) == 1) {
 				e0.clear();
@@ -846,6 +848,7 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 					}
 				}
 			}
+			
 			for (auto it : ei) {
 				if (e0.find(it.first) == e0.end()) {
 					++JJ;
@@ -1111,6 +1114,13 @@ int main(int argc, char **argv)
 				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
 					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
 					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+					std::make_unique<spp::BulletDbvt>());
+				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_BTDBVT3") == false) {
+				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
+					std::make_shared<spp::BulletDbvt>(),
+					std::make_shared<spp::BulletDbvt>(),
 					std::make_unique<spp::BulletDbvt>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);

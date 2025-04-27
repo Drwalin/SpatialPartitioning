@@ -5,7 +5,6 @@
 #include <cstdio>
 #include <bit>
 #include <algorithm>
-#include <set>
 
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
 
@@ -22,56 +21,6 @@ const char *BvhMedianSplitHeap::GetName() const { return "BvhMedianSplitHeap"; }
 void BvhMedianSplitHeap::SetAabbUpdatePolicy(AabbUpdatePolicy policy)
 {
 	updatePolicy = policy;
-}
-
-std::set<EntityType> entities = {120, 1449, 602, 200, 336, 2027};
-void BvhMedianSplitHeap::PrintEntity()
-{
-	/*
-	 
-	   Run this:
-	   
-./test1 -total-entities=1000 -additional-entities=2000 -aabb-tests=1000 -aabb-movements=10000 -moving-entities=250 -disable-prepass -mixed-tests-count=2 -mixed-tests=2000000 -random-seed=12345 BTDBVH BVH
-	 */
-	
-	printf("power of two: %u                 entities count: %u\n", entitiesPowerOfTwoCount, GetCount());
-	
-	for (auto entity : entities) {
-		auto it = entitiesOffsets.find(entity);
-		if (it == nullptr) {
-			continue;
-		}
-
-		uint32_t offset = *it;
-		
-		auto a = entitiesData[offset].aabb;
-		printf(" entity %6lu:  offset: %6u {{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f})    %X\n",
-				entity,
-				offset,
-				a.min.x,
-				a.min.y,
-				a.min.z,
-				a.max.x,
-				a.max.y,
-				a.max.z,
-				entitiesData[offset].mask
-				);
-		for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> 1; n > 0; n >>= 1) {
-			auto node = nodesHeapAabb[n];
-			a = node.aabb;
-			printf("   node %6u:                 {{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f})    %X\n",
-					n,
-					a.min.x,
-					a.min.y,
-					a.min.z,
-					a.max.x,
-					a.max.y,
-					a.max.z,
-					node.mask
-					);
-		}
-	}
-	printf("\n\n");
 }
 
 BvhMedianSplitHeap::AabbUpdatePolicy
@@ -321,9 +270,9 @@ void BvhMedianSplitHeap::Rebuild()
 	rebuildTree = false;
 	entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)entitiesCount);
 
-	nodesHeapAabb.resize(entitiesPowerOfTwoCount);// / 2 + (entitiesCount + 1) / 2);
+	nodesHeapAabb.resize(entitiesPowerOfTwoCount / 2 + (entitiesCount + 1) / 2 + 7);
 	for (auto &n : nodesHeapAabb) {
-		n.mask = 0x1234;
+		n.mask = 0;
 	}
 
 	entitiesOffsets.Reserve(entitiesCount);
@@ -365,8 +314,6 @@ int32_t BvhMedianSplitHeap::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
 	const int32_t orgCount = count;
 	offset -= entitiesPowerOfTwoCount;
 	if (offset >= entitiesData.size()) {
-// 		printf("1. node %6u   -> offset: %6u    count: %6u     / %u\n",
-// 				nodeId, offset, count, GetCount());
 		return -1;
 	}
 	count = std::min<int32_t>(count, ((int32_t)entitiesData.size()) - offset);
@@ -386,25 +333,14 @@ int32_t BvhMedianSplitHeap::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
 	nodesHeapAabb[nodeId] = {totalAabb.Expanded(BIG_EPSILON), mask};
 
 	if (count <= 2) {
-		if (offset == 1368 && GetCount() == 1369) {
-// 		printf("2.5 node %6u   -> offset: %6u    count: %6u   entity: %6li     / %u\n",
-// 				nodeId, offset, count, entitiesData[offset].entity, GetCount());
-		}
 		for (int32_t i = offset; i < offset + count; ++i) {
 			entitiesOffsets.Set(entitiesData[i].entity, i);
 		}
-// 		printf("3. node %6u   -> offset: %6u    count: %6u\n",
-// 				nodeId, offset, count);
 		if (orgCount <= 2) {
 			return -1;
 		} else {
 			return nodeId << 1;
 		}
-	}
-	
-	if (entities.contains(entitiesData[offset].entity)) {
-// 		printf("2. node %6u   -> offset: %6u    count: %6u   entity: %6li     / %u\n",
-// 				nodeId, offset, count, entitiesData[offset].entity, GetCount());
 	}
 
 	int axis = 0;
@@ -473,11 +409,11 @@ void BvhMedianSplitHeap::UpdateAabb(int32_t offset)
 	
 	aabb = aabb.Expanded(BIG_EPSILON);
 
-	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> 1; n > 1; n >>= 1) {
+	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> 1; n > 0; n >>= 1) {
 		nodesHeapAabb[n].aabb = aabb;
 		nodesHeapAabb[n].mask = mask;
 		n ^= 1;
-		if (n < nodesHeapAabb.size()) {
+		if (n < nodesHeapAabb.size() && n > 0) {
 			if (nodesHeapAabb[n].mask) {
 				if (mask) {
 					aabb = aabb + nodesHeapAabb[n].aabb;
@@ -487,10 +423,6 @@ void BvhMedianSplitHeap::UpdateAabb(int32_t offset)
 				mask |= nodesHeapAabb[n].mask;
 			}
 		}
-	}
-	if (1 < nodesHeapAabb.size()) {
-		nodesHeapAabb[1].aabb = aabb;
-		nodesHeapAabb[1].mask = mask;
 	}
 }
 

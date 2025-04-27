@@ -19,8 +19,8 @@ bool Assert(bool condition, const char *text, const char *function,
 #define ASSERT(COND)                                                           \
 	Assert(COND, #COND, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 
-#undef assert
-#define assert(COND) ASSERT(COND)
+// #undef assert
+// #define assert(COND) ASSERT(COND)
 
 namespace spp
 {
@@ -48,6 +48,7 @@ ThreeStageDbvh::ThreeStageDbvh(std::shared_ptr<BroadphaseBase> optimised,
 ThreeStageDbvh::~ThreeStageDbvh() {}
 
 const char *ThreeStageDbvh::GetName() const { return "ThreeStageDbvh"; }
+
 void ThreeStageDbvh::Clear()
 {
 	if (rebuild) {
@@ -140,7 +141,7 @@ void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 		dynamic->Add(entity, aabb, mask);
 	}
 
-	if (dynamicUpdates > 1000 || optimisedUpdates > 100) {
+	if (dynamicUpdates + optimisedUpdates > 100000) {
 		TryScheduleRebuild();
 	}
 }
@@ -322,11 +323,6 @@ void ThreeStageDbvh::IntersectAabb(IntersectionCallback &cb)
 
 	TryIntegrateOptimised();
 
-	++tests;
-	if (tests > 100000) {
-		TryScheduleRebuild();
-	}
-
 	dynamic->IntersectAabb(cb);
 	optimised->IntersectAabb(cb);
 }
@@ -338,11 +334,6 @@ void ThreeStageDbvh::IntersectRay(RayCallback &cb)
 	}
 
 	TryIntegrateOptimised();
-
-	++tests;
-	if (tests > 100000) {
-		TryScheduleRebuild();
-	}
 
 	dynamic->IntersectRay(cb);
 	optimised->IntersectRay(cb);

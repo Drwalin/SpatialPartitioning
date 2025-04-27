@@ -60,7 +60,5 @@ public:
 	virtual void IntersectRay(RayCallback &callback) = 0;
 
 	virtual BroadphaseBaseIterator *RestartIterator() = 0;
-	
-	virtual void PrintEntity() {}
 };
 } // namespace spp

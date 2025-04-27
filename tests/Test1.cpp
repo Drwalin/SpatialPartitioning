@@ -1,6 +1,7 @@
 #include <cstdio>
 
 #include <string>
+#include <unordered_set>
 #include <thread>
 #include <mutex>
 #include <queue>
@@ -336,8 +337,13 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			}
 		};
 
+		const static std::unordered_set<spp::EntityType> SSS{280541, 361427,
+															 186393, 656222};
+
 		for (size_t i = 0; i < testsCount; i += 5) {
 			offsetOfPatch.push_back(hitPoints.size());
+			if (SSS.contains(hitPoints.size()))
+				broadphase->PrintEntity();
 			cbAabb.aabb = aabbsToTest[i + 0];
 			cbAabb.aabb = {glm::min(cbAabb.aabb.min, cbAabb.aabb.max),
 						   glm::max(cbAabb.aabb.min, cbAabb.aabb.max)};
@@ -370,6 +376,8 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			}
 
 			offsetOfPatch.push_back(hitPoints.size());
+			if (SSS.contains(hitPoints.size()))
+				broadphase->PrintEntity();
 			cbAabb.aabb = aabbsToTest[i + 2];
 			cbAabb.aabb = {glm::min(cbAabb.aabb.min, cbAabb.aabb.max),
 						   glm::max(cbAabb.aabb.min, cbAabb.aabb.max)};
@@ -378,6 +386,8 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			for (int j = 3; j < 5; ++j) {
 				cbRay.hasHit = false;
 				offsetOfPatch.push_back(hitPoints.size());
+				if (SSS.contains(hitPoints.size()))
+					broadphase->PrintEntity();
 				cbRay.start = aabbsToTest[i + j].GetCenter();
 				glm::vec3 end = cbRay.end = vv[i + j];
 				cbRay.initedVars = false;
@@ -465,7 +475,7 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			   vec.nodesTestedCount, vec.testedCount, hitPoints.back().size());
 		fflush(stdout);
 	}
-	
+
 	printf("Number of entities %i\n", broadphases[0]->GetCount());
 
 	printf("\n");
@@ -763,7 +773,7 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 					}
 				}
 			}
-			
+
 			std::map<spp::EntityType, size_t> e0, ei;
 			for (size_t entry = patchStarti; entry < patchEndi; ++entry) {
 				ei[hitPoints[i][entry].e] = entry;
@@ -771,13 +781,13 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			for (size_t entry = patchStart0; entry < patchEnd0; ++entry) {
 				e0[hitPoints[0][entry].e] = entry;
 			}
-			
+
 			if ((patchEnd0 - patchStart0) == 1 &&
 				(patchEndi - patchStarti) == 1) {
 				e0.clear();
 				ei.clear();
 			}
-			
+
 			for (auto it : e0) {
 				if (ei.find(it.first) == ei.end()) {
 					++JJ;
@@ -788,9 +798,11 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 						if (hp.isAabbTest) {
 							a = hp.aabb.min;
 							b = hp.aabb.max;
-							printf("aabb missing       ji %7ld[%lu] (j0 %7ld[%lu]): "
+							printf("aabb missing       ji %7ld[%lu] (j0 "
+								   "%7ld[%lu]): "
 								   "%7lu  ",
-								   patchStart0, patchEnd0-patchStart0, it.second, patchEndi-patchStarti, hp.e);
+								   patchStart0, patchEnd0 - patchStart0,
+								   it.second, patchEndi - patchStarti, hp.e);
 							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
 								   "%7.2f}}",
 								   a.x, a.y, a.z, b.x, b.y, b.z);
@@ -806,9 +818,11 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 							glm::vec3 a, b;
 							a = hp.aabb.min;
 							b = hp.aabb.max;
-							printf("ray missing        ji %7ld[%lu] (j0 %7ld[%lu]): "
+							printf("ray missing        ji %7ld[%lu] (j0 "
+								   "%7ld[%lu]): "
 								   "%7lu  ",
-								   patchStart0, patchEnd0-patchStart0, it.second, patchEndi-patchStarti, hp.e);
+								   patchStart0, patchEnd0 - patchStart0,
+								   it.second, patchEndi - patchStarti, hp.e);
 							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
 								   "%7.2f}}",
 								   a.x, a.y, a.z, b.x, b.y, b.z);
@@ -842,9 +856,11 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 						if (hp.isAabbTest) {
 							a = hp.aabb.min;
 							b = hp.aabb.max;
-							printf("aabb shouldn't be  ji %7ld[%lu] (j0 %7ld[%lu]): "
+							printf("aabb shouldn't be  ji %7ld[%lu] (j0 "
+								   "%7ld[%lu]): "
 								   "%7lu  ",
-								   patchStart0, patchEnd0-patchStart0, it.second, patchEndi-patchStarti, hp.e);
+								   patchStart0, patchEnd0 - patchStart0,
+								   it.second, patchEndi - patchStarti, hp.e);
 							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
 								   "%7.2f}}",
 								   a.x, a.y, a.z, b.x, b.y, b.z);
@@ -860,9 +876,11 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 							glm::vec3 a, b;
 							a = hp.aabb.min;
 							b = hp.aabb.max;
-							printf("ray shouldn't be   ji %7ld[%lu] (j0 %7ld[%lu]): "
+							printf("ray shouldn't be   ji %7ld[%lu] (j0 "
+								   "%7ld[%lu]): "
 								   "%7lu  ",
-								   patchStart0, patchEnd0-patchStart0, it.second, patchEndi-patchStarti, hp.e);
+								   patchStart0, patchEnd0 - patchStart0,
+								   it.second, patchEndi - patchStarti, hp.e);
 							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
 								   "%7.2f}}",
 								   a.x, a.y, a.z, b.x, b.y, b.z);
@@ -985,6 +1003,8 @@ int main(int argc, char **argv)
 
 	bool customizeStructures = false;
 
+	size_t mixedTestsCount = 1;
+
 	for (int i = 1; i < argc; ++i) {
 		if (std::string(argv[i]).starts_with("-disable-prepass")) {
 			enablePrepass = false;
@@ -1016,6 +1036,7 @@ int main(int argc, char **argv)
 				   "\t-moving-entities=\n"
 				   "\t-random-seed=random\n"
 				   "\t-random-seed=$NUMBER\n"
+				   "\t-mixed-tests-count=\n"
 				   "\tBF         - BruteForce\n"
 				   "\tBVH        - BvhMedianSplitHeap\n"
 				   "\tDBVH       - Dbvh (DynamicBoundingVolumeHierarchy)\n"
@@ -1033,6 +1054,8 @@ int main(int argc, char **argv)
 			mt = std::mt19937_64(rd());
 		} else if (std::string(argv[i]).starts_with("-random-seed=")) {
 			mt = std::mt19937_64(atoll(argv[i] + strlen("-random-seed=")));
+		} else if (std::string(argv[i]).starts_with("-mixed-tests-count=")) {
+			mixedTestsCount = atoll(argv[i] + strlen("-mixed-tests-count="));
 		}
 	}
 
@@ -1393,7 +1416,7 @@ int main(int argc, char **argv)
 
 	printf("\nMore realistinc dynamic movement entagled with tests:\n");
 
-	for (int i = 0; i < 10000; ++i) {
+	for (int i = 0; i < mixedTestsCount; ++i) {
 		ee.clear();
 		vv.clear();
 		ee.reserve(TOTAL_MOVES_AND_TESTS);

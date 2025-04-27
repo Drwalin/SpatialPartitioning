@@ -80,13 +80,14 @@ public:
 							 const int raySign[3], float &near,
 							 float &far) const
 	{
+		assert(glm::all(glm::lessThanEqual(min, max)));
 		glm::vec3 bounds[2] = {min - ro, max - ro};
 		glm::vec3 tmin, tmax;
 
-		tmin.x = bounds[raySign[0]].x * invDir.x;
-		tmax.x = bounds[1 - raySign[0]].x * invDir.x;
-		tmin.y = bounds[raySign[1]].y * invDir.y;
-		tmax.y = bounds[1 - raySign[1]].y * invDir.y;
+		for (int i=0; i<3; ++i) {
+			tmin[i] = bounds[raySign[i]][i] * invDir[i];
+			tmax[i] = bounds[1 - raySign[i]][i] * invDir[i];
+		}
 
 		if ((tmin.x > tmax.y) || (tmin.y > tmax.x))
 			return false;
@@ -97,11 +98,10 @@ public:
 		if (tmax.y < tmax.x)
 			tmax.x = tmax.y;
 
-		tmin.z = bounds[raySign[2]].z * invDir.z;
-		tmax.z = bounds[1 - raySign[2]].z * invDir.z;
 
 		if ((tmin.x > tmax.z) || (tmin.z > tmax.x))
 			return false;
+		
 		if (tmin.z > tmin.x)
 			tmin.x = tmin.z;
 		if (tmax.z < tmax.x)

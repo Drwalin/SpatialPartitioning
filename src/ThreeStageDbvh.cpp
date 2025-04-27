@@ -19,8 +19,8 @@ bool Assert(bool condition, const char *text, const char *function,
 #define ASSERT(COND)                                                           \
 	Assert(COND, #COND, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 
-// #undef assert
-// #define assert(COND) ASSERT(COND)
+#undef assert
+#define assert(COND) ASSERT(COND)
 
 namespace spp
 {
@@ -233,14 +233,10 @@ void ThreeStageDbvh::TryIntegrateOptimised()
 				}
 				toRemoveAfterRebuild.clear();
 
-				/*
 				for (auto it = dynamic->RestartIterator(); it->Valid();
 					 it->Next()) {
-					if (assert(optimised->Exists(it->entity) == false)) {
-						BreakPoint();
-					}
+					assert(optimised->Exists(it->entity) == false);
 				}
-				*/
 			}
 			finishedRebuilding->store(false);
 		}

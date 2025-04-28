@@ -43,7 +43,7 @@ void Dbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
 
 	int32_t offset = ents.Add(entity, Data{aabb, nullptr, entity, mask});
 	Aabb volume = aabb.Expanded(BIG_EPSILON);
-	btDbvtNode *node = dbvt.insert(volume, (void *)(int64_t)offset);
+	btDbvtNode *node = dbvt.insert(volume, entity);
 	ents[offset].node = node;
 	requiresRebuild++;
 }
@@ -126,28 +126,7 @@ void Dbvt::IntersectAabb(IntersectionCallback &cb)
 
 	cb.broadphase = this;
 
-	class btDbvtAabbCb final : public btDbvt::ICollide
-	{
-	public:
-		btDbvtAabbCb(Dbvt *bp, IntersectionCallback *cb) : bp(bp), cb(cb) {}
-		virtual ~btDbvtAabbCb() {}
-		virtual void Process(const btDbvtNode *leaf) override
-		{
-			int32_t offset = (int32_t)(int64_t)(leaf->data);
-			if (bp->ents[offset].mask & cb->mask) {
-				cb->callback(cb, bp->ents[offset].entity);
-				cb->testedCount++;
-			}
-		}
-
-		Dbvt *bp;
-		IntersectionCallback *cb;
-	};
-
-	btDbvtAabbCb btCb{this, &cb};
-
-	Aabb bounds = cb.aabb;
-	dbvt.collideTV(bounds, btCb);
+	dbvt.collideTV(cb);
 }
 
 void Dbvt::IntersectRay(RayCallback &cb)
@@ -161,41 +140,7 @@ void Dbvt::IntersectRay(RayCallback &cb)
 	cb.broadphase = this;
 	cb.InitVariables();
 
-	class btDbvtRayCb final : public btDbvt::ICollide
-	{
-	public:
-		btDbvtRayCb(Dbvt *bp, RayCallback *cb) : bp(bp), cb(cb)
-		{
-			m_lambda_max = 1.0f;
-		}
-		virtual ~btDbvtRayCb() {}
-		virtual void Process(const btDbvtNode *leaf) override
-		{
-			if (cb->cutFactor <= 0.0f)
-				return;
-
-			int32_t offset = (int32_t)(uint64_t)(leaf->data);
-			Dbvt::Data &data = bp->ents[offset];
-			if (cb->mask & data.mask) {
-				auto res = cb->ExecuteCallback(data.entity);
-				if (res.intersection) {
-					assert(res.dist >= 0);
-					assert(res.dist <= 1);
-					m_lambda_max = res.dist;
-				}
-			}
-		}
-
-		Dbvt *bp;
-		RayCallback *cb;
-
-		float m_lambda_max;
-	};
-
-	btDbvtRayCb btCb{this, &cb};
-
-	dbvt.rayTestInternal(cb.start, cb.end, cb.invDir, cb.signs,
-						 btCb.m_lambda_max, btCb);
+	dbvt.rayTestInternal(cb);
 }
 
 BroadphaseBaseIterator *Dbvt::RestartIterator()

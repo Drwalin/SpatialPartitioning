@@ -21,17 +21,8 @@ subject to the following restrictions:
 
 namespace spp
 {
-	
-	
 typedef std::vector<btDbvtNode*> tNodeArray;
 typedef std::vector<const btDbvtNode*> tConstNodeArray;
-
-//
-struct btDbvtNodeEnumerator : btDbvt::ICollide
-{
-	tConstNodeArray nodes;
-	void Process(const btDbvtNode* n) { nodes.push_back(n); }
-};
 
 //
 static inline int indexof(const btDbvtNode* node)
@@ -87,7 +78,7 @@ static void recursedeletenode(btDbvt* pdbvt,
 //
 static inline btDbvtNode* createnode(btDbvt* pdbvt,
 										  btDbvtNode* parent,
-										  void* data)
+										  EntityType data)
 {
 	btDbvtNode* node;
 	if (pdbvt->m_free)
@@ -109,7 +100,7 @@ static inline btDbvtNode* createnode(btDbvt* pdbvt,
 static inline btDbvtNode* createnode(btDbvt* pdbvt,
 										  btDbvtNode* parent,
 										  const Aabb& volume,
-										  void* data)
+										  EntityType data)
 {
 	btDbvtNode* node = createnode(pdbvt, parent, data);
 	node->volume = volume;
@@ -121,7 +112,7 @@ static inline btDbvtNode* createnode(btDbvt* pdbvt,
 										  btDbvtNode* parent,
 										  const Aabb& volume0,
 										  const Aabb& volume1,
-										  void* data)
+										  EntityType data)
 {
 	btDbvtNode* node = createnode(pdbvt, parent, data);
 	Merge(volume0, volume1, node->volume);
@@ -293,14 +284,7 @@ static int split(btDbvtNode** leaves,
 static Aabb bounds(btDbvtNode** leaves,
 						   int count)
 {
-#ifdef BT_USE_SSE
-	ATTRIBUTE_ALIGNED16(char locals[sizeof(Aabb)]);
-	Aabb* ptr = (Aabb*)locals;
-	Aabb& volume = *ptr;
-	volume = leaves[0]->volume;
-#else
 	Aabb volume = leaves[0]->volume;
-#endif
 	for (int i = 1, ni = count; i < ni; ++i)
 	{
 		Merge(volume, leaves[i]->volume, volume);
@@ -439,14 +423,6 @@ static inline btDbvtNode* sort(btDbvtNode* n, btDbvtNode*& r)
 	return (n);
 }
 
-#if 0
-static inline btDbvtNode*	walkup(btDbvtNode* n,int count)
-{
-	while(n&&(count--)) n=n->parent;
-	return(n);
-}
-#endif
-
 //
 // Api
 //
@@ -525,7 +501,7 @@ void btDbvt::optimizeIncremental(int passes)
 }
 
 //
-btDbvtNode* btDbvt::insert(const Aabb& volume, void* data)
+btDbvtNode* btDbvt::insert(const Aabb& volume, EntityType data)
 {
 	btDbvtNode* leaf = createnode(this, 0, volume, data);
 	insertleaf(this, m_root, leaf);

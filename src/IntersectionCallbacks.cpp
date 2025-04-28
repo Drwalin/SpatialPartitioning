@@ -25,12 +25,38 @@ void RayCallback::InitVariables()
 
 bool IntersectionCallback::IsRelevant(AabbCentered aabb) const
 {
-	return aabb && this->aabb;
+	return this->aabb && aabb;
 }
 
 bool IntersectionCallback::IsRelevant(Aabb aabb) const
 {
-	return aabb && this->aabb;
+	return this->aabb && aabb;
+}
+
+void IntersectionCallback::ExecuteCallback(EntityType entity)
+{
+	++testedCount;
+	callback(this, entity);
+}
+	
+bool IntersectionCallback::ExecuteIfRelevant(AabbCentered aabb, EntityType entity)
+{
+	++nodesTestedCount;
+	if (IsRelevant(aabb)) {
+		ExecuteCallback(entity);
+		return true;
+	}
+	return false;
+}
+
+bool IntersectionCallback::ExecuteIfRelevant(Aabb aabb, EntityType entity)
+{
+	++nodesTestedCount;
+	if (IsRelevant(aabb)) {
+		ExecuteCallback(entity);
+		return true;
+	}
+	return false;
 }
 
 bool RayCallback::IsRelevant(AabbCentered aabb, float &near, float &far) const
@@ -70,8 +96,8 @@ bool RayCallback::IsRelevant(Aabb aabb) const
 
 RayPartialResult RayCallback::ExecuteCallback(EntityType entity)
 {
-	auto res = callback(this, entity);
 	++testedCount;
+	auto res = callback(this, entity);
 	if (res.intersection) {
 		++hitCount;
 		cutFactor = res.dist;

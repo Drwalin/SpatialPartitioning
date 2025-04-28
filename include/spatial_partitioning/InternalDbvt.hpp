@@ -21,9 +21,8 @@ misrepresented as being the original software.
 
 #pragma once
 
-#include <immintrin.h>
-
 #include "Aabb.hpp"
+#include "IntersectionCallbacks.hpp"
 
 namespace spp
 {
@@ -36,8 +35,7 @@ struct btDbvtNode {
 	inline bool isinternal() const { return (!isleaf()); }
 	union {
 		btDbvtNode *childs[2];
-		void *data;
-		int dataAsInt;
+		EntityType data;
 	};
 };
 
@@ -50,27 +48,8 @@ typedef std::vector<const btDbvtNode *> btNodeStack;
 /// dynamically moved around, which allows for change in topology of the
 /// underlying data structure.
 struct btDbvt {
-	/* Stack element	*/
-
-	/* ICollide	*/
-	struct ICollide {
-		virtual ~ICollide() {}
-		virtual void Process(const btDbvtNode *, const btDbvtNode *) {}
-		virtual void Process(const btDbvtNode *) {}
-		virtual void Process(const btDbvtNode *n, float) { Process(n); }
-		virtual bool Descent(const btDbvtNode *) { return (true); }
-		virtual bool AllLeaves(const btDbvtNode *) { return (true); }
-	};
-	/* IClone	*/
-	struct IClone {
-		virtual ~IClone() {}
-		virtual void CloneLeaf(btDbvtNode *) {}
-	};
-
-	// Constants
 	enum { SIMPLE_STACKSIZE = 64, DOUBLE_STACKSIZE = SIMPLE_STACKSIZE * 2 };
 
-	// Fields
 	btDbvtNode *m_root = nullptr;
 	btDbvtNode *m_free = nullptr;
 	int m_lkhd = -1;
@@ -87,30 +66,24 @@ struct btDbvt {
 	void optimizeBottomUp();
 	void optimizeTopDown(int bu_treshold = 128);
 	void optimizeIncremental(int passes);
-	btDbvtNode *insert(const Aabb &box, void *data);
+	btDbvtNode *insert(const Aabb &box, EntityType data);
 	void update(btDbvtNode *leaf, int lookahead = -1);
 	void update(btDbvtNode *leaf, Aabb &volume);
 	bool update(btDbvtNode *leaf, Aabb &volume, float margin);
 	void remove(btDbvtNode *leaf);
 
-	// T& policy must support ICollide policy/interface
-
-	template <typename T> void collideTV(const Aabb &volume, T &policy);
+	void collideTV(IntersectionCallback &cb);
 
 	/// rayTestInternal is faster than rayTest, because it uses a persistent
 	/// stack (to reduce dynamic memory allocations to a minimum) and it uses
 	/// precomputed signs/rayInverseDirections rayTestInternal is used by
 	/// btDbvtBroadphase to accelerate world ray casts
-	template <typename T>
-	void rayTestInternal(const glm::vec3 &start, const glm::vec3 &end,
-						 const glm::vec3 &invDir, int signs[3],
-						 float &lambda_max, T &policy);
+	void rayTestInternal(RayCallback &cb);
 	//
 private:
 	btDbvt(const btDbvt &) {}
 };
 
-//
 inline void SignedExpand(Aabb &aabb, const glm::vec3 &e)
 {
 	if (e.x > 0)
@@ -127,7 +100,6 @@ inline void SignedExpand(Aabb &aabb, const glm::vec3 &e)
 		aabb.min.z = aabb.min.z + e.z;
 }
 
-//
 inline bool Contain(const Aabb &aabb, const Aabb &a)
 {
 	return ((aabb.min.x <= a.min.x) && (aabb.min.y <= a.min.y) &&
@@ -135,25 +107,19 @@ inline bool Contain(const Aabb &aabb, const Aabb &a)
 			(aabb.max.y >= a.max.y) && (aabb.max.z >= a.max.z));
 }
 
-//////////////////////////////////////
-
-//
 inline float Proximity(const Aabb &a, const Aabb &b)
 {
 	const glm::vec3 d = (a.min + a.max) - (b.min + b.max);
 	return (glm::abs(d.x) + glm::abs(d.y) + glm::abs(d.z));
 }
 
-//
 inline int Select(const Aabb &o, const Aabb &a, const Aabb &b)
 {
 	return (Proximity(o, a) < Proximity(o, b) ? 0 : 1);
 }
 
-//
 inline void Merge(const Aabb &a, const Aabb &b, Aabb &r) { r = a + b; }
 
-//
 inline bool NotEqual(const Aabb &a, const Aabb &b)
 {
 	return ((a.min.x != b.min.x) || (a.min.y != b.min.y) ||
@@ -161,66 +127,45 @@ inline bool NotEqual(const Aabb &a, const Aabb &b)
 			(a.max.y != b.max.y) || (a.max.z != b.max.z));
 }
 
-//
-// Inline's
-//
-
-//
-template <typename T> inline void btDbvt::collideTV(const Aabb &vol, T &policy)
+inline void btDbvt::collideTV(IntersectionCallback &cb)
 {
 	if (m_root) {
-		Aabb volume(vol);
-		stack.resize(0);
-		stack.reserve(SIMPLE_STACKSIZE);
+		stack.clear();
 		stack.push_back(m_root);
 		do {
-			const btDbvtNode *n = stack[stack.size() - 1];
+			const btDbvtNode *node = stack.back();
 			stack.pop_back();
-			if (n->volume && volume) {
-				if (n->isinternal()) {
-					stack.push_back(n->childs[0]);
-					stack.push_back(n->childs[1]);
+			cb.nodesTestedCount++;
+			if (cb.IsRelevant(node->volume)) {
+				if (node->isinternal()) {
+						stack.push_back(node->childs[0]);
+						stack.push_back(node->childs[1]);
 				} else {
-					policy.Process(n);
+					cb.ExecuteCallback(node->data);
 				}
 			}
-		} while (stack.size() > 0);
+		} while (!stack.empty());
 	}
 }
 
-template <typename T>
-inline void btDbvt::rayTestInternal(const glm::vec3 &start,
-									const glm::vec3 &end,
-									const glm::vec3 &invDir, int signs[3],
-									float &near, T &policy)
+inline void btDbvt::rayTestInternal(RayCallback &cb)
 {
 	if (m_root) {
-		int depth = 1;
-		int treshold = DOUBLE_STACKSIZE - 2;
-		stack.resize(DOUBLE_STACKSIZE);
-		stack[0] = m_root;
-		Aabb aabb;
+		stack.clear();
+		stack.push_back(m_root);
 		do {
-			const btDbvtNode *node = stack[--depth];
-			aabb = node->volume;
-			float _near;
-			float far;
-			unsigned int result1 = false;
-			result1 =
-				node->volume.FastRayTest2(start, invDir, signs, _near, far);
-			if (result1 && _near < near) {
+			const btDbvtNode *node = stack.back();
+			stack.pop_back();
+			cb.nodesTestedCount++;
+			if (cb.IsRelevant(node->volume)) {
 				if (node->isinternal()) {
-					if (depth > treshold) {
-						stack.resize(stack.size() * 2);
-						treshold = stack.size() - 2;
-					}
-					stack[depth++] = node->childs[0];
-					stack[depth++] = node->childs[1];
+						stack.push_back(node->childs[0]);
+						stack.push_back(node->childs[1]);
 				} else {
-					policy.Process(node);
+					cb.ExecuteCallback(node->data);
 				}
 			}
-		} while (depth);
+		} while (!stack.empty());
 	}
 }
 } // namespace spp

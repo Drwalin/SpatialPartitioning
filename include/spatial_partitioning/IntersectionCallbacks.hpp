@@ -15,6 +15,11 @@ struct IntersectionCallback {
 
 	bool IsRelevant(AabbCentered aabb) const;
 	bool IsRelevant(Aabb aabb) const;
+	
+	void ExecuteCallback(EntityType entity);
+	
+	bool ExecuteIfRelevant(AabbCentered aabb, EntityType entity);
+	bool ExecuteIfRelevant(Aabb aabb, EntityType entity);
 
 	void (*callback)(IntersectionCallback *, EntityType entity) = nullptr;
 

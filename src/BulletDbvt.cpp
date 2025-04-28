@@ -125,24 +125,6 @@ void BulletDbvt::Rebuild()
 	SmallRebuildIfNeeded();
 }
 
-class btDbvtAabbCb final : public bullet::btDbvt::ICollide
-{
-public:
-	btDbvtAabbCb(BulletDbvt *bp, IntersectionCallback *cb) : bp(bp), cb(cb) {}
-	virtual ~btDbvtAabbCb() {}
-	virtual void Process(const bullet::btDbvtNode *leaf) override
-	{
-		int32_t offset = (int32_t)(int64_t)(leaf->data);
-		if (bp->ents[offset].mask & cb->mask) {
-			cb->callback(cb, bp->ents[offset].entity);
-			cb->testedCount++;
-		}
-	}
-
-	BulletDbvt *bp;
-	IntersectionCallback *cb;
-};
-
 void BulletDbvt::IntersectAabb(IntersectionCallback &cb)
 {
 	if (cb.callback == nullptr) {
@@ -152,61 +134,32 @@ void BulletDbvt::IntersectAabb(IntersectionCallback &cb)
 	SmallRebuildIfNeeded();
 
 	cb.broadphase = this;
+
+	class btDbvtAabbCb final : public bullet::btDbvt::ICollide
+	{
+	public:
+		btDbvtAabbCb(BulletDbvt *bp, IntersectionCallback *cb) : bp(bp), cb(cb)
+		{
+		}
+		virtual ~btDbvtAabbCb() {}
+		virtual void Process(const bullet::btDbvtNode *leaf) override
+		{
+			int32_t offset = (int32_t)(int64_t)(leaf->data);
+			if (bp->ents[offset].mask & cb->mask) {
+				cb->callback(cb, bp->ents[offset].entity);
+				cb->testedCount++;
+			}
+		}
+
+		BulletDbvt *bp;
+		IntersectionCallback *cb;
+	};
+
 	btDbvtAabbCb btCb{this, &cb};
 
 	bullet::btDbvtVolume bounds = bt(cb.aabb);
 	dbvt.collideTVNoStackAlloc(dbvt.m_root, bounds, stack, btCb);
 }
-
-class btDbvtRayCb final : public bullet::btDbvt::ICollide
-{
-public:
-	btDbvtRayCb(BulletDbvt *bp, RayCallback *cb) : bp(bp), cb(cb)
-	{
-		bullet::btVector3 rayDir = bt(cb->end - cb->start);
-
-		rayDir.normalize();
-		m_rayDirectionInverse[0] = rayDir[0] == bullet::btScalar(0.0)
-									   ? bullet::btScalar(BT_LARGE_FLOAT)
-									   : bullet::btScalar(1.0) / rayDir[0];
-		m_rayDirectionInverse[1] = rayDir[1] == bullet::btScalar(0.0)
-									   ? bullet::btScalar(BT_LARGE_FLOAT)
-									   : bullet::btScalar(1.0) / rayDir[1];
-		m_rayDirectionInverse[2] = rayDir[2] == bullet::btScalar(0.0)
-									   ? bullet::btScalar(BT_LARGE_FLOAT)
-									   : bullet::btScalar(1.0) / rayDir[2];
-		m_signs[0] = m_rayDirectionInverse[0] < 0.0;
-		m_signs[1] = m_rayDirectionInverse[1] < 0.0;
-		m_signs[2] = m_rayDirectionInverse[2] < 0.0;
-
-		m_lambda_max = lambdaOrig = rayDir.dot(bt(cb->end - cb->start));
-	}
-	virtual ~btDbvtRayCb() {}
-	virtual void Process(const bullet::btDbvtNode *leaf) override
-	{
-		if (cb->cutFactor == bullet::btScalar(0.f))
-			return;
-
-		int32_t offset = (int32_t)(uint64_t)(leaf->data);
-		BulletDbvt::Data &data = bp->ents[offset];
-		if (cb->mask & data.mask) {
-			auto res = cb->ExecuteCallback(data.entity);
-			if (res.intersection) {
-				assert(res.dist >= 0);
-				assert(res.dist <= 1);
-				m_lambda_max = lambdaOrig * res.dist;
-			}
-		}
-	}
-
-	BulletDbvt *bp;
-	RayCallback *cb;
-
-	bullet::btVector3 m_rayDirectionInverse;
-	unsigned int m_signs[3];
-	float m_lambda_max;
-	float lambdaOrig;
-};
 
 void BulletDbvt::IntersectRay(RayCallback &cb)
 {
@@ -218,6 +171,56 @@ void BulletDbvt::IntersectRay(RayCallback &cb)
 
 	cb.broadphase = this;
 	cb.InitVariables();
+
+	class btDbvtRayCb final : public bullet::btDbvt::ICollide
+	{
+	public:
+		btDbvtRayCb(BulletDbvt *bp, RayCallback *cb) : bp(bp), cb(cb)
+		{
+			bullet::btVector3 rayDir = bt(cb->end - cb->start);
+
+			rayDir.normalize();
+			m_rayDirectionInverse[0] = rayDir[0] == bullet::btScalar(0.0)
+										   ? bullet::btScalar(BT_LARGE_FLOAT)
+										   : bullet::btScalar(1.0) / rayDir[0];
+			m_rayDirectionInverse[1] = rayDir[1] == bullet::btScalar(0.0)
+										   ? bullet::btScalar(BT_LARGE_FLOAT)
+										   : bullet::btScalar(1.0) / rayDir[1];
+			m_rayDirectionInverse[2] = rayDir[2] == bullet::btScalar(0.0)
+										   ? bullet::btScalar(BT_LARGE_FLOAT)
+										   : bullet::btScalar(1.0) / rayDir[2];
+			m_signs[0] = m_rayDirectionInverse[0] < 0.0;
+			m_signs[1] = m_rayDirectionInverse[1] < 0.0;
+			m_signs[2] = m_rayDirectionInverse[2] < 0.0;
+
+			m_lambda_max = lambdaOrig = rayDir.dot(bt(cb->end - cb->start));
+		}
+		virtual ~btDbvtRayCb() {}
+		virtual void Process(const bullet::btDbvtNode *leaf) override
+		{
+			if (cb->cutFactor == bullet::btScalar(0.f))
+				return;
+
+			int32_t offset = (int32_t)(uint64_t)(leaf->data);
+			BulletDbvt::Data &data = bp->ents[offset];
+			if (cb->mask & data.mask) {
+				auto res = cb->ExecuteCallback(data.entity);
+				if (res.intersection) {
+					assert(res.dist >= 0);
+					assert(res.dist <= 1);
+					m_lambda_max = lambdaOrig * res.dist;
+				}
+			}
+		}
+
+		BulletDbvt *bp;
+		RayCallback *cb;
+
+		bullet::btVector3 m_rayDirectionInverse;
+		unsigned int m_signs[3];
+		float m_lambda_max;
+		float lambdaOrig;
+	};
 
 	btDbvtRayCb btCb{this, &cb};
 

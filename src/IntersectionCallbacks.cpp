@@ -14,7 +14,9 @@ void RayCallback::InitVariables()
 		cutFactor = 1.0f;
 		length = glm::length(dir);
 		dirNormalized = glm::normalize(dir);
-		invDir = glm::vec3(1.f, 1.f, 1.f) / dir;
+		for (int i=0; i<3; ++i) {
+			invDir[i] = dir[i] == 0.0f ? 1e18f : 1.0f / dir[i];
+		}
 		signs[0] = invDir[0] < 0.0 ? 1 : 0;
 		signs[1] = invDir[1] < 0.0 ? 1 : 0;
 		signs[2] = invDir[2] < 0.0 ? 1 : 0;
@@ -33,7 +35,7 @@ bool IntersectionCallback::IsRelevant(Aabb aabb) const
 
 bool RayCallback::IsRelevant(AabbCentered aabb, float &near, float &far) const
 {
-	if (aabb.FastRayTest(start, dirNormalized, invDir, length, near, far)) {
+	if (aabb.FastRayTestCenter(start, dirNormalized, invDir, length, near, far)) {
 		if (near > cutFactor) {
 			return false;
 		} else {

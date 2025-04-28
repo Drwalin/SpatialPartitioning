@@ -30,6 +30,7 @@ target_link_libraries(spatial_partitioning PUBLIC glm)
 
 add_executable(test1 tests/Test1.cpp)
 target_link_libraries(test1 spatial_partitioning)
+set_target_properties(test1 PROPERTIES ENABLE_EXPORTS ON)
 
 add_executable(testAabb tests/TestAabb.cpp)
 target_link_libraries(testAabb spatial_partitioning)

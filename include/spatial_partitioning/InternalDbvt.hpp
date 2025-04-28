@@ -23,149 +23,94 @@ misrepresented as being the original software.
 
 #include "Aabb.hpp"
 #include "IntersectionCallbacks.hpp"
+#include "AssociativeArray.hpp"
 
 namespace spp
 {
+class Dbvt;
 
-/* btDbvtNode				*/
-struct btDbvtNode {
-	Aabb volume;
-	btDbvtNode *parent;
-	inline bool isleaf() const { return (childs[1] == 0); }
-	inline bool isinternal() const { return (!isleaf()); }
-	union {
-		btDbvtNode *childs[2];
-		EntityType data;
-	};
-};
+class btDbvt
+{
+public:
+	
+	btDbvt(spp::Dbvt *dbvt);
 
-typedef std::vector<const btDbvtNode *> btNodeStack;
-
-/// The btDbvt class implements a fast dynamic bounding volume tree based on
-/// axis aligned bounding boxes (aabb tree). This btDbvt is used for soft body
-/// collision detection and for the btDbvtBroadphase. It has a fast insert,
-/// remove and update of nodes. Unlike the btQuantizedBvh, nodes can be
-/// dynamically moved around, which allows for change in topology of the
-/// underlying data structure.
-struct btDbvt {
-	enum { SIMPLE_STACKSIZE = 64, DOUBLE_STACKSIZE = SIMPLE_STACKSIZE * 2 };
-
-	btDbvtNode *m_root = nullptr;
-	btDbvtNode *m_free = nullptr;
-	int m_lkhd = -1;
-	int m_leaves = 0;
-	unsigned m_opath = 0;
-
-	std::vector<const btDbvtNode *> stack;
-
-	// Methods
-	btDbvt();
 	~btDbvt();
 	void clear();
-	bool empty() const { return (0 == m_root); }
-	void optimizeBottomUp();
-	void optimizeTopDown(int bu_treshold = 128);
+	bool empty() const { return (0 == rootId); }
 	void optimizeIncremental(int passes);
-	btDbvtNode *insert(const Aabb &box, EntityType data);
-	void update(btDbvtNode *leaf, int lookahead = -1);
-	void update(btDbvtNode *leaf, Aabb &volume);
-	bool update(btDbvtNode *leaf, Aabb &volume, float margin);
-	void remove(btDbvtNode *leaf);
+
+	void insert(const Aabb &aabb, uint32_t entityOffset);
+
+	void updateLeaf(uint32_t leaf, int lookahead = -1);
+	void updateEntityOffset(uint32_t entityOffset, const Aabb &aabb);
+	bool updateEntityOffset(uint32_t entityOffset, const Aabb &aabb, float margin);
+	void remove(uint32_t entityOffset);
+	
+	void updateOffsetOfEntity(uint32_t oldEntityOffset, uint32_t newEntityOffset);
 
 	void collideTV(IntersectionCallback &cb);
-
-	/// rayTestInternal is faster than rayTest, because it uses a persistent
-	/// stack (to reduce dynamic memory allocations to a minimum) and it uses
-	/// precomputed signs/rayInverseDirections rayTestInternal is used by
-	/// btDbvtBroadphase to accelerate world ray casts
 	void rayTestInternal(RayCallback &cb);
-	//
-private:
-	btDbvt(const btDbvt &) {}
+	
+	size_t GetMemoryUsage() const;
+	
+	int IsTreeValid(uint32_t node = 0) const;
+	
+public:
+
+	struct Data {
+		Aabb aabb;
+		uint32_t parent = 0;
+		EntityType entity = 0;
+		MaskType mask = 0;
+	};
+	
+protected:
+	
+	inline const static uint32_t OFFSET = 0x80000000;
+
+	struct NodeData {
+		Aabb aabb;
+		uint32_t parent = 0;
+		uint32_t childs[2] = {0, 0};
+	};
+
+protected:
+	static bool isLeaf(uint32_t node);
+	static bool isInternal(uint32_t node);
+	static uint32_t getLeafId(uint32_t entityOffset);
+
+	int indexof(uint32_t node) const;
+	int indexofLeaf(uint32_t leaf) const;
+	int indexofNode(uint32_t node) const;
+	Aabb getAabb(uint32_t node) const;
+	uint32_t getParent(uint32_t node) const;
+	Aabb getLeafAabb(uint32_t leaf) const;
+	uint32_t getLeafParent(uint32_t leaf) const;
+	Aabb getNodeAabb(uint32_t node) const;
+	uint32_t getNodeParent(uint32_t node) const;
+	void setParent(uint32_t node, uint32_t parent);
+	void setNodeParent(uint32_t node, uint32_t parent);
+	void setLeafParent(uint32_t leaf, uint32_t parent);
+
+	EntityType getLeafEntity(uint32_t leaf) const;
+	MaskType getLeafMask(uint32_t leaf) const;
+
+	void deletenode(uint32_t node);
+	uint32_t createnode(uint32_t parent);
+	uint32_t createnode(uint32_t parent, const Aabb &aabb);
+	uint32_t createnode(uint32_t parent, const Aabb &aabb0, const Aabb &aabb1);
+	void insertleaf(uint32_t root, uint32_t leaf, const Aabb &aabb);
+	uint32_t removeleaf(uint32_t leaf);
+	uint32_t sort(uint32_t n, uint32_t &r);
+
+protected:
+	uint32_t rootId = 0;
+	unsigned m_opath = 0;
+
+	AssociativeArray<EntityType, uint32_t, spp::btDbvt::Data, false> *ents;
+	std::vector<NodeData> nodes;
+
+	std::vector<uint32_t> stack;
 };
-
-inline void SignedExpand(Aabb &aabb, const glm::vec3 &e)
-{
-	if (e.x > 0)
-		aabb.max.x = aabb.max.x + e.x;
-	else
-		aabb.min.x = aabb.min.x + e.x;
-	if (e.y > 0)
-		aabb.max.y = aabb.max.y + e.y;
-	else
-		aabb.min.y = aabb.min.y + e.y;
-	if (e.z > 0)
-		aabb.max.z = aabb.max.z + e.z;
-	else
-		aabb.min.z = aabb.min.z + e.z;
-}
-
-inline bool Contain(const Aabb &aabb, const Aabb &a)
-{
-	return ((aabb.min.x <= a.min.x) && (aabb.min.y <= a.min.y) &&
-			(aabb.min.z <= a.min.z) && (aabb.max.x >= a.max.x) &&
-			(aabb.max.y >= a.max.y) && (aabb.max.z >= a.max.z));
-}
-
-inline float Proximity(const Aabb &a, const Aabb &b)
-{
-	const glm::vec3 d = (a.min + a.max) - (b.min + b.max);
-	return (glm::abs(d.x) + glm::abs(d.y) + glm::abs(d.z));
-}
-
-inline int Select(const Aabb &o, const Aabb &a, const Aabb &b)
-{
-	return (Proximity(o, a) < Proximity(o, b) ? 0 : 1);
-}
-
-inline void Merge(const Aabb &a, const Aabb &b, Aabb &r) { r = a + b; }
-
-inline bool NotEqual(const Aabb &a, const Aabb &b)
-{
-	return ((a.min.x != b.min.x) || (a.min.y != b.min.y) ||
-			(a.min.z != b.min.z) || (a.max.x != b.max.x) ||
-			(a.max.y != b.max.y) || (a.max.z != b.max.z));
-}
-
-inline void btDbvt::collideTV(IntersectionCallback &cb)
-{
-	if (m_root) {
-		stack.clear();
-		stack.push_back(m_root);
-		do {
-			const btDbvtNode *node = stack.back();
-			stack.pop_back();
-			cb.nodesTestedCount++;
-			if (cb.IsRelevant(node->volume)) {
-				if (node->isinternal()) {
-						stack.push_back(node->childs[0]);
-						stack.push_back(node->childs[1]);
-				} else {
-					cb.ExecuteCallback(node->data);
-				}
-			}
-		} while (!stack.empty());
-	}
-}
-
-inline void btDbvt::rayTestInternal(RayCallback &cb)
-{
-	if (m_root) {
-		stack.clear();
-		stack.push_back(m_root);
-		do {
-			const btDbvtNode *node = stack.back();
-			stack.pop_back();
-			cb.nodesTestedCount++;
-			if (cb.IsRelevant(node->volume)) {
-				if (node->isinternal()) {
-						stack.push_back(node->childs[0]);
-						stack.push_back(node->childs[1]);
-				} else {
-					cb.ExecuteCallback(node->data);
-				}
-			}
-		} while (!stack.empty());
-	}
-}
 } // namespace spp

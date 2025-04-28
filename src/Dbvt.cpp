@@ -6,7 +6,7 @@
 
 namespace spp
 {
-Dbvt::Dbvt() : iterator(*this) {}
+Dbvt::Dbvt() : dbvt(this), iterator(*this) {}
 Dbvt::~Dbvt() { Clear(); }
 
 const char *Dbvt::GetName() const { return "Dbvt"; }
@@ -19,7 +19,7 @@ void Dbvt::Clear()
 
 size_t Dbvt::GetMemoryUsage() const
 {
-	return ents.GetMemoryUsage() + (GetCount() * 2 - 1) * sizeof(btDbvtNode);
+	return ents.GetMemoryUsage() + dbvt.GetMemoryUsage();
 }
 
 void Dbvt::ShrinkToFit() { ents.ShrinkToFit(); }
@@ -41,20 +41,17 @@ void Dbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	assert(Exists(entity) == false);
 
-	int32_t offset = ents.Add(entity, Data{aabb, nullptr, entity, mask});
-	Aabb volume = aabb.Expanded(BIG_EPSILON);
-	btDbvtNode *node = dbvt.insert(volume, entity);
-	ents[offset].node = node;
+	uint32_t offset = ents.Add(entity, Data{aabb, 0, entity, mask});
+	dbvt.insert(aabb, offset);
 	requiresRebuild++;
 }
 
 void Dbvt::Update(EntityType entity, Aabb aabb)
 {
-	int32_t offset = ents.GetOffset(entity);
+	uint32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
 		ents[offset].aabb = aabb;
-		Aabb volume = aabb.Expanded(BIG_EPSILON);
-		dbvt.update(ents[offset].node, volume);
+		dbvt.updateEntityOffset(offset, aabb);
 		requiresRebuild++;
 	} else {
 		assert(Exists(entity) == true);
@@ -63,9 +60,9 @@ void Dbvt::Update(EntityType entity, Aabb aabb)
 
 void Dbvt::Remove(EntityType entity)
 {
-	int32_t offset = ents.GetOffset(entity);
+	uint32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
-		dbvt.remove(ents[offset].node);
+		dbvt.remove(offset);
 		ents.RemoveByKey(entity);
 		requiresRebuild++;
 	} else {
@@ -75,7 +72,7 @@ void Dbvt::Remove(EntityType entity)
 
 void Dbvt::SetMask(EntityType entity, MaskType mask)
 {
-	int32_t offset = ents.GetOffset(entity);
+	uint32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
 		ents[offset].mask = mask;
 	} else {
@@ -92,7 +89,7 @@ bool Dbvt::Exists(EntityType entity) const
 
 Aabb Dbvt::GetAabb(EntityType entity) const
 {
-	int32_t offset = ents.GetOffset(entity);
+	uint32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
 		return ents[offset].aabb;
 	}
@@ -103,7 +100,7 @@ Aabb Dbvt::GetAabb(EntityType entity) const
 MaskType Dbvt::GetMask(EntityType entity) const
 {
 	assert(Exists(entity) == true);
-	int32_t offset = ents.GetOffset(entity);
+	uint32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
 		return ents[offset].mask;
 	}

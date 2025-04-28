@@ -49,15 +49,13 @@ public:
 
 private:
 	void SmallRebuildIfNeeded();
+	
+	friend class spp::btDbvt;
 
 private:
-	struct Data {
-		Aabb aabb;
-		btDbvtNode *node = nullptr;
-		EntityType entity = 0;
-		MaskType mask = 0;
-	};
-	AssociativeArray<EntityType, int32_t, Data, false> ents;
+	using Data = spp::btDbvt::Data;
+	
+	AssociativeArray<EntityType, uint32_t, spp::btDbvt::Data, false> ents;
 	btDbvt dbvt;
 
 	size_t requiresRebuild = 0;

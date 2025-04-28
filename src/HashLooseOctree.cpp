@@ -473,7 +473,7 @@ void HashLooseOctree::IntersectRay(RayCallback &cb)
 			{
 				Aabb aabb = CalcLocalAabbOfNode(p, levels);
 				float __n, __f;
-				if (aabb.FastRayTest(
+				if (aabb.FastRayTestCenter(
 						cb.start * invResolution, cb.dirNormalized, cb.invDir,
 						cb.length * invResolution * cb.cutFactor, __n, __f)) {
 					_Internal_IntersectRay(cb, p, levels);
@@ -518,7 +518,7 @@ void HashLooseOctree::_Internal_IntersectRay(RayCallback &cb, glm::ivec3 pos,
 		glm::ivec3 p = pos + is * ihalfSize;
 		Aabb aabb = {p, p + ihalfSize};
 		float __n, __f;
-		if (aabb.FastRayTest(cb.start * invResolution, cb.dirNormalized,
+		if (aabb.FastRayTestCenter(cb.start * invResolution, cb.dirNormalized,
 							 cb.invDir, cb.length * invResolution, __n, __f)) {
 
 			if (__n < cb.cutFactor) {
@@ -556,7 +556,7 @@ void HashLooseOctree::_Inernal_IntersectRayIterateOverData(RayCallback &cb,
 			++cb.nodesTestedCount;
 
 			float __n, __f;
-			if (N.aabb.FastRayTest(cb.start * invResolution, cb.dirNormalized,
+			if (N.aabb.FastRayTestCenter(cb.start * invResolution, cb.dirNormalized,
 								   cb.invDir, cb.length * invResolution, __n,
 								   __f)) {
 				cb.ExecuteCallback(N.entity);

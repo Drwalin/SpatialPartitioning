@@ -42,7 +42,7 @@ bool CenteredRayTest(glm::vec3 start, glm::vec3 end, spp::Aabb aabb,
 					 glm::vec3 &hitPoint, float &near)
 {
 	float f;
-	if (((spp::AabbCentered)aabb).SlowRayTest(start, end, near, f)) {
+	if (((spp::AabbCentered)aabb).SlowRayTestCenter(start, end, near, f)) {
 		hitPoint = start + ((end - start) * near);
 		return true;
 	}
@@ -214,7 +214,7 @@ int main()
 	start = {-4, 8, 5};
 	end = {27, 11, 2};
 	aabb = {{14, 10, 3}, {18, 11, 5}};
-	if (aabb.SlowRayTest(start, end, n, f)) {
+	if (aabb.SlowRayTestCenter(start, end, n, f)) {
 		glm::vec3 p = (start + glm::normalize(end - start) * n);
 		printf(" git,    n: %f    f: %f      p: %.2f %.2f %.2f\n", n, f, p.x,
 			   p.y, p.z);
@@ -225,7 +225,7 @@ int main()
 	start = {-4, 8, 0};
 	end = {27, 11, 0};
 	aabb = {{14, 10, -10}, {18, 11, 10}};
-	if (aabb.SlowRayTest(start, end, n, f)) {
+	if (aabb.SlowRayTestCenter(start, end, n, f)) {
 		glm::vec3 p = (start + glm::normalize(end - start) * n);
 		printf(" git,    n: %f    f: %f      p: %.2f %.2f %.2f\n", n, f, p.x,
 			   p.y, p.z);
@@ -236,7 +236,7 @@ int main()
 	start = {27, 11, 0};
 	end = {-4, 8, 0};
 	aabb = {{14, 10, -10}, {18, 11, 10}};
-	if (aabb.SlowRayTest(start, end, n, f)) {
+	if (aabb.SlowRayTestCenter(start, end, n, f)) {
 		glm::vec3 p = (start + glm::normalize(end - start) * n);
 		printf(" git,    n: %f    f: %f      p: %.2f %.2f %.2f\n", n, f, p.x,
 			   p.y, p.z);

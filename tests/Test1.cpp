@@ -18,6 +18,7 @@
 #include "../include/spatial_partitioning/LooseOctree.hpp"
 #include "../include/spatial_partitioning/BulletDbvh.hpp"
 #include "../include/spatial_partitioning/BulletDbvt.hpp"
+#include "../include/spatial_partitioning/Dbvt.hpp"
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
 int32_t TOTAL_ENTITIES = 1000000;
@@ -447,9 +448,11 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 		offsetOfPatch[i].clear();
 		offsetOfPatch[i].reserve(testsCount);
 		hitPoints[i].clear();
-		printf("Max capacity: %lu (%lu bytes)\n", hitPoints[i].max_size(), sizeof(StartEndPoint));
-		fflush(stdout);
-		hitPoints[i].reserve(testsCount*10);
+		hitPoints[i].reserve(testsCount*30);
+		size_t S = (80000000*4) / broadphases.size();
+		for (int j=0; j<S && j < hitPoints[i].capacity(); j+=50) {
+			hitPoints[i].data()[j] = {};
+		}
 		auto &it = broadphases[i];
 		size_t tC =
 			i ? aabbs.size() : aabbs.size() / BRUTE_FROCE_TESTS_COUNT_DIVISOR;
@@ -565,7 +568,7 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 						float near;
 						float far;
 						bool r =
-							hp.aabb.SlowRayTest(hp.start, hp.end, near, far);
+							hp.aabb.SlowRayTestCenter(hp.start, hp.end, near, far);
 
 						printf("5. CARDINAL ERROR: AABB RAY TEST ERROR VALUE, "
 							   "HITPOINT OUTSIDE AABB");
@@ -1042,6 +1045,7 @@ int main(int argc, char **argv)
 				   "\t-mixed-tests-count=\n"
 				   "\tBF         - BruteForce\n"
 				   "\tBVH        - BvhMedianSplitHeap\n"
+				   "\tDBVT       - Rewritten btDbvt from Bullet\n"
 				   "\tDBVH       - Dbvh (DynamicBoundingVolumeHierarchy)\n"
 				   "\tBTDBVH     - BulletDbvh (Bullet dbvh - two stages)\n"
 				   "\tBTDBVT     - BulletDbvt (Bullet dbvt one stage)\n"
@@ -1097,6 +1101,8 @@ int main(int argc, char **argv)
 				spp::BvhMedianSplitHeap *bvh;
 				bvh = new spp::BvhMedianSplitHeap(TOTAL_ENTITIES);
 				broadphases.push_back(bvh);
+			} else if (strcmp(str, "DBVT") == false) {
+				broadphases.push_back(new spp::Dbvt);
 			} else if (strcmp(str, "DBVH") == false) {
 				broadphases.push_back(new spp::Dbvh);
 			} else if (strcmp(str, "BTDBVH") == false) {

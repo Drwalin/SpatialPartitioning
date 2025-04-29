@@ -21,9 +21,9 @@ misrepresented as being the original software.
 
 #include <cstdio>
 
-#include "../include/spatial_partitioning/InternalDbvt.hpp"
-
 #include "../include/spatial_partitioning/Dbvt.hpp"
+
+#include "../include/spatial_partitioning/InternalDbvt.hpp"
 
 namespace spp
 {
@@ -180,30 +180,49 @@ MaskType btDbvt::getLeafMask(uint32_t leaf) const
 
 void btDbvt::deletenode(const uint32_t node)
 {
-	assert(node && !isLeaf(node));
-	if (node + 1 < nodes.size()) {
-		const uint32_t movingId = nodes.size() - 1;
-		const uint32_t parent = getNodeParent(movingId);
-		for (int i = 0; i < 2; ++i) {
-			setParent(nodes[movingId].childs[i], node);
+	assert(node);
+	assert(!isLeaf(node));
+	assert(node < nodes.size());
+	assert(nodes[node].childs[1] != 0);
+	if (node + 1 == nodes.size()) {
+		nodes.back() = {{}, 0, {0, 0}};
+		nodes.pop_back();
+		return;
+	} else {
+		const uint32_t next = nodes[0].childs[0];
+		nodes[node].childs[1] = 0;
+		setNodeParent(node, 0);
+		nodes[node].childs[0] = next;
+		if (next) {
+			assert(!isLeaf(next));
+			assert(getNodeParent(next) == 0);
+			assert(nodes[next].childs[1] == 0);
+			setNodeParent(next, node);
 		}
-		nodes[node] = nodes[movingId];
-		if (parent == 0) {
-			assert(movingId == rootId);
-			rootId = node;
-		} else {
-			assert(movingId != rootId);
-			int i = indexofNode(movingId);
-			nodes[parent].childs[i] = node;
-		}
+		nodes[0].childs[0] = node;
 	}
-	nodes.pop_back();
 }
 
 uint32_t btDbvt::createnode(uint32_t parent, const Aabb &aabb)
 {
-	uint32_t node = nodes.size();
-	nodes.push_back({aabb, parent});
+	if (nodes[0].childs[0] != 0) {
+		const uint32_t node = nodes[0].childs[0];
+		assert(!isLeaf(node));
+		assert(getNodeParent(node) == 0);
+		assert(nodes[node].childs[1] == 0);
+		const uint32_t next = nodes[node].childs[0];
+		nodes[0].childs[0] = next;
+		if (next) {
+			assert(!isLeaf(next));
+			assert(getNodeParent(next) == node);
+			assert(nodes[next].childs[1] == 0);
+			setNodeParent(next, 0);
+		}
+		nodes[node] = {aabb, parent, {0, 0}};
+		return node;
+	}
+	const uint32_t node = nodes.size();
+	nodes.push_back({aabb, parent, {0, 0}});
 	return node;
 }
 
@@ -217,96 +236,134 @@ uint32_t btDbvt::createnode(uint32_t parent, const Aabb &aabb0,
 
 void btDbvt::insertleaf(uint32_t root, const uint32_t leaf, const Aabb &aabb)
 {
-	assert(leaf && isLeaf(leaf));
+	assert(!ContainsRecurence(leaf));
+	assert(leaf);
+	assert(isLeaf(leaf));
+	assert(getParent(leaf) == 0);
 	if (!rootId) {
 		rootId = leaf;
-		setParent(leaf, 0);
+		setLeafParent(leaf, 0);
 	} else {
 		while (!isLeaf(root)) {
 			int select = Select(aabb, getAabb(nodes[root].childs[0]),
 								getAabb(nodes[root].childs[1]));
 			root = nodes[root].childs[select];
 		}
-		uint32_t sibling = root;
-		uint32_t parent = getLeafParent(sibling);
+		const uint32_t sibling = root;
+		assert(isLeaf(sibling));
+		const uint32_t parent = getLeafParent(sibling);
 		assert(parent < nodes.size());
-		uint32_t node = createnode(parent, aabb, getLeafAabb(sibling));
+		const uint32_t node = createnode(parent, aabb, getLeafAabb(sibling));
 		if (parent) {
+			assert(parent);
+			assert(!isLeaf(parent));
+			{
+				const int i = indexofLeaf(sibling);
+				assert(nodes[parent].childs[i] == sibling);
+				assert(nodes[parent].childs[1-i] != sibling);
+				assert(getParent(nodes[parent].childs[i]) == parent);
+			}
 			nodes[parent].childs[indexofLeaf(sibling)] = node;
 			nodes[node].childs[0] = sibling;
 			nodes[node].childs[1] = leaf;
 			setLeafParent(sibling, node);
+			assert(!isLeaf(getParent(sibling)));
 			setLeafParent(leaf, node);
+			assert(!isLeaf(getParent(leaf)));
 			Aabb ab = getNodeAabb(node);
+			uint32_t node1 = node;
+			uint32_t parent1 = parent;
 			do {
-				int i = indexof(node);
-				nodes[parent].aabb = ab =
-					ab + getAabb(nodes[parent].childs[1 - i]);
-				node = parent;
-				parent = getNodeParent(node);
-			} while (parent);
+				int i = indexof(node1);
+				nodes[parent1].aabb = ab =
+					ab + getAabb(nodes[parent1].childs[1 - i]);
+				node1 = parent1;
+				parent1 = getNodeParent(node1);
+			} while (parent1);
 		} else {
 			nodes[node].childs[0] = sibling;
 			nodes[node].childs[1] = leaf;
 			setLeafParent(sibling, node);
+			assert(!isLeaf(getParent(sibling)));
 			setLeafParent(leaf, node);
+			assert(!isLeaf(getParent(leaf)));
 			rootId = node;
 		}
+	}
+	assert(!isLeaf(getLeafParent(leaf)));
+	if (getLeafParent(leaf)) {
+		const uint32_t p = getLeafParent(leaf);
+		const int i = indexofLeaf(leaf);
+		assert(nodes[p].childs[i] == leaf);
+		assert(nodes[p].childs[1-i] != leaf);
+	} else {
+		assert(rootId == leaf);
 	}
 }
 
 uint32_t btDbvt::removeleaf(const uint32_t leaf)
 {
+	assert(ContainsRecurence(leaf));
+	assert(isLeaf(leaf));
 	if (leaf == rootId) {
+		assert(getLeafParent(leaf) == 0);
 		rootId = 0;
-		setLeafParent(leaf, OFFSET);
+		setLeafParent(leaf, 0);
 		return 0;
 	} else {
-		uint32_t parent = getLeafParent(leaf);
-		uint32_t prev = getNodeParent(parent);
-		uint32_t sibling = nodes[parent].childs[1 - indexofLeaf(leaf)];
+		const uint32_t parent = getLeafParent(leaf);
+		const uint32_t prev = getNodeParent(parent);
+		const int i = indexofLeaf(leaf);
+		uint32_t sibling = nodes[parent].childs[1 - i];
+		assert(sibling != leaf);
+		assert(nodes[parent].childs[i] == leaf);
 		if (prev) {
 			nodes[prev].childs[indexofNode(parent)] = sibling;
 			setParent(sibling, prev);
-			while (prev) {
-				const Aabb pb = getNodeAabb(prev);
-				nodes[prev].aabb = getAabb(nodes[prev].childs[0]) +
-								   getAabb(nodes[prev].childs[1]);
-				if (NotEqual(pb, nodes[prev].aabb)) {
-					prev = getNodeParent(prev);
+			uint32_t _prev = prev;
+			while (_prev) {
+				const Aabb pb = getNodeAabb(_prev);
+				nodes[_prev].aabb = getAabb(nodes[_prev].childs[0]) +
+								   getAabb(nodes[_prev].childs[1]);
+				if (NotEqual(pb, nodes[_prev].aabb)) {
+					_prev = getNodeParent(_prev);
 				} else
 					break;
 			}
 			deletenode(parent);
-			if (prev == nodes.size()) {
-				prev = parent;
-			}
-			setLeafParent(leaf, OFFSET + 1);
-			return prev ? prev : rootId;
+			assert(getParent(sibling) == prev);
+			setLeafParent(leaf, 0);
+			return _prev ? _prev : rootId;
 		} else {
 			rootId = sibling;
 			setParent(sibling, 0);
 			deletenode(parent);
-			setLeafParent(leaf, OFFSET + 2);
+			setLeafParent(leaf, 0);
 			return rootId;
 		}
 	}
 }
 
-uint32_t btDbvt::sort(uint32_t n, uint32_t &r)
+uint32_t btDbvt::sort(const uint32_t n, uint32_t &r)
 {
-	uint32_t p = getParent(n);
-	assert(n && isInternal(n) && !isLeaf(n));
+	const uint32_t p = getParent(n);
+	assert(n);
+	assert(isInternal(n));
+	assert(!isLeaf(n));
 	if (p > n) {
 		const int i = indexof(n);
 		const int j = 1 - i;
 		uint32_t s = nodes[p].childs[j];
 		uint32_t q = getParent(p);
 		assert(n == nodes[p].childs[i]);
-		if (q)
+		if (q) {
+			assert(getParent(nodes[q].childs[0]) == q);
+			assert(getParent(nodes[q].childs[1]) == q);
+			assert(nodes[q].childs[1] == p || nodes[q].childs[0] == p);
 			nodes[q].childs[indexof(p)] = n;
-		else
+		} else {
 			r = n;
+		}
 		setParent(s, n);
 		setNodeParent(p, n);
 		setNodeParent(n, q);
@@ -317,6 +374,10 @@ uint32_t btDbvt::sort(uint32_t n, uint32_t &r)
 		nodes[n].childs[i] = p;
 		nodes[n].childs[j] = s;
 		std::swap(nodes[p].aabb, nodes[n].aabb);
+		
+		assert(getParent(nodes[n].childs[0]) == n);
+		assert(getParent(nodes[n].childs[1]) == n);
+		
 		return (p);
 	}
 	return (n);
@@ -325,9 +386,7 @@ uint32_t btDbvt::sort(uint32_t n, uint32_t &r)
 btDbvt::btDbvt(spp::Dbvt *dbvt)
 {
 	ents = &(dbvt->ents);
-	nodes.resize(1);
-	rootId = 0;
-	m_opath = 0;
+	clear();
 }
 
 btDbvt::~btDbvt() { clear(); }
@@ -335,7 +394,9 @@ btDbvt::~btDbvt() { clear(); }
 void btDbvt::clear()
 {
 	nodes.resize(1);
+	rootId = 0;
 	m_opath = 0;
+	nodes[0] = {{{1, 1, 1}, {-1, -1, -1}}, 0, {0, 0}};
 }
 
 void btDbvt::optimizeIncremental(int passes)
@@ -347,6 +408,8 @@ void btDbvt::optimizeIncremental(int passes)
 			uint32_t node = rootId;
 			unsigned bit = 0;
 			while (isInternal(node)) {
+				assert(getParent(nodes[node].childs[0]) == node);
+				assert(getParent(nodes[node].childs[1]) == node);
 				node = nodes[sort(node, rootId)].childs[(m_opath >> bit) & 1];
 				bit = (bit + 1) & (sizeof(unsigned) * 8 - 1);
 			}
@@ -358,11 +421,17 @@ void btDbvt::optimizeIncremental(int passes)
 
 void btDbvt::insert(const Aabb &aabb, uint32_t entityOffset)
 {
-	insertleaf(rootId, getLeafId(entityOffset), aabb);
+	uint32_t leaf = getLeafId(entityOffset);
+	assert(!ContainsRecurence(leaf));
+	insertleaf(rootId, leaf, aabb);
 }
 
 void btDbvt::updateLeaf(uint32_t leaf, int lookahead)
 {
+	assert(ContainsRecurence(leaf));
+	assert(ContainsRecurence(leaf));
+	assert(isLeaf(leaf) == true);
+	assert(!isLeaf(getLeafParent(leaf)));
 	uint32_t root = removeleaf(leaf);
 	if (root) {
 		if (lookahead >= 0) {
@@ -376,24 +445,24 @@ void btDbvt::updateLeaf(uint32_t leaf, int lookahead)
 			root = rootId;
 	}
 	insertleaf(root, leaf, getLeafAabb(leaf));
+	assert(!isLeaf(getLeafParent(leaf)));
 	IsTreeValid();
 }
 
 void btDbvt::updateEntityOffset(uint32_t entityOffset, const Aabb &aabb)
 {
 	uint32_t leaf = getLeafId(entityOffset);
+	assert(ContainsRecurence(leaf));
+	assert(!isLeaf(getLeafParent(leaf)));
 	uint32_t root = removeleaf(leaf);
 	if (root) {
 		root = rootId;
 	}
 
 	assert(!NotEqual((*ents)[entityOffset].aabb, aabb));
-	{
-		// THIS SHOULD BE NOT NECESSARY
-		(*ents)[entityOffset].aabb = aabb;
-	}
-
+	
 	insertleaf(root, leaf, aabb);
+	assert(!isLeaf(getLeafParent(leaf)));
 	IsTreeValid();
 }
 
@@ -410,14 +479,18 @@ bool btDbvt::updateEntityOffset(uint32_t entityOffset, const Aabb &aabb,
 void btDbvt::remove(uint32_t entityOffset)
 {
 	uint32_t leaf = getLeafId(entityOffset);
+	assert(ContainsRecurence(leaf));
 	removeleaf(leaf);
+	setLeafParent(leaf, 0);
 }
 
 void btDbvt::updateOffsetOfEntity(uint32_t oldEntityOffset,
 								  uint32_t newEntityOffset)
 {
 	uint32_t oldLeaf = getLeafId(oldEntityOffset);
+	assert(ContainsRecurence(oldLeaf));
 	uint32_t newLeaf = getLeafId(newEntityOffset);
+	assert(!ContainsRecurence(newLeaf));
 	if (rootId == oldLeaf) {
 		rootId = newLeaf;
 	} else {
@@ -432,11 +505,8 @@ void btDbvt::collideTV(IntersectionCallback &cb)
 	if (rootId) {
 		stack.clear();
 		stack.push_back(rootId);
-		int i = 0;
 		do {
-			++i;
 			uint32_t node = stack.back();
-			printf("aabb it[%i]: %u\n", i, node);
 			stack.pop_back();
 			if (isLeaf(node)) {
 				if (getLeafMask(node) & cb.mask) {
@@ -446,13 +516,14 @@ void btDbvt::collideTV(IntersectionCallback &cb)
 			} else {
 				cb.nodesTestedCount++;
 				if (cb.IsRelevant(getNodeAabb(node))) {
+					assert(getParent(nodes[node].childs[0]) == node);
+					assert(getParent(nodes[node].childs[1]) == node);
 					stack.push_back(nodes[node].childs[0]);
 					stack.push_back(nodes[node].childs[1]);
 				}
 			}
 		} while (!stack.empty());
 	}
-	printf("end\n");
 }
 
 void btDbvt::rayTestInternal(RayCallback &cb)
@@ -471,6 +542,8 @@ void btDbvt::rayTestInternal(RayCallback &cb)
 			} else {
 				cb.nodesTestedCount++;
 				if (cb.IsRelevant(getNodeAabb(node))) {
+					assert(getParent(nodes[node].childs[0]) == node);
+					assert(getParent(nodes[node].childs[1]) == node);
 					stack.push_back(nodes[node].childs[0]);
 					stack.push_back(nodes[node].childs[1]);
 				}
@@ -485,34 +558,49 @@ size_t btDbvt::GetMemoryUsage() const
 		   nodes.capacity() * sizeof(NodeData);
 }
 
-static void BreakPoint() {}
-
-int btDbvt::IsTreeValid(uint32_t node) const
+void btDbvt::IsTreeValid(uint32_t node) const
 {
-	if (rootId == 0) {
-		return 0;
-	}
+	return;
 	if (node == 0) {
 		node = rootId;
 	}
+	if (node == 0) {
+		return;
+	}
 	if (isLeaf(node)) {
-		return 0;
+		assert(!isLeaf(getLeafParent(node)));
+		return;
 	}
-	Aabb a = getAabb(node);
-	Aabb b = getAabb(nodes[node].childs[0]);
-	Aabb c = getAabb(nodes[node].childs[1]);
+	
+	assert(getParent(nodes[node].childs[0]) == node);
+	assert(getParent(nodes[node].childs[1]) == node);
+	
+	IsTreeValid(nodes[node].childs[0]);
+	IsTreeValid(nodes[node].childs[1]);
+}
 
-	Aabb sum = b + c;
-
-	int er = 0;
-
-	if (a != sum) {
-		++er;
-		BreakPoint();
+bool btDbvt::ContainsRecurence(uint32_t node, uint32_t rel) const
+{
+	return false;
+	if (node == rel) {
+		return true;
 	}
-
-	return er + IsTreeValid(nodes[node].childs[0]) +
-		   IsTreeValid(nodes[node].childs[1]);
+	if (rel == 0) {
+		rel = rootId;
+	}
+	if (rel == 0) {
+		return false;
+	}
+	if (isLeaf(rel)) {
+		assert(!isLeaf(getLeafParent(rel)));
+		return false;
+	}
+	
+	assert(getParent(nodes[rel].childs[0]) == rel);
+	assert(getParent(nodes[rel].childs[1]) == rel);
+	
+	return ContainsRecurence(node, nodes[rel].childs[0])
+	|| ContainsRecurence(node, nodes[rel].childs[1]);
 }
 
 } // namespace spp

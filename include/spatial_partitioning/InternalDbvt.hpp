@@ -54,7 +54,8 @@ public:
 	
 	size_t GetMemoryUsage() const;
 	
-	int IsTreeValid(uint32_t node = 0) const;
+	void IsTreeValid(uint32_t node = 0) const;
+	bool ContainsRecurence(uint32_t node, uint32_t rel = 0) const;
 	
 public:
 
@@ -112,5 +113,12 @@ protected:
 	std::vector<NodeData> nodes;
 
 	std::vector<uint32_t> stack;
+	
+	/*
+	 * nodes[0] - first emtpty node id holder
+	 * nodes[free].parent - previous free node
+	 * nodes[free].childs[0] - next free node
+	 * nodes[free].childs[1] === 0 -> this is a free node
+	 */
 };
 } // namespace spp

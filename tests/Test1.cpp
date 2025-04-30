@@ -28,7 +28,13 @@ size_t TOTAL_AABB_TESTS = 200000;
 size_t TOTAL_AABB_MOVEMENTS = 1000000;
 size_t TOTAL_MOVES_AND_TESTS = 1000000;
 size_t MAX_MOVING_ENTITIES = 2500;
-size_t BRUTE_FROCE_TESTS_COUNT_DIVISOR = 1;
+bool ENABLE_VERIFICATION = true;
+bool BENCHMARK = false;
+size_t MIXED_AABB_COUNT = 2;
+size_t MIXED_RAY_COUNT = 2;
+size_t MIXED_UPDATE_COUNT = 1;
+
+bool disable_benchmark_report = false;
 
 std::mt19937_64 mt(12345);
 
@@ -48,6 +54,7 @@ struct EntityData {
 	uint32_t mask = ~0;
 };
 
+std::vector<std::pair<double, double>> broadphasePerformances;
 std::vector<EntityData> *globalEntityData = nullptr;
 std::vector<uint64_t> totalErrorsInBroadphase;
 
@@ -74,14 +81,14 @@ std::vector<glm::vec3> vv;
 uint64_t TEST_RANDOM_SEED = 0;
 
 std::vector<spp::Aabb> aabbsToTest;
-SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
-							 const std::vector<spp::Aabb> &aabbsToTest,
-							 size_t testsCount,
-							 std::vector<uint64_t> &offsetOfPatch,
-							 TestType testType,
-							 std::vector<StartEndPoint> &hitPoints)
+SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
+							const std::vector<spp::Aabb> &aabbsToTest,
+							size_t testsCount,
+							std::vector<uint64_t> &offsetOfPatch,
+							TestType testType,
+							std::vector<StartEndPoint> &hitPoints)
 {
-	static SingleTestResult ret;
+	static SingleTestResult ret = {};
 	ret.nodesTestedCount = 0;
 	ret.testedCount = 0;
 	ret.hitCount = 0;
@@ -97,20 +104,28 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 		cb.callback = (CbT) + [](_Cb *cb, spp::EntityType entity) {
 			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
 			if (cb->IsRelevant(aabb)) {
-				cb->hitPoints->push_back(
-					StartEndPoint{cb->broadphase->GetAabb(entity),
-								  cb->aabb,
-								  {},
-								  {},
-								  {0, 0, 0},
-								  -2,
-								  entity,
-								  true});
+				ret.hitCount++;
+				if (ENABLE_VERIFICATION) {
+					cb->hitPoints->push_back(
+						StartEndPoint{cb->broadphase->GetAabb(entity),
+									  cb->aabb,
+									  {},
+									  {},
+									  {0, 0, 0},
+									  -2,
+									  entity,
+									  true});
+				} else {
+					static thread_local volatile uint64_t HOLDER_ENT = 0;
+					HOLDER_ENT += entity;
+				}
 			}
 		};
 		testsCount = std::min(testsCount, aabbsToTest.size());
 		for (size_t i = 0; i < testsCount; ++i) {
-			offsetOfPatch.push_back(hitPoints.size());
+			if (ENABLE_VERIFICATION) {
+				offsetOfPatch.push_back(hitPoints.size());
+			}
 			cb.aabb = aabbsToTest[i];
 			cb.aabb = {glm::min(cb.aabb.min, cb.aabb.max),
 					   glm::max(cb.aabb.min, cb.aabb.max)};
@@ -138,22 +153,31 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			float n, f;
 			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
 			if (cb->IsRelevant(aabb, n, f)) {
+				ret.hitCount++;
 				assert(n >= 0);
-				cb->hitPoints->push_back(StartEndPoint{aabb,
-													   {},
-													   cb->start,
-													   cb->end,
-													   cb->start + cb->dir * n,
-													   n,
-													   entity,
-													   false});
+				if (ENABLE_VERIFICATION) {
+					cb->hitPoints->push_back(
+						StartEndPoint{aabb,
+									  {},
+									  cb->start,
+									  cb->end,
+									  cb->start + cb->dir * n,
+									  n,
+									  entity,
+									  false});
+				} else {
+					static thread_local volatile uint64_t HOLDER_ENT = 0;
+					HOLDER_ENT += entity;
+				}
 				return {1.0f, true};
 			}
 			return {1.0f, false};
 		};
 		testsCount = std::min(testsCount, aabbsToTest.size());
 		for (size_t i = 0; i < testsCount; ++i) {
-			offsetOfPatch.push_back(hitPoints.size());
+			if (ENABLE_VERIFICATION) {
+				offsetOfPatch.push_back(hitPoints.size());
+			}
 			cb.start = aabbsToTest[i].GetCenter();
 			cb.end = aabbsToTest[(i + 17) % testsCount].GetCenter();
 			cb.initedVars = false;
@@ -162,7 +186,6 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 
 		ret.nodesTestedCount = cb.nodesTestedCount;
 		ret.testedCount = cb.testedCount;
-		ret.hitCount = cb.hitCount;
 
 		return ret;
 	} break;
@@ -202,31 +225,41 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 		testsCount = std::min(testsCount, aabbsToTest.size());
 		for (size_t i = 0; i < testsCount; ++i) {
 			cb.hasHit = false;
-			offsetOfPatch.push_back(hitPoints.size());
+			if (ENABLE_VERIFICATION) {
+				offsetOfPatch.push_back(hitPoints.size());
+			}
 			cb.start = aabbsToTest[i].GetCenter();
 			glm::vec3 end = cb.end =
 				aabbsToTest[(i + 1) % testsCount].GetCenter();
 			cb.initedVars = false;
 			broadphase->IntersectRay(cb);
-			if (cb.hasHit) {
-				hitPoints.push_back(
-					StartEndPoint{broadphase->GetAabb(cb.hitEntity),
-								  {},
-								  cb.start,
-								  end,
-								  cb.hitPoint,
-								  cb.cutFactor,
-								  cb.hitEntity,
-								  false});
+			if (ENABLE_VERIFICATION) {
+				if (cb.hasHit) {
+					ret.hitCount++;
+					hitPoints.push_back(
+						StartEndPoint{broadphase->GetAabb(cb.hitEntity),
+									  {},
+									  cb.start,
+									  end,
+									  cb.hitPoint,
+									  cb.cutFactor,
+									  cb.hitEntity,
+									  false});
+				} else {
+					hitPoints.push_back(
+						StartEndPoint{{}, {}, cb.start, end, {}, -1, 0, false});
+				}
 			} else {
-				hitPoints.push_back(
-					StartEndPoint{{}, {}, cb.start, end, {}, -1, 0, false});
+				if (cb.hasHit) {
+					ret.hitCount++;
+					static thread_local volatile uint64_t HOLDER_ENT = 0;
+					HOLDER_ENT += cb.hitEntity;
+				}
 			}
 		}
 
 		ret.nodesTestedCount = cb.nodesTestedCount;
 		ret.testedCount = cb.testedCount;
-		ret.hitCount = cb.hitCount;
 
 		return ret;
 	} break;
@@ -241,20 +274,26 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 		cbAabb.callback = (CbTAabb) + [](_CbAabb *cb, spp::EntityType entity) {
 			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
 			if (cb->IsRelevant(aabb)) {
-				cb->hitPoints->push_back(
-					StartEndPoint{cb->broadphase->GetAabb(entity),
-								  cb->aabb,
-								  {},
-								  {},
-								  {0, 0, 0},
-								  -2,
-								  entity,
-								  true});
+				ret.hitCount++;
+				if (ENABLE_VERIFICATION) {
+					cb->hitPoints->push_back(
+						StartEndPoint{cb->broadphase->GetAabb(entity),
+									  cb->aabb,
+									  {},
+									  {},
+									  {0, 0, 0},
+									  -2,
+									  entity,
+									  true});
+				} else {
+					static thread_local volatile uint64_t HOLDER_ENT = 0;
+					HOLDER_ENT += entity;
+				}
 			}
 		};
 
 		struct _CbRay : public spp::RayCallbackFirstHit {
-		} static cbRay;
+		} cbRay;
 		cbRay.mask = ~(uint32_t)0;
 		typedef spp::RayPartialResult (*CbTRay)(spp::RayCallback *,
 												spp::EntityType);
@@ -295,7 +334,7 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 
 		testsCount = std::min(testsCount / 5, vv.size() / 5) * 5;
 
-		std::vector<spp::EntityType> removeEntities;
+		static std::vector<spp::EntityType> removeEntities;
 		removeEntities.reserve(10000);
 		removeEntities.clear();
 
@@ -346,72 +385,86 @@ SingleTestResult &SingleTest(spp::BroadphaseBase *broadphase,
 			}
 		};
 
-		for (size_t i = 0; i < testsCount; i += 5) {
-			offsetOfPatch.push_back(hitPoints.size());
-			cbAabb.aabb = aabbsToTest[i + 0];
-			cbAabb.aabb = {glm::min(cbAabb.aabb.min, cbAabb.aabb.max),
-						   glm::max(cbAabb.aabb.min, cbAabb.aabb.max)};
-			broadphase->IntersectAabb(cbAabb);
+		const size_t stride =
+			MIXED_AABB_COUNT + MIXED_RAY_COUNT + MIXED_UPDATE_COUNT;
 
-			auto e = ee[i + 1];
-			if (i % 55 == 0 || broadphase->Exists(e) == false) {
-				if (broadphase->Exists(e) == false) {
-					spp::Aabb aabb = aabbsToTest[i + 1];
-					aabb.max = aabb.min + ((vv[i + 1] + 1000.0f) / 400.0f);
-					assert(e > 0);
-					broadphase->Add(e, aabb, ~0);
+		for (size_t i = 0; i + stride < testsCount;) {
+			for (int j = 0; j < MIXED_AABB_COUNT; ++j, ++i) {
+				if (ENABLE_VERIFICATION) {
+					offsetOfPatch.push_back(hitPoints.size());
 				}
-				e = popRandom(s, i, removeEntities);
-
-				if (broadphase->Exists(e)) {
-					broadphase->Remove(e);
-					removeEntities.push_back(e);
-				} else {
-					spp::Aabb aabb = aabbsToTest[i + 1];
-					aabb.max = aabb.min + ((vv[i + 1] + 1000.0f) / 400.0f);
-					assert(e > 0);
-					broadphase->Add(e, aabb, ~0);
-				}
-			} else {
-				spp::Aabb aabb = broadphase->GetAabb(e);
-				aabb.min += vv[i + 1];
-				aabb.max += vv[i + 1];
-				broadphase->Update(e, aabb);
+				cbAabb.aabb = aabbsToTest[i];
+				cbAabb.aabb = {glm::min(cbAabb.aabb.min, cbAabb.aabb.max),
+							   glm::max(cbAabb.aabb.min, cbAabb.aabb.max)};
+				broadphase->IntersectAabb(cbAabb);
 			}
 
-			offsetOfPatch.push_back(hitPoints.size());
-			cbAabb.aabb = aabbsToTest[i + 2];
-			cbAabb.aabb = {glm::min(cbAabb.aabb.min, cbAabb.aabb.max),
-						   glm::max(cbAabb.aabb.min, cbAabb.aabb.max)};
-			broadphase->IntersectAabb(cbAabb);
+			for (int j = 0; j < MIXED_UPDATE_COUNT; ++j, ++i) {
+				auto e = ee[i];
+				if (((i * MIXED_UPDATE_COUNT) / stride + j) % 55 == 0 ||
+					broadphase->Exists(e) == false) {
+					if (broadphase->Exists(e) == false) {
+						spp::Aabb aabb = aabbsToTest[i];
+						aabb.max = aabb.min + ((vv[i] + 1000.0f) / 400.0f);
+						assert(e > 0);
+						broadphase->Add(e, aabb, ~0);
+					}
+					e = popRandom(s, i, removeEntities);
+
+					if (broadphase->Exists(e)) {
+						broadphase->Remove(e);
+						removeEntities.push_back(e);
+					} else {
+						spp::Aabb aabb = aabbsToTest[i];
+						aabb.max = aabb.min + ((vv[i] + 1000.0f) / 400.0f);
+						assert(e > 0);
+						broadphase->Add(e, aabb, ~0);
+					}
+				} else {
+					spp::Aabb aabb = broadphase->GetAabb(e);
+					aabb.min += vv[i];
+					aabb.max += vv[i];
+					broadphase->Update(e, aabb);
+				}
+			}
 
 			for (int j = 3; j < 5; ++j) {
 				cbRay.hasHit = false;
-				offsetOfPatch.push_back(hitPoints.size());
+				if (ENABLE_VERIFICATION) {
+					offsetOfPatch.push_back(hitPoints.size());
+				}
 				cbRay.start = aabbsToTest[i + j].GetCenter();
 				glm::vec3 end = cbRay.end = vv[i + j];
 				cbRay.initedVars = false;
 				broadphase->IntersectRay(cbRay);
-				if (cbRay.hasHit) {
-					hitPoints.push_back(
-						StartEndPoint{broadphase->GetAabb(cbRay.hitEntity),
-									  {},
-									  cbRay.start,
-									  cbRay.end,
-									  cbRay.hitPoint,
-									  cbRay.cutFactor,
-									  cbRay.hitEntity,
-									  false});
+				if (ENABLE_VERIFICATION) {
+					if (cbRay.hasHit) {
+						ret.hitCount++;
+						hitPoints.push_back(
+							StartEndPoint{broadphase->GetAabb(cbRay.hitEntity),
+										  {},
+										  cbRay.start,
+										  cbRay.end,
+										  cbRay.hitPoint,
+										  cbRay.cutFactor,
+										  cbRay.hitEntity,
+										  false});
+					} else {
+						hitPoints.push_back(StartEndPoint{
+							{}, {}, cbRay.start, end, {}, -1, 0, false});
+					}
 				} else {
-					hitPoints.push_back(StartEndPoint{
-						{}, {}, cbRay.start, end, {}, -1, 0, false});
+					if (cbRay.hasHit) {
+						ret.hitCount++;
+						static thread_local volatile uint64_t HOLDER_ENT = 0;
+						HOLDER_ENT += cbRay.hitEntity;
+					}
 				}
 			}
 		}
 
 		ret.nodesTestedCount = cbRay.nodesTestedCount + cbAabb.nodesTestedCount;
 		ret.testedCount = cbRay.testedCount + cbAabb.testedCount;
-		ret.hitCount = cbRay.hitCount;
 
 		return ret;
 	} break;
@@ -423,6 +476,7 @@ std::vector<spp::Aabb> globalAabbs;
 void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 		  TestType testType)
 {
+	broadphasePerformances.resize(broadphases.size(), {0, 0});
 	TEST_RANDOM_SEED = mt();
 	totalErrorsInBroadphase.resize(broadphases.size(), 0);
 
@@ -430,14 +484,16 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 	std::uniform_real_distribution<float> distSize(pow(2.0 / 16.0, 1.0 / 3.0),
 												   1.0);
 	std::vector<spp::Aabb> &aabbs = globalAabbs;
-	size_t i = aabbs.size();
-	aabbs.resize(testsCount);
-	for (; i < aabbs.size(); ++i) {
-		spp::Aabb &aabb = aabbs[i];
-		glm::vec3 p = {distPos(mt), distPos(mt) / 8.0f, distPos(mt)};
-		glm::vec3 s = {distSize(mt), distSize(mt), distSize(mt)};
-		s = s * s * 16.0f;
-		aabb = {p, p + s};
+	{
+		size_t i = aabbs.size();
+		aabbs.resize(testsCount);
+		for (; i < aabbs.size(); ++i) {
+			spp::Aabb &aabb = aabbs[i];
+			glm::vec3 p = {distPos(mt), distPos(mt) / 8.0f, distPos(mt)};
+			glm::vec3 s = {distSize(mt), distSize(mt), distSize(mt)};
+			s = s * s * 16.0f;
+			aabb = {p, p + s};
+		}
 	}
 
 	static std::vector<std::vector<StartEndPoint>> hitPoints;
@@ -446,43 +502,55 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 	hitPoints.resize(broadphases.size());
 	for (int i = 0; i < broadphases.size(); ++i) {
 		offsetOfPatch[i].clear();
-		offsetOfPatch[i].reserve(testsCount);
 		hitPoints[i].clear();
-		hitPoints[i].reserve(testsCount*30);
-		size_t S = (80000000*4) / broadphases.size();
-		for (int j=0; j<S && j < hitPoints[i].capacity(); j+=50) {
-			hitPoints[i].data()[j] = {};
+		if (ENABLE_VERIFICATION) {
+			hitPoints[i].reserve(testsCount * 30);
+			offsetOfPatch[i].reserve(testsCount);
+			size_t S = (80000000 * 4) / broadphases.size();
+			for (int j = 0; j < S && j < hitPoints[i].capacity(); j += 50) {
+				hitPoints[i].data()[j] = {};
+			}
 		}
 		auto &it = broadphases[i];
-		size_t tC =
-			i ? aabbs.size() : aabbs.size() / BRUTE_FROCE_TESTS_COUNT_DIVISOR;
+		size_t tC = aabbs.size();
 		auto beg = std::chrono::steady_clock::now();
-		auto &vec = SingleTest(it, aabbs, tC, offsetOfPatch[i], testType,
-							   hitPoints[i]);
+		auto vec =
+			SingleTest(it, aabbs, tC, offsetOfPatch[i], testType, hitPoints[i]);
 		auto end = std::chrono::steady_clock::now();
-		for (size_t j = 0; j < offsetOfPatch[i].size(); ++j) {
-			size_t of = offsetOfPatch[i][j];
-			size_t en = hitPoints[i].size();
-			if (j + 1 < offsetOfPatch[i].size()) {
-				en = offsetOfPatch[i][j + 1];
+		if (ENABLE_VERIFICATION) {
+			for (size_t j = 0; j < offsetOfPatch[i].size(); ++j) {
+				size_t of = offsetOfPatch[i][j];
+				size_t en = hitPoints[i].size();
+				if (j + 1 < offsetOfPatch[i].size()) {
+					en = offsetOfPatch[i][j + 1];
+				}
+				std::sort(hitPoints[i].begin() + of, hitPoints[i].begin() + en);
 			}
-			std::sort(hitPoints[i].begin() + of,
-					  hitPoints[i].begin() + en);
 		}
 		auto diff = end - beg;
 		int64_t ns =
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%20s intersection test [count: %lu]: %8.3f us/op",
-			   it->GetName(), tC, us / double(tC));
-		printf("    \t   nodesTested: %11lu,   testedCount: %10lu     [count = "
-			   "%lu]:\n",
-			   vec.nodesTestedCount, vec.testedCount, hitPoints[i].size());
-		fflush(stdout);
+		broadphasePerformances[i].first += us;
+		broadphasePerformances[i].second += tC;
+		if (BENCHMARK == false || disable_benchmark_report == false) {
+			printf("%20s intersection test [count: %lu]: %8.3f us/op",
+				   it->GetName(), tC, us / double(tC));
+			printf("    \t   nodesTested: %11lu,   testedCount: %10lu     "
+				   "[count = %lu]:\n",
+				   vec.nodesTestedCount, vec.testedCount, vec.hitCount);
+			fflush(stdout);
+		}
 	}
 
-	printf("Number of entities %i\n", broadphases[0]->GetCount());
+	if (BENCHMARK == false || disable_benchmark_report == false) {
+		printf("Number of entities %i\n", broadphases[0]->GetCount());
+	}
+
+	if (ENABLE_VERIFICATION == false) {
+		return;
+	}
 
 	printf("\n");
 	for (int i = 1; i < broadphases.size(); ++i) {
@@ -567,8 +635,8 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 
 						float near;
 						float far;
-						bool r =
-							hp.aabb.SlowRayTestCenter(hp.start, hp.end, near, far);
+						bool r = hp.aabb.SlowRayTestCenter(hp.start, hp.end,
+														   near, far);
 
 						printf("5. CARDINAL ERROR: AABB RAY TEST ERROR VALUE, "
 							   "HITPOINT OUTSIDE AABB");
@@ -652,11 +720,12 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 					(patchEndi - patchStarti) == 1) {
 					p0 = hitPoints[0][patchStart0];
 				} else {
-					auto start = hitPoints[0].begin()+patchStart0;
-					auto end = hitPoints[0].begin()+patchEnd0;
-					const static auto comp = +[](StartEndPoint a, StartEndPoint b)->bool{
-							return a.e < b.e;
-							};
+					auto start = hitPoints[0].begin() + patchStart0;
+					auto end = hitPoints[0].begin() + patchEnd0;
+					const static auto comp =
+						+[](StartEndPoint a, StartEndPoint b) -> bool {
+						return a.e < b.e;
+					};
 					auto it = std::lower_bound(start, end, pi, comp);
 					if (it != end) {
 						p0 = *it;
@@ -778,7 +847,7 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 					}
 				}
 			}
-			
+
 			std::map<spp::EntityType, size_t> e0, ei;
 			for (size_t entry = patchStarti; entry < patchEndi; ++entry) {
 				ei[hitPoints[i][entry].e] = entry;
@@ -786,7 +855,7 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 			for (size_t entry = patchStart0; entry < patchEnd0; ++entry) {
 				e0[hitPoints[0][entry].e] = entry;
 			}
-			
+
 			if ((patchEnd0 - patchStart0) == 1 &&
 				(patchEndi - patchStarti) == 1) {
 				e0.clear();
@@ -851,7 +920,7 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 					}
 				}
 			}
-			
+
 			for (auto it : ei) {
 				if (e0.find(it.first) == e0.end()) {
 					++JJ;
@@ -928,27 +997,6 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 							std::shared_ptr<spp::BroadphaseBase> dbvh,
 							std::shared_ptr<void> data)
 {
-
-	if (false) {
-		auto beg = std::chrono::steady_clock::now();
-		dbvh->Rebuild();
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		printf("                        "
-			   "%s (%i) "
-			   "Async rebuild of : %.3f us/op\n",
-			   dbvh->GetName(), dbvh->GetCount(),
-			   us / double(TOTAL_AABB_MOVEMENTS));
-		fflush(stdout);
-
-		fin->store(true);
-		return;
-	}
-
 	static std::atomic<int> size = 0;
 	static std::mutex mutex;
 	static bool done = false;
@@ -969,9 +1017,9 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 							p = queue.front();
 							queue.pop();
 							has = true;
+							--size;
 						}
 					}
-					--size;
 					if (has && p.second.use_count() > 1) {
 						auto beg = std::chrono::steady_clock::now();
 						p.second->Rebuild();
@@ -998,13 +1046,18 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 		});
 		thread.detach();
 	}
-	std::lock_guard lock(mutex);
-	queue.push({fin, dbvh});
-	++size;
+	if (fin.get() != nullptr) {
+		std::lock_guard lock(mutex);
+		queue.push({fin, dbvh});
+		++size;
+	}
 }
 
 int main(int argc, char **argv)
 {
+	const auto START_MAIN = std::chrono::steady_clock::now();
+	EnqueueRebuildThreaded(nullptr, nullptr, nullptr);
+
 	bool enablePrepass = true;
 
 	bool customizeStructures = false;
@@ -1014,6 +1067,11 @@ int main(int argc, char **argv)
 	for (int i = 1; i < argc; ++i) {
 		if (std::string(argv[i]).starts_with("-disable-prepass")) {
 			enablePrepass = false;
+		} else if (std::string(argv[i]).starts_with("-disable-verification")) {
+			ENABLE_VERIFICATION = false;
+		} else if (std::string(argv[i]).starts_with("-benchmark")) {
+			ENABLE_VERIFICATION = false;
+			BENCHMARK = true;
 		} else if (std::string(argv[i]).starts_with("-total-entities=")) {
 			TOTAL_ENTITIES = atoi(argv[i] + strlen("-total-entities="));
 			MAX_ENTITIES = TOTAL_ENTITIES + ADDITIONAL_ENTITIES;
@@ -1034,6 +1092,7 @@ int main(int argc, char **argv)
 		} else if (std::string(argv[i]).starts_with("-help")) {
 			printf("Available options:\n"
 				   "\t-disable-prepass\n"
+				   "\t-disable-verification\n"
 				   "\t-total-entities=\n"
 				   "\t-additional-entities=\n"
 				   "\t-aabb-tests=\n"
@@ -1043,6 +1102,10 @@ int main(int argc, char **argv)
 				   "\t-random-seed=random\n"
 				   "\t-random-seed=$NUMBER\n"
 				   "\t-mixed-tests-count=\n"
+				   "\t-mixed-aabb-count=\n"
+				   "\t-mixed-ray-count=\n"
+				   "\t-mixed-update-count=\n"
+				   "\t-benchmark\n"
 				   "\tBF         - BruteForce\n"
 				   "\tBVH        - BvhMedianSplitHeap\n"
 				   "\tDBVT       - Rewritten btDbvt from Bullet\n"
@@ -1055,7 +1118,6 @@ int main(int argc, char **argv)
 				   "\tTSH_DBVT   - ThreeStageDbvh BvhMedian + Dbvt\n"
 				   "\tHLO        - HashedLooseOctree\n"
 				   "\tLO         - LooseOctree\n");
-
 			return 0;
 		} else if (std::string(argv[i]).starts_with("-random-seed=random")) {
 			std::random_device rd;
@@ -1064,6 +1126,13 @@ int main(int argc, char **argv)
 			mt = std::mt19937_64(atoll(argv[i] + strlen("-random-seed=")));
 		} else if (std::string(argv[i]).starts_with("-mixed-tests-count=")) {
 			mixedTestsCount = atoll(argv[i] + strlen("-mixed-tests-count="));
+		} else if (std::string(argv[i]).starts_with("-mixed-aabb-count=")) {
+			MIXED_AABB_COUNT = atoll(argv[i] + strlen("-mixed-aabb-count="));
+		} else if (std::string(argv[i]).starts_with("-mixed-ray-count=")) {
+			MIXED_RAY_COUNT = atoll(argv[i] + strlen("-mixed-ray-count="));
+		} else if (std::string(argv[i]).starts_with("-mixed-update-count=")) {
+			MIXED_UPDATE_COUNT =
+				atoll(argv[i] + strlen("-mixed-update-count="));
 		}
 	}
 
@@ -1363,22 +1432,23 @@ int main(int argc, char **argv)
 		}
 
 		printf("\nAfter reconstruct and full rebuild:\n");
-	}
 
-	for (auto bp : broadphases) {
-		auto beg = std::chrono::steady_clock::now();
-		bp->Clear();
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		printf("%s clearing time: %.3f us\n", bp->GetName(), us);
-		fflush(stdout);
-	}
+		for (auto bp : broadphases) {
+			auto beg = std::chrono::steady_clock::now();
+			bp->Clear();
+			auto end = std::chrono::steady_clock::now();
+			auto diff = end - beg;
+			int64_t ns =
+				std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(
+					diff)
+					.count();
+			double us = double(ns) / 1000.0;
+			printf("%s clearing time: %.3f us\n", bp->GetName(), us);
+			fflush(stdout);
+		}
 
-	printf("\n");
+		printf("\n");
+	}
 
 	for (auto bp : broadphases) {
 		auto beg = std::chrono::steady_clock::now();
@@ -1397,14 +1467,6 @@ int main(int argc, char **argv)
 				.count();
 		double us = double(ns) / 1000.0;
 		printf("%s adding time: %.3f us\n", bp->GetName(), us);
-		fflush(stdout);
-	}
-	printf("\n");
-
-	for (auto bp : broadphases) {
-		printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n", bp->GetName(),
-			   bp->GetMemoryUsage(), bp->GetMemoryUsage() / (1024.0 * 1024.0),
-			   (double)bp->GetMemoryUsage() / (double)bp->GetCount());
 		fflush(stdout);
 	}
 	printf("\n");
@@ -1440,28 +1502,73 @@ int main(int argc, char **argv)
 
 	printf("\nMore realistinc dynamic movement entagled with tests:\n");
 
-	for (int i = 0; i < mixedTestsCount; ++i) {
-		ee.clear();
-		vv.clear();
-		ee.reserve(TOTAL_MOVES_AND_TESTS);
-		vv.reserve(TOTAL_MOVES_AND_TESTS);
+	auto last = std::chrono::steady_clock::now();
+	double timeDiff = 10.0;
+	disable_benchmark_report = false;
+	for (size_t i = 0; i < mixedTestsCount; ++i) {
+		if (BENCHMARK == false || disable_benchmark_report == false || i == 0 ||
+			i + 1 == mixedTestsCount) {
+			disable_benchmark_report = false;
+		}
+		ee.resize(TOTAL_MOVES_AND_TESTS);
+		vv.resize(TOTAL_MOVES_AND_TESTS);
 		for (size_t i = 0; i < TOTAL_MOVES_AND_TESTS; ++i) {
-			ee.push_back(((mt() % MAX_MOVING_ENTITIES) % entities.size()) + 1);
-			vv.push_back({distPos(mt), distPos(mt) / 4.0f, distPos(mt)});
+			ee[i] = (((mt() % MAX_MOVING_ENTITIES) % entities.size()) + 1);
+			vv[i] = {distPos(mt), distPos(mt) / 4.0f, distPos(mt)};
 		}
 
 		Test(broadphases, TOTAL_MOVES_AND_TESTS, TEST_MIXED);
 
-		printf("\n");
-		for (auto bp : broadphases) {
-			printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n",
-				   bp->GetName(), bp->GetMemoryUsage(),
-				   bp->GetMemoryUsage() / (1024.0 * 1024.0),
-				   (double)bp->GetMemoryUsage() / (double)bp->GetCount());
+		if (BENCHMARK == false || disable_benchmark_report == false) {
+			printf("\n");
+			for (auto bp : broadphases) {
+				printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n",
+					   bp->GetName(), bp->GetMemoryUsage(),
+					   bp->GetMemoryUsage() / (1024.0 * 1024.0),
+					   (double)bp->GetMemoryUsage() / (double)bp->GetCount());
+			}
+			printf("\n");
 			fflush(stdout);
 		}
-		printf("\n");
+		
+		if (BENCHMARK == false || disable_benchmark_report == false) {
+			const auto now = std::chrono::steady_clock::now();
+			auto diff = now - START_MAIN;
+			int64_t ns =
+				std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(
+					diff)
+					.count();
+			double seconds = double(ns) / 1000'000'000.0;
+			double minutes = seconds / 60.0;
+			double hours = minutes / 60.0;
+			if (seconds < 200.0) {
+				printf("\n (elapsed: %8.2f seconds)", seconds);
+			} else if (minutes < 200.0) {
+				printf("\n (elapsed: %8.2f minutes)", minutes);
+			} else {
+				printf("\n (elapsed: %8.2f hours)", hours);
+			}
+			printf("   test %lui:/%lui  (%.2f%%)\n", i + 1, mixedTestsCount,
+				   double((i + 1)*100) / (double)mixedTestsCount);
+		}
+		
+		disable_benchmark_report = true;
+		if (last + std::chrono::seconds((int64_t)timeDiff) <
+			std::chrono::steady_clock::now()) {
+			last = std::chrono::steady_clock::now();
+			disable_benchmark_report = false;
+			timeDiff *= 1.1;
+		}
 	}
+
+	printf("\n");
+	for (int i = 0; i < broadphases.size(); ++i) {
+		auto bp = broadphases[i];
+		double usPerOp =
+			broadphasePerformances[i].first / broadphasePerformances[i].second;
+		printf("%s average ops/usec: %.3f us/op\n", bp->GetName(), usPerOp);
+	}
+	fflush(stdout);
 
 	for (auto bp : broadphases) {
 		bp->Clear();

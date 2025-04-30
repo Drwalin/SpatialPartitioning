@@ -1052,6 +1052,7 @@ int main(int argc, char **argv)
 				   "\tTSH_BF     - ThreeStageDbvh BvhMedian + BruteForce\n"
 				   "\tTSH_BTDBVT - ThreeStageDbvh BvhMedian + BulletDbvt\n"
 				   "\tTSH_DBVH   - ThreeStageDbvh BvhMedian + Dbvh\n"
+				   "\tTSH_DBVT   - ThreeStageDbvh BvhMedian + Dbvt\n"
 				   "\tHLO        - HashedLooseOctree\n"
 				   "\tLO         - LooseOctree\n");
 
@@ -1135,6 +1136,13 @@ int main(int argc, char **argv)
 					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
 					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
 					std::make_unique<spp::Dbvh>());
+				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_DBVT") == false) {
+				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
+					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
+					std::make_unique<spp::Dbvt>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "HLO") == false) {

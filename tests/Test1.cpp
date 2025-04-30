@@ -41,11 +41,11 @@ std::mt19937_64 mt(12345);
 enum TestType {
 	TEST_AABB = 1,
 	TEST_RAY_FIRST = 2,
-	TEST_RAY = 3,
+	TEST_RAY_ALL = 3,
 	TEST_MIXED = 4,
 };
 
-const char *testTypeNames[] = {"NULL-NONE", "TEST_AABB", "TEST_RAY_FIRST",
+const char *testTypeNames[] = {"[NULL-NONE]", "TEST_AABB", "TEST_RAY_FIRST",
 							   "TEST_ALL_RAYS", "MIXED"};
 
 struct EntityData {
@@ -75,6 +75,16 @@ struct StartEndPoint {
 	bool operator<(const StartEndPoint &o) const { return e < o.e; }
 };
 
+std::vector<std::vector<spp::Aabb>> currentEntitiesAabbs;
+void _SetEntityAabb(std::vector<spp::Aabb> &aabbs, spp::EntityType entity,
+					spp::Aabb aabb)
+{
+	if (aabbs.size() <= entity) {
+		aabbs.resize(entity + 1);
+	}
+	aabbs[entity] = aabb;
+}
+
 std::vector<spp::EntityType> ee;
 std::vector<glm::vec3> vv;
 
@@ -86,7 +96,8 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 							size_t testsCount,
 							std::vector<uint64_t> &offsetOfPatch,
 							TestType testType,
-							std::vector<StartEndPoint> &hitPoints)
+							std::vector<StartEndPoint> &hitPoints,
+							std::vector<spp::Aabb> &currentEntitiesAabbs)
 {
 	static SingleTestResult ret = {};
 	ret.nodesTestedCount = 0;
@@ -137,7 +148,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 
 		return ret;
 	} break;
-	case TEST_RAY: {
+	case TEST_RAY_ALL: {
 
 		struct _Cb : public spp::RayCallback {
 			std::vector<StartEndPoint> *hitPoints = nullptr;
@@ -408,6 +419,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 						aabb.max = aabb.min + ((vv[i] + 1000.0f) / 400.0f);
 						assert(e > 0);
 						broadphase->Add(e, aabb, ~0);
+						_SetEntityAabb(currentEntitiesAabbs, e, aabb);
 					}
 					e = popRandom(s, i, removeEntities);
 
@@ -419,12 +431,14 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 						aabb.max = aabb.min + ((vv[i] + 1000.0f) / 400.0f);
 						assert(e > 0);
 						broadphase->Add(e, aabb, ~0);
+						_SetEntityAabb(currentEntitiesAabbs, e, aabb);
 					}
 				} else {
 					spp::Aabb aabb = broadphase->GetAabb(e);
 					aabb.min += vv[i];
 					aabb.max += vv[i];
 					broadphase->Update(e, aabb);
+					_SetEntityAabb(currentEntitiesAabbs, e, aabb);
 				}
 			}
 
@@ -514,8 +528,8 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 		auto &it = broadphases[i];
 		size_t tC = aabbs.size();
 		auto beg = std::chrono::steady_clock::now();
-		auto vec =
-			SingleTest(it, aabbs, tC, offsetOfPatch[i], testType, hitPoints[i]);
+		auto vec = SingleTest(it, aabbs, tC, offsetOfPatch[i], testType,
+							  hitPoints[i], currentEntitiesAabbs[i]);
 		auto end = std::chrono::steady_clock::now();
 		if (ENABLE_VERIFICATION) {
 			for (size_t j = 0; j < offsetOfPatch[i].size(); ++j) {
@@ -770,7 +784,9 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 							b = aabb0.max;
 							c = aabbi.min;
 							d = aabbi.max;
-							printf("ray   %7ld: %7lu == %7lu  ", ji, p0.e,
+							printf("ray (%li<>%li)   %7ld: %7lu == %7lu  ", 
+									patchEndi-patchStarti, patchEnd0-patchStart0,
+									ji, p0.e,
 								   pi.e);
 							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
 								   "%7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , "
@@ -788,13 +804,13 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 
 							a = p0.start;
 							b = pi.start;
-							printf("     start: {%7.2f, %7.2f, %7.2f}", a.x,
-								   a.y, a.z);
+							printf("     start: {%7.2f, %7.2f, %7.2f}  <->  {%7.2f, %7.2f, %7.2f}", a.x,
+								   a.y, a.z, b.x, b.y, b.z);
 
 							a = p0.end;
 							b = pi.end;
-							printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
-								   a.z);
+							printf("     end: {%7.2f, %7.2f, %7.2f}  <->  {%7.2f, %7.2f, %7.2f}", a.x,
+								   a.y, a.z, b.x, b.y, b.z);
 
 							printf("     dist: %11.6f <-> %11.6f", p0.n, pi.n);
 
@@ -1235,15 +1251,19 @@ int main(int argc, char **argv)
 				 std::make_unique<spp::BulletDbvt>()),
 			 s->SetRebuildSchedulerFunction(EnqueueRebuildThreaded), s)};
 	}
+	
+	currentEntitiesAabbs.resize(broadphases.size());
 
 	if (enablePrepass) {
 
-		for (auto bp : broadphases) {
+		for (int II = 0; II < broadphases.size(); ++II) {
+			auto bp = broadphases[II];
 			auto beg = std::chrono::steady_clock::now();
 			bp->StartFastAdding();
 			for (const auto &e : entities) {
 				assert(e.id > 0);
 				bp->Add(e.id, e.aabb, e.mask);
+				_SetEntityAabb(currentEntitiesAabbs[II], e.id, e.aabb);
 			}
 			bp->StopFastAdding();
 			auto end = std::chrono::steady_clock::now();
@@ -1291,10 +1311,13 @@ int main(int argc, char **argv)
 			e.aabb.max += disp;
 		}
 
-		for (auto bp : broadphases) {
+		for (int II = 0; II < broadphases.size(); ++II) {
+			auto bp = broadphases[II];
 			auto beg = std::chrono::steady_clock::now();
 			for (int i = 0; i < 300 && i < entities.size(); ++i) {
 				bp->Update(entities[i].id, entities[i].aabb);
+				_SetEntityAabb(currentEntitiesAabbs[II], entities[i].id,
+		entities[i].aabb);
 			}
 			auto end = std::chrono::steady_clock::now();
 			auto diff = end - beg;
@@ -1338,7 +1361,8 @@ int main(int argc, char **argv)
 		printf("\n");
 
 		const auto old = entities;
-		for (auto bp : broadphases) {
+		for (int II = 0; II < broadphases.size(); ++II) {
+			auto bp = broadphases[II];
 			entities = old;
 			auto beg = std::chrono::steady_clock::now();
 			for (size_t i = 0; i < ee.size(); ++i) {
@@ -1346,6 +1370,7 @@ int main(int argc, char **argv)
 				a.min += vv[i];
 				a.max += vv[i];
 				bp->Update(ee[i], a);
+				_SetEntityAabb(currentEntitiesAabbs[II], ee[i], a);
 			}
 			auto end = std::chrono::steady_clock::now();
 			auto diff = end - beg;
@@ -1450,13 +1475,15 @@ int main(int argc, char **argv)
 		printf("\n");
 	}
 
-	for (auto bp : broadphases) {
+	for (int II = 0; II < broadphases.size(); ++II) {
+		auto bp = broadphases[II];
 		auto beg = std::chrono::steady_clock::now();
 		bp->StartFastAdding();
 		for (const auto &e : entities) {
 			assert(e.id > 0);
 			if (bp->Exists(e.id) == false) {
 				bp->Add(e.id, e.aabb, e.mask);
+				_SetEntityAabb(currentEntitiesAabbs[II], e.id, e.aabb);
 			}
 		}
 		bp->StopFastAdding();
@@ -1500,7 +1527,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	printf("\nMore realistinc dynamic movement entagled with tests:\n");
+	printf("\nMore realistic dynamic movement entagled with tests:\n");
 
 	auto last = std::chrono::steady_clock::now();
 	double timeDiff = 10.0;
@@ -1530,7 +1557,7 @@ int main(int argc, char **argv)
 			printf("\n");
 			fflush(stdout);
 		}
-		
+
 		if (BENCHMARK == false || disable_benchmark_report == false) {
 			const auto now = std::chrono::steady_clock::now();
 			auto diff = now - START_MAIN;
@@ -1549,9 +1576,9 @@ int main(int argc, char **argv)
 				printf("\n (elapsed: %8.2f hours)", hours);
 			}
 			printf("   test %lu:/%lu  (%.2f%%)\n", i + 1, mixedTestsCount,
-				   double((i + 1)*100) / (double)mixedTestsCount);
+				   double((i + 1) * 100) / (double)mixedTestsCount);
 		}
-		
+
 		disable_benchmark_report = true;
 		if (last + std::chrono::seconds((int64_t)timeDiff) <
 			std::chrono::steady_clock::now()) {

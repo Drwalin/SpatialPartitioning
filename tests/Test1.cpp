@@ -1548,7 +1548,7 @@ int main(int argc, char **argv)
 			} else {
 				printf("\n (elapsed: %8.2f hours)", hours);
 			}
-			printf("   test %lui:/%lui  (%.2f%%)\n", i + 1, mixedTestsCount,
+			printf("   test %lu:/%lu  (%.2f%%)\n", i + 1, mixedTestsCount,
 				   double((i + 1)*100) / (double)mixedTestsCount);
 		}
 		

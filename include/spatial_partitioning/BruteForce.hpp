@@ -9,9 +9,15 @@
 
 namespace spp
 {
-class BruteForce final : public BroadphaseBase
+SPP_TEMPLATE_DECL
+class BruteForce final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
+	
+	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
+	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
+	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+	
 	BruteForce();
 	virtual ~BruteForce();
 
@@ -34,7 +40,7 @@ public:
 
 	virtual void Rebuild() override;
 
-	virtual void IntersectAabb(IntersectionCallback &callback) override;
+	virtual void IntersectAabb(AabbCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	virtual BroadphaseBaseIterator *RestartIterator() override;
@@ -64,4 +70,7 @@ private:
 		int32_t it = 0;
 	} iterator;
 };
+
+SPP_EXTERN_VARIANTS(BruteForce)
+
 } // namespace spp

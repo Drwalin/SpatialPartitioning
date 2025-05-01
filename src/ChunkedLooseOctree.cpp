@@ -12,7 +12,8 @@ namespace spp
 {
 namespace experimental
 {
-ChunkedLooseOctree::ChunkedLooseOctree(int32_t chunkSize, int32_t worldSize,
+SPP_TEMPLATE_DECL
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::ChunkedLooseOctree(int32_t chunkSize, int32_t worldSize,
 									   float loosness)
 	: bigObjects(0), iterator(*this)
 {
@@ -26,11 +27,14 @@ ChunkedLooseOctree::ChunkedLooseOctree(int32_t chunkSize, int32_t worldSize,
 	this->rootNode = nodes.Add({.halfSize = worldSize});
 }
 
-ChunkedLooseOctree::~ChunkedLooseOctree() {}
+SPP_TEMPLATE_DECL
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::~ChunkedLooseOctree() {}
 
-const char *ChunkedLooseOctree::GetName() const { return "ChunkedLooseOctree"; }
+SPP_TEMPLATE_DECL
+const char *ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetName() const { return "ChunkedLooseOctree"; }
 
-void ChunkedLooseOctree::Clear()
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Clear()
 {
 	bigObjects.Clear();
 	data.Clear();
@@ -39,13 +43,15 @@ void ChunkedLooseOctree::Clear()
 	rootNode = nodes.Add({.halfSize = worldSizeHalf});
 }
 
-size_t ChunkedLooseOctree::GetMemoryUsage() const
+SPP_TEMPLATE_DECL
+size_t ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 {
 	return data.GetMemoryUsage() + nodes.GetMemoryUsage() +
 		   chunks.GetMemoryUsage() + bigObjects.GetMemoryUsage() + 8;
 }
 
-void ChunkedLooseOctree::ShrinkToFit()
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::ShrinkToFit()
 {
 	data.ShrinkToFit();
 	nodes.ShrinkToFit();
@@ -53,7 +59,8 @@ void ChunkedLooseOctree::ShrinkToFit()
 	bigObjects.ShrinkToFit();
 }
 
-void ChunkedLooseOctree::Add(EntityType entity, Aabb aabb, MaskType mask)
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	if (FitsInChunk(aabb)) {
 		int32_t offset = data.Add(entity, {aabb, entity, mask});
@@ -67,7 +74,8 @@ void ChunkedLooseOctree::Add(EntityType entity, Aabb aabb, MaskType mask)
 	}
 }
 
-void ChunkedLooseOctree::Update(EntityType entity, Aabb aabb)
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 {
 	int32_t offset = data.GetOffset(entity);
 	Data &d = data[offset];
@@ -97,7 +105,8 @@ void ChunkedLooseOctree::Update(EntityType entity, Aabb aabb)
 	}
 }
 
-void ChunkedLooseOctree::Remove(EntityType entity)
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 {
 	int32_t offset = data.GetOffset(entity);
 	Data &d = data[offset];
@@ -109,35 +118,42 @@ void ChunkedLooseOctree::Remove(EntityType entity)
 	data.RemoveByKey(entity);
 }
 
-void ChunkedLooseOctree::SetMask(EntityType entity, MaskType mask)
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
 {
 	data[data.GetOffset(entity)].mask = mask;
 }
 
-int32_t ChunkedLooseOctree::GetCount() const { return data.Size(); }
+SPP_TEMPLATE_DECL
+int32_t ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetCount() const { return data.Size(); }
 
-bool ChunkedLooseOctree::Exists(EntityType entity) const
+SPP_TEMPLATE_DECL
+bool ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
 {
 	return data.GetOffset(entity) > 0;
 }
 
-Aabb ChunkedLooseOctree::GetAabb(EntityType entity) const
+SPP_TEMPLATE_DECL
+Aabb ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetAabb(EntityType entity) const
 {
 	return data[data.GetOffset(entity)].aabb;
 }
 
-MaskType ChunkedLooseOctree::GetMask(EntityType entity) const
+SPP_TEMPLATE_DECL
+MaskType ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
 {
 	return data[data.GetOffset(entity)].mask;
 }
 
-AabbCentered ChunkedLooseOctree::NodeData::GetAabb() const
+SPP_TEMPLATE_DECL
+AabbCentered ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::NodeData::GetAabb() const
 {
 	return AabbCentered{glm::vec3(cx, cy, cz),
 						glm::vec3(halfSize, halfSize, halfSize)};
 }
 
-void ChunkedLooseOctree::IntersectAabb(IntersectionCallback &cb)
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -149,7 +165,8 @@ void ChunkedLooseOctree::IntersectAabb(IntersectionCallback &cb)
 	_Internal_IntersectAabb(cb, rootNode);
 }
 
-void ChunkedLooseOctree::_Internal_IntersectAabb(IntersectionCallback &cb,
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback &cb,
 												 const int32_t nodeId)
 {
 	NodeData &n = nodes[nodeId];
@@ -178,7 +195,8 @@ void ChunkedLooseOctree::_Internal_IntersectAabb(IntersectionCallback &cb,
 	}
 }
 
-void ChunkedLooseOctree::IntersectRay(RayCallback &cb)
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -190,7 +208,8 @@ void ChunkedLooseOctree::IntersectRay(RayCallback &cb)
 	_Internal_IntersectRay(cb, 1);
 }
 
-void ChunkedLooseOctree::_Internal_IntersectRay(RayCallback &cb,
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb,
 												const int32_t nodeId)
 {
 	NodeData &n = nodes[nodeId];
@@ -216,19 +235,23 @@ void ChunkedLooseOctree::_Internal_IntersectRay(RayCallback &cb,
 	}
 }
 
-void ChunkedLooseOctree::Rebuild() { bigObjects.Rebuild(); }
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Rebuild() { bigObjects.Rebuild(); }
 
-glm::ivec3 ChunkedLooseOctree::GetMaxChunk(glm::vec3 point) const
+SPP_TEMPLATE_DECL
+glm::ivec3 ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetMaxChunk(glm::vec3 point) const
 {
 	return (point + chunkCheckOffset) / (float)chunkSize;
 }
 
-glm::ivec3 ChunkedLooseOctree::GetMinChunk(glm::vec3 point) const
+SPP_TEMPLATE_DECL
+glm::ivec3 ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetMinChunk(glm::vec3 point) const
 {
 	return (point - chunkCheckOffset) / (float)chunkSize;
 }
 
-glm::ivec4 ChunkedLooseOctree::GetNodePosSize(Aabb aabb) const
+SPP_TEMPLATE_DECL
+glm::ivec4 ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetNodePosSize(Aabb aabb) const
 {
 	glm::vec3 s = aabb.max - aabb.min;
 	float sm = glm::max(s.x, glm::max(s.y, s.z)) * loosnessInv;
@@ -240,7 +263,8 @@ glm::ivec4 ChunkedLooseOctree::GetNodePosSize(Aabb aabb) const
 	return {center, size};
 }
 
-bool ChunkedLooseOctree::FitsInChunk(Aabb aabb) const
+SPP_TEMPLATE_DECL
+bool ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::FitsInChunk(Aabb aabb) const
 {
 	const glm::ivec3 a = GetMaxChunk(aabb.min);
 	const glm::ivec3 b = GetMinChunk(aabb.max);
@@ -249,28 +273,36 @@ bool ChunkedLooseOctree::FitsInChunk(Aabb aabb) const
 	return ((d.x | d.y | d.z) & 0x80000000u) == 0;
 }
 
-int32_t ChunkedLooseOctree::GetCreateChunkId(glm::vec3 pos)
-{
-	assert(false);
-	return 0;
-}
-int32_t ChunkedLooseOctree::GetChunkId(glm::vec3 pos) const
-{
-	assert(false);
-	return 0;
-}
-int32_t ChunkedLooseOctree::GetChunkId(EntityType entity) const
-{
-	assert(false);
-	return 0;
-}
-int32_t ChunkedLooseOctree::GetCreateNodeId(Aabb aabb)
+SPP_TEMPLATE_DECL
+int32_t ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetCreateChunkId(glm::vec3 pos)
 {
 	assert(false);
 	return 0;
 }
 
-void ChunkedLooseOctree::AddToChunk(int32_t chunkId, int32_t entityOffset)
+SPP_TEMPLATE_DECL
+int32_t ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunkId(glm::vec3 pos) const
+{
+	assert(false);
+	return 0;
+}
+
+SPP_TEMPLATE_DECL
+int32_t ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunkId(EntityType entity) const
+{
+	assert(false);
+	return 0;
+}
+
+SPP_TEMPLATE_DECL
+int32_t ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetCreateNodeId(Aabb aabb)
+{
+	assert(false);
+	return 0;
+}
+
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::AddToChunk(int32_t chunkId, int32_t entityOffset)
 {
 	Data &d = data[entityOffset];
 	chunkId = d.chunkId;
@@ -284,14 +316,16 @@ void ChunkedLooseOctree::AddToChunk(int32_t chunkId, int32_t entityOffset)
 	}
 }
 
-void ChunkedLooseOctree::RemoveFromChunk(int32_t entityOffset)
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::RemoveFromChunk(int32_t entityOffset)
 {
 	int32_t nodeId = data[entityOffset].nodeId;
 	UnlinkFromChunk(entityOffset);
 	CleanIfEmptyNodes(nodeId);
 }
 
-void ChunkedLooseOctree::UnlinkFromChunk(int32_t entityOffset)
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::UnlinkFromChunk(int32_t entityOffset)
 {
 	Data &d = data[entityOffset];
 	int32_t nodeId = d.nodeId;
@@ -309,7 +343,8 @@ void ChunkedLooseOctree::UnlinkFromChunk(int32_t entityOffset)
 	d.nextDataId = 0;
 }
 
-void ChunkedLooseOctree::CleanIfEmptyNodes(int32_t nodeId)
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::CleanIfEmptyNodes(int32_t nodeId)
 {
 	NodeData &n = nodes[nodeId];
 	if (n.firstEntity) {
@@ -345,12 +380,14 @@ void ChunkedLooseOctree::CleanIfEmptyNodes(int32_t nodeId)
 	}
 }
 
-std::shared_ptr<void> ChunkedLooseOctree::GetChunkData(int32_t chunkId)
+SPP_TEMPLATE_DECL
+std::shared_ptr<void> ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunkData(int32_t chunkId)
 {
 	return chunks[chunkId].userData;
 }
 
-void ChunkedLooseOctree::SetChunkData(int32_t chunkId,
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::SetChunkData(int32_t chunkId,
 									  std::shared_ptr<void> userData)
 {
 	chunks[chunkId].userData = userData;
@@ -359,19 +396,22 @@ void ChunkedLooseOctree::SetChunkData(int32_t chunkId,
 	}
 }
 
-void ChunkedLooseOctree::GetChunks(Aabb aabb, std::vector<int32_t> chunks)
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunks(Aabb aabb, std::vector<int32_t> chunks)
 {
 	assert(false);
 }
 
-void ChunkedLooseOctree::GetChunks(bool (*isIn)(Aabb test, void *testData),
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunks(bool (*isIn)(Aabb test, void *testData),
 								   void *testData,
 								   std::vector<int32_t> chunksData)
 {
 	assert(false);
 }
 
-void ChunkedLooseOctree::ForEachChunkData(
+SPP_TEMPLATE_DECL
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::ForEachChunkData(
 	bool (*isIn)(Aabb test, void *testData), void *testData,
 	void (*func)(ChunkedLooseOctree &self, int32_t chunk, void *userData),
 	void *userData)
@@ -379,22 +419,26 @@ void ChunkedLooseOctree::ForEachChunkData(
 	assert(false);
 }
 
-BroadphaseBaseIterator *ChunkedLooseOctree::RestartIterator()
+SPP_TEMPLATE_DECL
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
-ChunkedLooseOctree::Iterator::Iterator(ChunkedLooseOctree &bp)
+SPP_TEMPLATE_DECL
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Iterator(ChunkedLooseOctree &bp)
 {
 	data = &bp.data._Data()._Data();
 	it = 0;
 	Next();
 }
 
-ChunkedLooseOctree::Iterator::~Iterator() {}
+SPP_TEMPLATE_DECL
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::~Iterator() {}
 
-bool ChunkedLooseOctree::Iterator::Next()
+SPP_TEMPLATE_DECL
+bool ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Next()
 {
 	do {
 		++it;
@@ -402,17 +446,22 @@ bool ChunkedLooseOctree::Iterator::Next()
 	return FetchData();
 }
 
-bool ChunkedLooseOctree::Iterator::FetchData()
+SPP_TEMPLATE_DECL
+bool ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 {
 	if (Valid()) {
-		entity = (*data)[it].entity;
-		aabb = (*data)[it].aabb;
-		mask = (*data)[it].mask;
+		this->entity = (*data)[it].entity;
+		this->aabb = (*data)[it].aabb;
+		this->mask = (*data)[it].mask;
 		return true;
 	}
 	return false;
 }
 
-bool ChunkedLooseOctree::Iterator::Valid() { return it < data->size(); }
+SPP_TEMPLATE_DECL
+bool ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+
+SPP_DEFINE_VARIANTS(ChunkedLooseOctree)
+
 } // namespace experimental
 } // namespace spp

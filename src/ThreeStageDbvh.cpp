@@ -25,9 +25,10 @@ bool Assert(bool condition, const char *text, const char *function,
 namespace spp
 {
 
-ThreeStageDbvh::ThreeStageDbvh(std::shared_ptr<BroadphaseBase> optimised,
-							   std::shared_ptr<BroadphaseBase> rebuilding,
-							   std::unique_ptr<BroadphaseBase> &&dynamic)
+SPP_TEMPLATE_DECL
+ThreeStageDbvh<SPP_TEMPLATE_ARGS>::ThreeStageDbvh(std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> optimised,
+							   std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> rebuilding,
+							   std::unique_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> &&dynamic)
 	: iterator(*this)
 {
 	this->_finishedRebuilding = std::make_shared<std::atomic<bool>>();
@@ -45,11 +46,14 @@ ThreeStageDbvh::ThreeStageDbvh(std::shared_ptr<BroadphaseBase> optimised,
 	this->dynamic = _dynamic.get();
 }
 
-ThreeStageDbvh::~ThreeStageDbvh() {}
+SPP_TEMPLATE_DECL
+ThreeStageDbvh<SPP_TEMPLATE_ARGS>::~ThreeStageDbvh() {}
 
-const char *ThreeStageDbvh::GetName() const { return "ThreeStageDbvh"; }
+SPP_TEMPLATE_DECL
+const char *ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetName() const { return "ThreeStageDbvh"; }
 
-void ThreeStageDbvh::Clear()
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Clear()
 {
 	if (rebuild) {
 		clear = true;
@@ -59,7 +63,8 @@ void ThreeStageDbvh::Clear()
 	optimised->Clear();
 }
 
-size_t ThreeStageDbvh::GetMemoryUsage() const
+SPP_TEMPLATE_DECL
+size_t ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 {
 	return dbvhs[0]->GetMemoryUsage() + dbvhs[1]->GetMemoryUsage() +
 		   dynamic->GetMemoryUsage() +
@@ -71,7 +76,8 @@ size_t ThreeStageDbvh::GetMemoryUsage() const
 		   setMaskAfterRebuild.GetMemoryUsage();
 }
 
-void ThreeStageDbvh::ShrinkToFit()
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::ShrinkToFit()
 {
 	dbvhs[0]->ShrinkToFit();
 	dbvhs[1]->ShrinkToFit();
@@ -79,7 +85,8 @@ void ThreeStageDbvh::ShrinkToFit()
 	toRemoveAfterRebuild.shrink_to_fit();
 }
 
-void ThreeStageDbvh::StartFastAdding()
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::StartFastAdding()
 {
 	fastAdding = true;
 
@@ -99,9 +106,11 @@ void ThreeStageDbvh::StartFastAdding()
 	tests = 0;
 }
 
-void ThreeStageDbvh::StopFastAdding() { fastAdding = false; }
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::StopFastAdding() { fastAdding = false; }
 
-void ThreeStageDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	assert(Exists(entity) == false);
 
@@ -113,7 +122,8 @@ void ThreeStageDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 	}
 }
 
-void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 {
 	assert(Exists(entity) == true);
 
@@ -146,7 +156,8 @@ void ThreeStageDbvh::Update(EntityType entity, Aabb aabb)
 	}
 }
 
-void ThreeStageDbvh::Remove(EntityType entity)
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 {
 	assert(Exists(entity) == true);
 
@@ -171,7 +182,8 @@ void ThreeStageDbvh::Remove(EntityType entity)
 	}
 }
 
-void ThreeStageDbvh::SetMask(EntityType entity, MaskType mask)
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
 {
 	if (dynamic->Exists(entity)) {
 		dynamic->SetMask(entity, mask);
@@ -185,7 +197,8 @@ void ThreeStageDbvh::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
-void ThreeStageDbvh::TryIntegrateOptimised()
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::TryIntegrateOptimised()
 {
 	if (rebuild) {
 		if (finishedRebuilding->load()) {
@@ -244,7 +257,8 @@ void ThreeStageDbvh::TryIntegrateOptimised()
 	}
 }
 
-void ThreeStageDbvh::TryScheduleRebuild()
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::TryScheduleRebuild()
 {
 	if (rebuild) {
 		if (finishedRebuilding->load() == false) {
@@ -281,17 +295,20 @@ void ThreeStageDbvh::TryScheduleRebuild()
 	}
 }
 
-int32_t ThreeStageDbvh::GetCount() const
+SPP_TEMPLATE_DECL
+int32_t ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetCount() const
 {
 	return dynamic->GetCount() + optimised->GetCount();
 }
 
-bool ThreeStageDbvh::Exists(EntityType entity) const
+SPP_TEMPLATE_DECL
+bool ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
 {
 	return optimised->Exists(entity) || dynamic->Exists(entity);
 }
 
-Aabb ThreeStageDbvh::GetAabb(EntityType entity) const
+SPP_TEMPLATE_DECL
+Aabb ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetAabb(EntityType entity) const
 {
 	if (optimised->Exists(entity)) {
 		return optimised->GetAabb(entity);
@@ -303,7 +320,8 @@ Aabb ThreeStageDbvh::GetAabb(EntityType entity) const
 	}
 }
 
-MaskType ThreeStageDbvh::GetMask(EntityType entity) const
+SPP_TEMPLATE_DECL
+MaskType ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
 {
 	if (optimised->Exists(entity)) {
 		return optimised->GetMask(entity);
@@ -315,7 +333,8 @@ MaskType ThreeStageDbvh::GetMask(EntityType entity) const
 	}
 }
 
-void ThreeStageDbvh::IntersectAabb(IntersectionCallback &cb)
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -327,7 +346,8 @@ void ThreeStageDbvh::IntersectAabb(IntersectionCallback &cb)
 	optimised->IntersectAabb(cb);
 }
 
-void ThreeStageDbvh::IntersectRay(RayCallback &cb)
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -339,7 +359,8 @@ void ThreeStageDbvh::IntersectRay(RayCallback &cb)
 	optimised->IntersectRay(cb);
 }
 
-void ThreeStageDbvh::Rebuild()
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Rebuild()
 {
 	if (rebuild) {
 		clear = true;
@@ -359,13 +380,15 @@ void ThreeStageDbvh::Rebuild()
 	tests = 0;
 }
 
-BroadphaseBaseIterator *ThreeStageDbvh::RestartIterator()
+SPP_TEMPLATE_DECL
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *ThreeStageDbvh<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
-ThreeStageDbvh::Iterator::Iterator(ThreeStageDbvh &bp)
+SPP_TEMPLATE_DECL
+ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Iterator::Iterator(ThreeStageDbvh &bp)
 {
 	this->bp = &bp;
 	stage = 0;
@@ -380,9 +403,11 @@ ThreeStageDbvh::Iterator::Iterator(ThreeStageDbvh &bp)
 	Next();
 }
 
-ThreeStageDbvh::Iterator::~Iterator() {}
+SPP_TEMPLATE_DECL
+ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Iterator::~Iterator() {}
 
-bool ThreeStageDbvh::Iterator::Next()
+SPP_TEMPLATE_DECL
+bool ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Iterator::Next()
 {
 	if (it == nullptr) {
 		return false;
@@ -404,27 +429,33 @@ bool ThreeStageDbvh::Iterator::Next()
 	return FetchData();
 }
 
-bool ThreeStageDbvh::Iterator::FetchData()
+SPP_TEMPLATE_DECL
+bool ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 {
 	if (Valid()) {
-		entity = it->entity;
-		aabb = it->aabb;
-		mask = it->mask;
+		this->entity = it->entity;
+		this->aabb = it->aabb;
+		this->mask = it->mask;
 		return true;
 	}
 	return false;
 }
 
-bool ThreeStageDbvh::Iterator::Valid() { return it; }
+SPP_TEMPLATE_DECL
+bool ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it; }
 
-void ThreeStageDbvh::SetRebuildSchedulerFunction(
+SPP_TEMPLATE_DECL
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::SetRebuildSchedulerFunction(
 	void (*_ScheduleRebuildFunc)(
 		std::shared_ptr<std::atomic<bool>> finishedRebuilding,
-		std::shared_ptr<BroadphaseBase> dbvh, std::shared_ptr<void> data),
+		std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> dbvh, std::shared_ptr<void> data),
 	std::shared_ptr<void> scheduleUpdateUserData)
 {
 	scheduleRebuildFunc = _ScheduleRebuildFunc;
 	this->scheduleUpdateUserData = scheduleUpdateUserData;
 }
+
+SPP_DEFINE_VARIANTS(ThreeStageDbvh)
+
 } // namespace spp
 #undef assert

@@ -10,26 +10,32 @@
 
 namespace spp
 {
-BvhMedianSplitHeap::BvhMedianSplitHeap(EntityType denseEntityRange)
+SPP_TEMPLATE_DECL
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::BvhMedianSplitHeap(EntityType denseEntityRange)
 	: entitiesOffsets(denseEntityRange), iterator(*this)
 {
 }
-BvhMedianSplitHeap::~BvhMedianSplitHeap() {}
+SPP_TEMPLATE_DECL
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::~BvhMedianSplitHeap() {}
 
-const char *BvhMedianSplitHeap::GetName() const { return "BvhMedianSplitHeap"; }
+SPP_TEMPLATE_DECL
+const char *BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetName() const { return "BvhMedianSplitHeap"; }
 
-void BvhMedianSplitHeap::SetAabbUpdatePolicy(AabbUpdatePolicy policy)
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::SetAabbUpdatePolicy(AabbUpdatePolicy policy)
 {
 	updatePolicy = policy;
 }
 
-BvhMedianSplitHeap::AabbUpdatePolicy
-BvhMedianSplitHeap::GetAabbUpdatePolicy() const
+SPP_TEMPLATE_DECL
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::AabbUpdatePolicy
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetAabbUpdatePolicy() const
 {
 	return updatePolicy;
 }
 
-void BvhMedianSplitHeap::Clear()
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Clear()
 {
 	entitiesData.clear();
 	nodesHeapAabb.clear();
@@ -39,20 +45,23 @@ void BvhMedianSplitHeap::Clear()
 	entitiesPowerOfTwoCount = 0;
 }
 
-size_t BvhMedianSplitHeap::GetMemoryUsage() const
+SPP_TEMPLATE_DECL
+size_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 {
 	return entitiesOffsets.GetMemoryUsage() +
 		   nodesHeapAabb.capacity() * sizeof(NodeData) +
 		   entitiesData.capacity() * sizeof(Data);
 }
 
-void BvhMedianSplitHeap::ShrinkToFit()
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::ShrinkToFit()
 {
 	nodesHeapAabb.shrink_to_fit();
 	entitiesData.shrink_to_fit();
 }
 
-void BvhMedianSplitHeap::Add(EntityType entity, Aabb aabb, MaskType mask)
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	if (entitiesOffsets.find(entity) != nullptr) {
 		assert(!"Entity already exists");
@@ -64,7 +73,8 @@ void BvhMedianSplitHeap::Add(EntityType entity, Aabb aabb, MaskType mask)
 	++entitiesCount;
 }
 
-void BvhMedianSplitHeap::Update(EntityType entity, Aabb aabb)
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 {
 	uint32_t offset = entitiesOffsets[entity];
 	entitiesData[offset].aabb = aabb;
@@ -75,7 +85,8 @@ void BvhMedianSplitHeap::Update(EntityType entity, Aabb aabb)
 	}
 }
 
-void BvhMedianSplitHeap::Remove(EntityType entity)
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 {
 	auto it = entitiesOffsets.find(entity);
 	if (it == nullptr) {
@@ -103,7 +114,8 @@ void BvhMedianSplitHeap::Remove(EntityType entity)
 	}
 }
 
-void BvhMedianSplitHeap::SetMask(EntityType entity, MaskType mask)
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
 {
 	auto it = entitiesOffsets.find(entity);
 	if (it == nullptr) {
@@ -131,14 +143,17 @@ void BvhMedianSplitHeap::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
-int32_t BvhMedianSplitHeap::GetCount() const { return entitiesCount; }
+SPP_TEMPLATE_DECL
+int32_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetCount() const { return entitiesCount; }
 
-bool BvhMedianSplitHeap::Exists(EntityType entity) const
+SPP_TEMPLATE_DECL
+bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
 {
 	return entitiesOffsets.Has(entity);
 }
 
-Aabb BvhMedianSplitHeap::GetAabb(EntityType entity) const
+SPP_TEMPLATE_DECL
+Aabb BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetAabb(EntityType entity) const
 {
 	auto it = entitiesOffsets.find(entity);
 	if (it != nullptr) {
@@ -147,7 +162,8 @@ Aabb BvhMedianSplitHeap::GetAabb(EntityType entity) const
 	return {};
 }
 
-MaskType BvhMedianSplitHeap::GetMask(EntityType entity) const
+SPP_TEMPLATE_DECL
+MaskType BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
 {
 	auto it = entitiesOffsets.find(entity);
 	if (it != nullptr) {
@@ -156,7 +172,8 @@ MaskType BvhMedianSplitHeap::GetMask(EntityType entity) const
 	return 0;
 }
 
-void BvhMedianSplitHeap::IntersectAabb(IntersectionCallback &cb)
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -171,7 +188,8 @@ void BvhMedianSplitHeap::IntersectAabb(IntersectionCallback &cb)
 	_Internal_IntersectAabb(cb, 1);
 }
 
-void BvhMedianSplitHeap::_Internal_IntersectAabb(IntersectionCallback &cb,
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback &cb,
 												 const int32_t nodeId)
 {
 	const int32_t n = nodeId << 1;
@@ -199,7 +217,8 @@ void BvhMedianSplitHeap::_Internal_IntersectAabb(IntersectionCallback &cb,
 	}
 }
 
-void BvhMedianSplitHeap::IntersectRay(RayCallback &cb)
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -215,7 +234,8 @@ void BvhMedianSplitHeap::IntersectRay(RayCallback &cb)
 	_Internal_IntersectRay(cb, 1);
 }
 
-void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb,
 												const int32_t nodeId)
 {
 	const int32_t n = nodeId << 1;
@@ -265,7 +285,8 @@ void BvhMedianSplitHeap::_Internal_IntersectRay(RayCallback &cb,
 	}
 }
 
-void BvhMedianSplitHeap::Rebuild()
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Rebuild()
 {
 	rebuildTree = false;
 	entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)entitiesCount);
@@ -290,7 +311,8 @@ void BvhMedianSplitHeap::Rebuild()
 	RebuildNode(1);
 }
 
-void BvhMedianSplitHeap::RebuildNode(int32_t nodeId)
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RebuildNode(int32_t nodeId)
 {
 	int32_t tcount = 0;
 	nodeId = RebuildNodePartial(nodeId, &tcount);
@@ -302,7 +324,8 @@ void BvhMedianSplitHeap::RebuildNode(int32_t nodeId)
 	}
 }
 
-int32_t BvhMedianSplitHeap::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
+SPP_TEMPLATE_DECL
+int32_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
 {
 	*tcount = 0;
 	int32_t offset = nodeId;
@@ -378,7 +401,8 @@ int32_t BvhMedianSplitHeap::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
 	return nodeId << 1;
 }
 
-void BvhMedianSplitHeap::PruneEmptyEntitiesAtEnd()
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::PruneEmptyEntitiesAtEnd()
 {
 	for (int32_t i = entitiesData.size() - 1; i >= 0; --i) {
 		if (entitiesData[i].entity != EMPTY_ENTITY) {
@@ -389,7 +413,8 @@ void BvhMedianSplitHeap::PruneEmptyEntitiesAtEnd()
 	entitiesData.clear();
 }
 
-void BvhMedianSplitHeap::UpdateAabb(int32_t offset)
+SPP_TEMPLATE_DECL
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::UpdateAabb(int32_t offset)
 {
 	MaskType mask = 0;
 	Aabb aabb = {{0, 0, 0}, {0, 0, 0}};
@@ -426,7 +451,8 @@ void BvhMedianSplitHeap::UpdateAabb(int32_t offset)
 	}
 }
 
-bool BvhMedianSplitHeap::RebuildStep(RebuildProgress &progress)
+SPP_TEMPLATE_DECL
+bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RebuildStep(RebuildProgress &progress)
 {
 	if (progress.done) {
 		return true;
@@ -510,22 +536,26 @@ bool BvhMedianSplitHeap::RebuildStep(RebuildProgress &progress)
 	return progress.done;
 }
 
-BroadphaseBaseIterator *BvhMedianSplitHeap::RestartIterator()
+SPP_TEMPLATE_DECL
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
-BvhMedianSplitHeap::Iterator::Iterator(BvhMedianSplitHeap &bp)
+SPP_TEMPLATE_DECL
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::Iterator(BvhMedianSplitHeap &bp)
 {
 	data = &bp.entitiesData;
 	it = -1;
 	Next();
 }
 
-BvhMedianSplitHeap::Iterator::~Iterator() {}
+SPP_TEMPLATE_DECL
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::~Iterator() {}
 
-bool BvhMedianSplitHeap::Iterator::Next()
+SPP_TEMPLATE_DECL
+bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::Next()
 {
 	do {
 		++it;
@@ -534,16 +564,21 @@ bool BvhMedianSplitHeap::Iterator::Next()
 	return FetchData();
 }
 
-bool BvhMedianSplitHeap::Iterator::FetchData()
+SPP_TEMPLATE_DECL
+bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 {
 	if (Valid()) {
-		entity = (*data)[it].entity;
-		aabb = (*data)[it].aabb;
-		mask = (*data)[it].mask;
+		this->entity = (*data)[it].entity;
+		this->aabb = (*data)[it].aabb;
+		this->mask = (*data)[it].mask;
 		return true;
 	}
 	return false;
 }
 
-bool BvhMedianSplitHeap::Iterator::Valid() { return it < data->size(); }
+SPP_TEMPLATE_DECL
+bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+
+SPP_DEFINE_VARIANTS(BvhMedianSplitHeap)
+
 } // namespace spp

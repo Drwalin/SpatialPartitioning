@@ -4,14 +4,15 @@
 
 #pragma once
 
-#include "EntityTypes.hpp"
-#include "Aabb.hpp"
 #include "IntersectionCallbacks.hpp"
+#include "EntityTypes.hpp"
 
 namespace spp
 {
+SPP_TEMPLATE_DECL
 class BroadphaseBase;
 
+SPP_TEMPLATE_DECL
 class BroadphaseBaseIterator
 {
 public:
@@ -25,6 +26,7 @@ public:
 	MaskType mask = 0;
 };
 
+SPP_TEMPLATE_DECL
 class BroadphaseBase
 {
 public:
@@ -32,6 +34,10 @@ public:
 	virtual ~BroadphaseBase();
 
 	virtual const char *GetName() const = 0;
+	
+	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
+	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
+	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
 
 public:
 	virtual void Clear() = 0;
@@ -56,9 +62,13 @@ public:
 	virtual void Rebuild() = 0;
 
 	// returns number of tested entities
-	virtual void IntersectAabb(IntersectionCallback &callback) = 0;
+	virtual void IntersectAabb(AabbCallback &callback) = 0;
 	virtual void IntersectRay(RayCallback &callback) = 0;
 
 	virtual BroadphaseBaseIterator *RestartIterator() = 0;
 };
+
+SPP_EXTERN_VARIANTS(BroadphaseBaseIterator)
+SPP_EXTERN_VARIANTS(BroadphaseBase)
+
 } // namespace spp

@@ -15,36 +15,44 @@ namespace spp
 {
 namespace experimental
 {
-HashLooseOctree::HashLooseOctree(float resolution, int32_t levels,
+SPP_TEMPLATE_DECL
+HashLooseOctree<SPP_TEMPLATE_ARGS>::HashLooseOctree(float resolution, int32_t levels,
 								 float loosenessFactor)
-	: nodes(12289, Key::Hash(this)), loosenessFactor(loosenessFactor),
+	: nodes(12289, typename HashLooseOctree<SPP_TEMPLATE_ARGS>::Key::Hash(this)), loosenessFactor(loosenessFactor),
 	  invLoosenessFactor(1.0f / loosenessFactor), resolution(resolution),
 	  invResolution(1.0f / resolution), levels(levels), iterator(*this)
 {
 	Clear();
 }
-HashLooseOctree::~HashLooseOctree() {}
+SPP_TEMPLATE_DECL
+HashLooseOctree<SPP_TEMPLATE_ARGS>::~HashLooseOctree() {}
 
-void HashLooseOctree::Rebuild() {}
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::Rebuild() {}
 
-const char *HashLooseOctree::GetName() const { return "HashLooseOctree"; }
+SPP_TEMPLATE_DECL
+const char *HashLooseOctree<SPP_TEMPLATE_ARGS>::GetName() const { return "HashLooseOctree"; }
 
-void HashLooseOctree::Clear()
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::Clear()
 {
 	data.Clear();
 	nodes.clear();
 }
 
-size_t HashLooseOctree::GetMemoryUsage() const
+SPP_TEMPLATE_DECL
+size_t HashLooseOctree<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 {
 	return data.GetMemoryUsage() + nodes.bucket_count() * sizeof(void *) +
 		   nodes.size() *
 			   (sizeof(void *) * 2lu + sizeof(Key) + sizeof(NodeData));
 }
 
-void HashLooseOctree::ShrinkToFit() { data.ShrinkToFit(); }
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::ShrinkToFit() { data.ShrinkToFit(); }
 
-int32_t HashLooseOctree::CalcHashMinLevel(Aabb aabb)
+SPP_TEMPLATE_DECL
+int32_t HashLooseOctree<SPP_TEMPLATE_ARGS>::CalcHashMinLevel(Aabb aabb)
 {
 	aabb.min *= invResolution;
 	aabb.max *= invResolution;
@@ -62,7 +70,8 @@ int32_t HashLooseOctree::CalcHashMinLevel(Aabb aabb)
 
 #define ROT64(V, R) ((V << R) | (V >> (64 - R)))
 
-uint64_t HashLooseOctree::Hash(const glm::vec3 pos, int32_t level) const
+SPP_TEMPLATE_DECL
+uint64_t HashLooseOctree<SPP_TEMPLATE_ARGS>::Hash(const glm::vec3 pos, int32_t level) const
 {
 	if (level > levels) {
 		return 3141592653589793238lu;
@@ -72,7 +81,8 @@ uint64_t HashLooseOctree::Hash(const glm::vec3 pos, int32_t level) const
 	return Hash(p, level);
 }
 
-uint64_t HashLooseOctree::Hash(const glm::ivec3 pos, int32_t level) const
+SPP_TEMPLATE_DECL
+uint64_t HashLooseOctree<SPP_TEMPLATE_ARGS>::Hash(const glm::ivec3 pos, int32_t level) const
 {
 	if (level > levels) {
 		return 3141592653589793238lu;
@@ -85,7 +95,8 @@ uint64_t HashLooseOctree::Hash(const glm::ivec3 pos, int32_t level) const
 		   1099511628211lu;
 }
 
-void HashLooseOctree::Add(EntityType entity, Aabb aabb, MaskType mask)
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	const int32_t offset = data.Add(entity, {aabb, entity, mask});
 
@@ -125,7 +136,8 @@ void HashLooseOctree::Add(EntityType entity, Aabb aabb, MaskType mask)
 	}
 }
 
-void HashLooseOctree::Update(EntityType entity, Aabb aabb)
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 {
 	const int32_t offset = data.GetOffset(entity);
 	const Aabb oldAabb = data[offset].aabb;
@@ -192,7 +204,8 @@ void HashLooseOctree::Update(EntityType entity, Aabb aabb)
 	}
 }
 
-void HashLooseOctree::Remove(EntityType entity)
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 {
 	const int32_t offset = data.GetOffset(entity);
 	const Aabb aabb = data[offset].aabb;
@@ -234,7 +247,8 @@ void HashLooseOctree::Remove(EntityType entity)
 	data.RemoveByKey(entity);
 }
 
-void HashLooseOctree::SetMask(EntityType entity, MaskType mask)
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
 {
 	const int32_t offset = data.GetOffset(entity);
 	const Aabb aabb = data[offset].aabb;
@@ -256,14 +270,17 @@ void HashLooseOctree::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
-int32_t HashLooseOctree::GetCount() const { return data.Size(); }
+SPP_TEMPLATE_DECL
+int32_t HashLooseOctree<SPP_TEMPLATE_ARGS>::GetCount() const { return data.Size(); }
 
-bool HashLooseOctree::Exists(EntityType entity) const
+SPP_TEMPLATE_DECL
+bool HashLooseOctree<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
 {
 	return data.GetOffset(entity) > 0;
 }
 
-Aabb HashLooseOctree::GetAabb(EntityType entity) const
+SPP_TEMPLATE_DECL
+Aabb HashLooseOctree<SPP_TEMPLATE_ARGS>::GetAabb(EntityType entity) const
 {
 	int32_t offset = data.GetOffset(entity);
 	if (offset > 0) {
@@ -272,7 +289,8 @@ Aabb HashLooseOctree::GetAabb(EntityType entity) const
 	return {};
 }
 
-MaskType HashLooseOctree::GetMask(EntityType entity) const
+SPP_TEMPLATE_DECL
+MaskType HashLooseOctree<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
 {
 	int32_t offset = data.GetOffset(entity);
 	if (offset > 0) {
@@ -281,7 +299,8 @@ MaskType HashLooseOctree::GetMask(EntityType entity) const
 	return 0;
 }
 
-Aabb HashLooseOctree::CalcLocalAabbOfNode(glm::ivec3 pos, int32_t level)
+SPP_TEMPLATE_DECL
+Aabb HashLooseOctree<SPP_TEMPLATE_ARGS>::CalcLocalAabbOfNode(glm::ivec3 pos, int32_t level)
 {
 	Aabb aabb;
 	pos &= ~((1 << level) - 1);
@@ -291,7 +310,8 @@ Aabb HashLooseOctree::CalcLocalAabbOfNode(glm::ivec3 pos, int32_t level)
 	return aabb;
 }
 
-void HashLooseOctree::IntersectAabb(IntersectionCallback &cb)
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -323,7 +343,8 @@ void HashLooseOctree::IntersectAabb(IntersectionCallback &cb)
 	}
 }
 
-void HashLooseOctree::_Internal_IntersectAabb(IntersectionCallback &cb,
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback &cb,
 											  glm::ivec3 pos, int32_t level,
 											  const Aabb &cbaabb)
 {
@@ -384,8 +405,9 @@ void HashLooseOctree::_Internal_IntersectAabb(IntersectionCallback &cb,
 	}
 }
 
-void HashLooseOctree::_Inernal_IntersectAabbIterateOverData(
-	IntersectionCallback &cb, int32_t firstNode, const Aabb &cbaabb)
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Inernal_IntersectAabbIterateOverData(
+	AabbCallback &cb, int32_t firstNode, const Aabb &cbaabb)
 {
 	int32_t n = firstNode;
 	while (n >= 0) {
@@ -401,7 +423,8 @@ void HashLooseOctree::_Inernal_IntersectAabbIterateOverData(
 	}
 }
 
-void HashLooseOctree::IntersectRay(RayCallback &cb)
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -483,7 +506,8 @@ void HashLooseOctree::IntersectRay(RayCallback &cb)
 	}
 }
 
-void HashLooseOctree::_Internal_IntersectRay(RayCallback &cb, glm::ivec3 pos,
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb, glm::ivec3 pos,
 											 int32_t level)
 {
 	auto it = nodes.find(Key(this, pos, level));
@@ -546,7 +570,8 @@ void HashLooseOctree::_Internal_IntersectRay(RayCallback &cb, glm::ivec3 pos,
 	}
 }
 
-void HashLooseOctree::_Inernal_IntersectRayIterateOverData(RayCallback &cb,
+SPP_TEMPLATE_DECL
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Inernal_IntersectRayIterateOverData(RayCallback &cb,
 														   int32_t firstNode)
 {
 	int32_t n = firstNode;
@@ -566,22 +591,26 @@ void HashLooseOctree::_Inernal_IntersectRayIterateOverData(RayCallback &cb,
 	}
 }
 
-BroadphaseBaseIterator *HashLooseOctree::RestartIterator()
+SPP_TEMPLATE_DECL
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *HashLooseOctree<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
-HashLooseOctree::Iterator::Iterator(HashLooseOctree &bp)
+SPP_TEMPLATE_DECL
+HashLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Iterator(HashLooseOctree &bp)
 {
 	data = &bp.data._Data()._Data();
 	it = 0;
 	Next();
 }
 
-HashLooseOctree::Iterator::~Iterator() {}
+SPP_TEMPLATE_DECL
+HashLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::~Iterator() {}
 
-bool HashLooseOctree::Iterator::Next()
+SPP_TEMPLATE_DECL
+bool HashLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Next()
 {
 	do {
 		++it;
@@ -589,17 +618,22 @@ bool HashLooseOctree::Iterator::Next()
 	return FetchData();
 }
 
-bool HashLooseOctree::Iterator::FetchData()
+SPP_TEMPLATE_DECL
+bool HashLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 {
 	if (Valid()) {
-		entity = (*data)[it].entity;
-		aabb = (*data)[it].aabb;
-		mask = (*data)[it].mask;
+		this->entity = (*data)[it].entity;
+		this->aabb = (*data)[it].aabb;
+		this->mask = (*data)[it].mask;
 		return true;
 	}
 	return false;
 }
 
-bool HashLooseOctree::Iterator::Valid() { return it < data->size(); }
+SPP_TEMPLATE_DECL
+bool HashLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+
+SPP_DEFINE_VARIANTS(HashLooseOctree)
+
 } // namespace experimental
 } // namespace spp

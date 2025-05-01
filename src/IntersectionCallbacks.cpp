@@ -6,7 +6,8 @@
 
 namespace spp
 {
-void RayCallback::InitVariables()
+SPP_TEMPLATE_DECL
+void RayCallback<SPP_TEMPLATE_ARGS>::InitVariables()
 {
 	if (initedVars == false) {
 		initedVars = true;
@@ -23,23 +24,27 @@ void RayCallback::InitVariables()
 	}
 }
 
-bool IntersectionCallback::IsRelevant(AabbCentered aabb) const
+SPP_TEMPLATE_DECL
+bool AabbCallback<SPP_TEMPLATE_ARGS>::IsRelevant(AabbCentered aabb) const
 {
 	return this->aabb && aabb;
 }
 
-bool IntersectionCallback::IsRelevant(Aabb aabb) const
+SPP_TEMPLATE_DECL
+bool AabbCallback<SPP_TEMPLATE_ARGS>::IsRelevant(Aabb aabb) const
 {
 	return this->aabb && aabb;
 }
 
-void IntersectionCallback::ExecuteCallback(EntityType entity)
+SPP_TEMPLATE_DECL
+void AabbCallback<SPP_TEMPLATE_ARGS>::ExecuteCallback(EntityType entity)
 {
 	++testedCount;
 	callback(this, entity);
 }
 	
-bool IntersectionCallback::ExecuteIfRelevant(AabbCentered aabb, EntityType entity)
+SPP_TEMPLATE_DECL
+bool AabbCallback<SPP_TEMPLATE_ARGS>::ExecuteIfRelevant(AabbCentered aabb, EntityType entity)
 {
 	++nodesTestedCount;
 	if (IsRelevant(aabb)) {
@@ -49,7 +54,8 @@ bool IntersectionCallback::ExecuteIfRelevant(AabbCentered aabb, EntityType entit
 	return false;
 }
 
-bool IntersectionCallback::ExecuteIfRelevant(Aabb aabb, EntityType entity)
+SPP_TEMPLATE_DECL
+bool AabbCallback<SPP_TEMPLATE_ARGS>::ExecuteIfRelevant(Aabb aabb, EntityType entity)
 {
 	++nodesTestedCount;
 	if (IsRelevant(aabb)) {
@@ -59,7 +65,8 @@ bool IntersectionCallback::ExecuteIfRelevant(Aabb aabb, EntityType entity)
 	return false;
 }
 
-bool RayCallback::IsRelevant(AabbCentered aabb, float &near, float &far) const
+SPP_TEMPLATE_DECL
+bool RayCallback<SPP_TEMPLATE_ARGS>::IsRelevant(AabbCentered aabb, float &near, float &far) const
 {
 	if (aabb.FastRayTestCenter(start, dirNormalized, invDir, length, near, far)) {
 		if (near > cutFactor) {
@@ -70,7 +77,8 @@ bool RayCallback::IsRelevant(AabbCentered aabb, float &near, float &far) const
 	}
 	return false;
 }
-bool RayCallback::IsRelevant(Aabb aabb, float &near, float &far) const
+SPP_TEMPLATE_DECL
+bool RayCallback<SPP_TEMPLATE_ARGS>::IsRelevant(Aabb aabb, float &near, float &far) const
 {
 	if (aabb.FastRayTest2(start, invDir, signs, near, far)) {
 		if (near > cutFactor) {
@@ -82,19 +90,22 @@ bool RayCallback::IsRelevant(Aabb aabb, float &near, float &far) const
 	return false;
 }
 
-bool RayCallback::IsRelevant(AabbCentered aabb) const
+SPP_TEMPLATE_DECL
+bool RayCallback<SPP_TEMPLATE_ARGS>::IsRelevant(AabbCentered aabb) const
 {
 	float n, f;
 	return IsRelevant(aabb, n, f);
 }
 
-bool RayCallback::IsRelevant(Aabb aabb) const
+SPP_TEMPLATE_DECL
+bool RayCallback<SPP_TEMPLATE_ARGS>::IsRelevant(Aabb aabb) const
 {
 	float n, f;
 	return IsRelevant(aabb, n, f);
 }
 
-RayPartialResult RayCallback::ExecuteCallback(EntityType entity)
+SPP_TEMPLATE_DECL
+RayPartialResult RayCallback<SPP_TEMPLATE_ARGS>::ExecuteCallback(EntityType entity)
 {
 	++testedCount;
 	auto res = callback(this, entity);
@@ -106,7 +117,8 @@ RayPartialResult RayCallback::ExecuteCallback(EntityType entity)
 	return {1, false};
 }
 
-RayPartialResult RayCallback::ExecuteIfRelevant(AabbCentered aabb,
+SPP_TEMPLATE_DECL
+RayPartialResult RayCallback<SPP_TEMPLATE_ARGS>::ExecuteIfRelevant(AabbCentered aabb,
 												EntityType entity, float &near,
 												float &far)
 {
@@ -120,7 +132,8 @@ RayPartialResult RayCallback::ExecuteIfRelevant(AabbCentered aabb,
 	return {1, false};
 }
 
-RayPartialResult RayCallback::ExecuteIfRelevant(Aabb aabb, EntityType entity,
+SPP_TEMPLATE_DECL
+RayPartialResult RayCallback<SPP_TEMPLATE_ARGS>::ExecuteIfRelevant(Aabb aabb, EntityType entity,
 												float &near, float &far)
 {
 	++nodesTestedCount;
@@ -133,16 +146,23 @@ RayPartialResult RayCallback::ExecuteIfRelevant(Aabb aabb, EntityType entity,
 	return {1, false};
 }
 
-RayPartialResult RayCallback::ExecuteIfRelevant(AabbCentered aabb,
+SPP_TEMPLATE_DECL
+RayPartialResult RayCallback<SPP_TEMPLATE_ARGS>::ExecuteIfRelevant(AabbCentered aabb,
 												EntityType entity)
 {
 	float n, f;
 	return ExecuteIfRelevant(aabb, entity, n, f);
 }
 
-RayPartialResult RayCallback::ExecuteIfRelevant(Aabb aabb, EntityType entity)
+SPP_TEMPLATE_DECL
+RayPartialResult RayCallback<SPP_TEMPLATE_ARGS>::ExecuteIfRelevant(Aabb aabb, EntityType entity)
 {
 	float n, f;
 	return ExecuteIfRelevant(aabb, entity, n, f);
 }
+
+SPP_DEFINE_VARIANTS(AabbCallback)
+SPP_DEFINE_VARIANTS(RayCallback)
+SPP_DEFINE_VARIANTS(RayCallbackFirstHit)
+	
 } // namespace spp

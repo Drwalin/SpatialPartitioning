@@ -6,27 +6,35 @@
 
 namespace spp
 {
-BruteForce::BruteForce() : iterator(*this) { entitiesData[0] = {{}, 0, 0}; }
-BruteForce::~BruteForce() {}
+SPP_TEMPLATE_DECL
+BruteForce<SPP_TEMPLATE_ARGS>::BruteForce() : iterator(*this) { entitiesData[0] = {{}, 0, 0}; }
+SPP_TEMPLATE_DECL
+BruteForce<SPP_TEMPLATE_ARGS>::~BruteForce() {}
 
-const char *BruteForce::GetName() const { return "BruteForce"; }
+SPP_TEMPLATE_DECL
+const char *BruteForce<SPP_TEMPLATE_ARGS>::GetName() const { return "BruteForce"; }
 
-void BruteForce::Clear() { entitiesData.Clear(); }
+SPP_TEMPLATE_DECL
+void BruteForce<SPP_TEMPLATE_ARGS>::Clear() { entitiesData.Clear(); }
 
-size_t BruteForce::GetMemoryUsage() const
+SPP_TEMPLATE_DECL
+size_t BruteForce<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 {
 	return entitiesData.GetMemoryUsage();
 }
 
-void BruteForce::ShrinkToFit() { entitiesData.ShrinkToFit(); }
+SPP_TEMPLATE_DECL
+void BruteForce<SPP_TEMPLATE_ARGS>::ShrinkToFit() { entitiesData.ShrinkToFit(); }
 
-void BruteForce::Add(EntityType entity, Aabb aabb, MaskType mask)
+SPP_TEMPLATE_DECL
+void BruteForce<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	assert(Exists(entity) == false);
 	entitiesData.Add(entity, Data{aabb, entity, mask});
 }
 
-void BruteForce::Update(EntityType entity, Aabb aabb)
+SPP_TEMPLATE_DECL
+void BruteForce<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 {
 	assert(Exists(entity) == true);
 	int32_t offset = entitiesData.GetOffset(entity);
@@ -35,7 +43,8 @@ void BruteForce::Update(EntityType entity, Aabb aabb)
 	}
 }
 
-void BruteForce::Remove(EntityType entity)
+SPP_TEMPLATE_DECL
+void BruteForce<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 {
 	assert(Exists(entity) == true);
 	int32_t offset = entitiesData.GetOffset(entity);
@@ -46,7 +55,8 @@ void BruteForce::Remove(EntityType entity)
 	}
 }
 
-void BruteForce::SetMask(EntityType entity, MaskType mask)
+SPP_TEMPLATE_DECL
+void BruteForce<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
 {
 	assert(Exists(entity) == true);
 	int32_t offset = entitiesData.GetOffset(entity);
@@ -55,14 +65,17 @@ void BruteForce::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
-int32_t BruteForce::GetCount() const { return entitiesData.Size(); }
+SPP_TEMPLATE_DECL
+int32_t BruteForce<SPP_TEMPLATE_ARGS>::GetCount() const { return entitiesData.Size(); }
 
-bool BruteForce::Exists(EntityType entity) const
+SPP_TEMPLATE_DECL
+bool BruteForce<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
 {
 	return entitiesData.GetOffset(entity) > 0;
 }
 
-Aabb BruteForce::GetAabb(EntityType entity) const
+SPP_TEMPLATE_DECL
+Aabb BruteForce<SPP_TEMPLATE_ARGS>::GetAabb(EntityType entity) const
 {
 	assert(Exists(entity) == true);
 	int32_t offset = entitiesData.GetOffset(entity);
@@ -72,7 +85,8 @@ Aabb BruteForce::GetAabb(EntityType entity) const
 	return {};
 }
 
-MaskType BruteForce::GetMask(EntityType entity) const
+SPP_TEMPLATE_DECL
+MaskType BruteForce<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
 {
 	assert(Exists(entity) == true);
 	int32_t offset = entitiesData.GetOffset(entity);
@@ -82,9 +96,11 @@ MaskType BruteForce::GetMask(EntityType entity) const
 	return {};
 }
 
-void BruteForce::Rebuild() {}
+SPP_TEMPLATE_DECL
+void BruteForce<SPP_TEMPLATE_ARGS>::Rebuild() {}
 
-void BruteForce::IntersectAabb(IntersectionCallback &cb)
+SPP_TEMPLATE_DECL
+void BruteForce<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -105,7 +121,8 @@ void BruteForce::IntersectAabb(IntersectionCallback &cb)
 	}
 }
 
-void BruteForce::IntersectRay(RayCallback &cb)
+SPP_TEMPLATE_DECL
+void BruteForce<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -123,22 +140,26 @@ void BruteForce::IntersectRay(RayCallback &cb)
 	}
 }
 
-BroadphaseBaseIterator *BruteForce::RestartIterator()
+SPP_TEMPLATE_DECL
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *BruteForce<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
-BruteForce::Iterator::Iterator(BruteForce &bp)
+SPP_TEMPLATE_DECL
+BruteForce<SPP_TEMPLATE_ARGS>::Iterator::Iterator(BruteForce &bp)
 {
 	map = &bp.entitiesData;
 	it = 0;
 	Next();
 }
 
-BruteForce::Iterator::~Iterator() {}
+SPP_TEMPLATE_DECL
+BruteForce<SPP_TEMPLATE_ARGS>::Iterator::~Iterator() {}
 
-bool BruteForce::Iterator::Next()
+SPP_TEMPLATE_DECL
+bool BruteForce<SPP_TEMPLATE_ARGS>::Iterator::Next()
 {
 	do {
 		++it;
@@ -146,16 +167,21 @@ bool BruteForce::Iterator::Next()
 	return FetchData();
 }
 
-bool BruteForce::Iterator::FetchData()
+SPP_TEMPLATE_DECL
+bool BruteForce<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 {
 	if (Valid()) {
-		entity = (*map)[it].entity;
-		aabb = (*map)[it].aabb;
-		mask = (*map)[it].mask;
+		this->entity = (*map)[it].entity;
+		this->aabb = (*map)[it].aabb;
+		this->mask = (*map)[it].mask;
 		return true;
 	}
 	return false;
 }
 
-bool BruteForce::Iterator::Valid() { return it < map->_Data()._Data().size(); }
+SPP_TEMPLATE_DECL
+bool BruteForce<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < map->_Data()._Data().size(); }
+
+SPP_DEFINE_VARIANTS(BruteForce)
+
 } // namespace spp

@@ -24,9 +24,15 @@ namespace spp
  *
  * Tree is perfectly balanced due to heap use as nodes storage
  */
-class BvhMedianSplitHeap final : public BroadphaseBase
+SPP_TEMPLATE_DECL
+class BvhMedianSplitHeap final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
+	
+	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
+	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
+	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+	
 	BvhMedianSplitHeap(EntityType denseEntityRange);
 	virtual ~BvhMedianSplitHeap();
 
@@ -47,7 +53,7 @@ public:
 	virtual Aabb GetAabb(EntityType entity) const override;
 	virtual MaskType GetMask(EntityType entity) const override;
 
-	virtual void IntersectAabb(IntersectionCallback &callback) override;
+	virtual void IntersectAabb(AabbCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	enum AabbUpdatePolicy : uint8_t {
@@ -78,7 +84,7 @@ private:
 	void RebuildNode(int32_t nodeId);
 	int32_t RebuildNodePartial(int32_t nodeId, int32_t *tcount);
 
-	void _Internal_IntersectAabb(IntersectionCallback &cb,
+	void _Internal_IntersectAabb(AabbCallback &cb,
 								 const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 
@@ -120,4 +126,7 @@ private:
 		int it;
 	} iterator;
 };
+
+SPP_EXTERN_VARIANTS(BvhMedianSplitHeap)
+	
 } // namespace spp

@@ -19,9 +19,15 @@ namespace experimental
 /*
  * Limit of entities count is 268435456 (2^28-1)
  */
-class LooseOctree final : public BroadphaseBase
+SPP_TEMPLATE_DECL
+class LooseOctree final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
+	
+	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
+	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
+	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+	
 	// example usage LooseOctree(glm::ivec3(1,1,1)<<(levels-1), 1.0, levels)
 	LooseOctree(glm::vec3 offset, int32_t levels, float loosnessFactor = 1.6);
 	virtual ~LooseOctree();
@@ -43,7 +49,7 @@ public:
 	virtual Aabb GetAabb(EntityType entity) const override;
 	virtual MaskType GetMask(EntityType entity) const override;
 
-	virtual void IntersectAabb(IntersectionCallback &callback) override;
+	virtual void IntersectAabb(AabbCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	virtual void Rebuild() override;
@@ -59,7 +65,7 @@ private:
 	void PruneEmptyEntitiesAtEnd();
 	void UpdateAabb(int32_t entityId);
 
-	void _Internal_IntersectAabb(IntersectionCallback &cb,
+	void _Internal_IntersectAabb(AabbCallback &cb,
 								 const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId,
 								int32_t level);
@@ -130,5 +136,8 @@ private:
 		int it;
 	} iterator;
 };
+
+SPP_EXTERN_VARIANTS(LooseOctree)
+	
 } // namespace experimental
 } // namespace spp

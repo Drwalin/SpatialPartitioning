@@ -16,7 +16,8 @@ namespace spp
 {
 namespace experimental
 {
-LooseOctree::LooseOctree(glm::vec3 centerOffset, int32_t levels,
+SPP_TEMPLATE_DECL
+LooseOctree<SPP_TEMPLATE_ARGS>::LooseOctree(glm::vec3 centerOffset, int32_t levels,
 						 float loosnessFactor)
 	: data(), nodes(), centerOffset(centerOffset), levels(levels),
 	  loosnessFactor(loosnessFactor), invLoosenessFactor(1.0f / loosnessFactor),
@@ -25,11 +26,14 @@ LooseOctree::LooseOctree(glm::vec3 centerOffset, int32_t levels,
 {
 	Clear();
 }
-LooseOctree::~LooseOctree() {}
+SPP_TEMPLATE_DECL
+LooseOctree<SPP_TEMPLATE_ARGS>::~LooseOctree() {}
 
-const char *LooseOctree::GetName() const { return "LooseOctree"; }
+SPP_TEMPLATE_DECL
+const char *LooseOctree<SPP_TEMPLATE_ARGS>::GetName() const { return "LooseOctree"; }
 
-void LooseOctree::Clear()
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::Clear()
 {
 	// 	printf("                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count:
 	// %i\n", nodes.Size());
@@ -40,12 +44,14 @@ void LooseOctree::Clear()
 	nodes[rootNode].center = centerOffset;
 }
 
-size_t LooseOctree::GetMemoryUsage() const
+SPP_TEMPLATE_DECL
+size_t LooseOctree<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 {
 	return data.GetMemoryUsage() + nodes.GetMemoryUsage();
 }
 
-void LooseOctree::ShrinkToFit()
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::ShrinkToFit()
 {
 	data.ShrinkToFit();
 	nodes.ShrinkToFit();
@@ -53,7 +59,8 @@ void LooseOctree::ShrinkToFit()
 	// %i\n", nodes.Size());
 }
 
-void LooseOctree::Add(EntityType entity, Aabb aabb, MaskType mask)
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	const int32_t did = data.Add(entity, {aabb, entity, mask});
 	data[did].prev = 0;
@@ -68,7 +75,8 @@ void LooseOctree::Add(EntityType entity, Aabb aabb, MaskType mask)
 	data[did].parent = nodeId;
 }
 
-void LooseOctree::Update(EntityType entity, Aabb aabb)
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 {
 	const int32_t did = data.GetOffset(entity);
 	if (GetAabbOfNode(data[did].parent).ContainsAll(aabb)) {
@@ -96,14 +104,16 @@ void LooseOctree::Update(EntityType entity, Aabb aabb)
 	data[did].aabb = aabb;
 }
 
-void LooseOctree::Remove(EntityType entity)
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 {
 	const int32_t did = data.GetOffset(entity);
 	RemoveStructureFor(did);
 	data.RemoveByKey(entity);
 }
 
-LooseOctree::IPosLevel LooseOctree::CalcIPosLevel(Aabb aabb) const
+SPP_TEMPLATE_DECL
+LooseOctree<SPP_TEMPLATE_ARGS>::IPosLevel LooseOctree<SPP_TEMPLATE_ARGS>::CalcIPosLevel(Aabb aabb) const
 {
 #define max_comp(V) glm::max(V.x, glm::max(V.y, V.z))
 	const glm::vec3 sizes = (aabb.max - aabb.min) * 0.5f;
@@ -125,14 +135,16 @@ LooseOctree::IPosLevel LooseOctree::CalcIPosLevel(Aabb aabb) const
 	return ret;
 }
 
-AabbCentered LooseOctree::GetAabbOfNode(int32_t nodeId) const
+SPP_TEMPLATE_DECL
+AabbCentered LooseOctree<SPP_TEMPLATE_ARGS>::GetAabbOfNode(int32_t nodeId) const
 {
 	glm::vec3 center = nodes[nodeId].center;
 	float extent = (1 << (nodes[nodeId].level - 1)) * loosnessFactor;
 	return {center, glm::vec3(extent, extent, extent)};
 }
 
-int32_t LooseOctree::GetNodeIdAt(Aabb aabb)
+SPP_TEMPLATE_DECL
+int32_t LooseOctree<SPP_TEMPLATE_ARGS>::GetNodeIdAt(Aabb aabb)
 {
 	const IPosLevel id = CalcIPosLevel(aabb);
 
@@ -184,7 +196,8 @@ int32_t LooseOctree::GetNodeIdAt(Aabb aabb)
 	return n;
 }
 
-void LooseOctree::RemoveStructureFor(int32_t did)
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::RemoveStructureFor(int32_t did)
 {
 	int32_t n = data[did].parent;
 
@@ -221,7 +234,8 @@ void LooseOctree::RemoveStructureFor(int32_t did)
 	}
 }
 
-int32_t LooseOctree::CalcChildId(glm::ivec3 parentCenter,
+SPP_TEMPLATE_DECL
+int32_t LooseOctree<SPP_TEMPLATE_ARGS>::CalcChildId(glm::ivec3 parentCenter,
 								 glm::ivec3 childCenter, int32_t childLevel)
 {
 	const glm::ivec3 s =
@@ -237,7 +251,8 @@ int32_t LooseOctree::CalcChildId(glm::ivec3 parentCenter,
 	return ret;
 }
 
-bool LooseOctree::NodeData::HasData() const
+SPP_TEMPLATE_DECL
+bool LooseOctree<SPP_TEMPLATE_ARGS>::NodeData::HasData() const
 {
 	if (firstEntity) {
 		return true;
@@ -250,7 +265,8 @@ bool LooseOctree::NodeData::HasData() const
 	return false;
 }
 
-void LooseOctree::SetMask(EntityType entity, MaskType mask)
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
 {
 	int32_t did = data.GetOffset(entity);
 	data[did].mask = mask;
@@ -258,33 +274,39 @@ void LooseOctree::SetMask(EntityType entity, MaskType mask)
 	// TODO: update masks of tree
 }
 
-int32_t LooseOctree::GetCount() const { return data.Size(); }
+SPP_TEMPLATE_DECL
+int32_t LooseOctree<SPP_TEMPLATE_ARGS>::GetCount() const { return data.Size(); }
 
-bool LooseOctree::Exists(EntityType entity) const
+SPP_TEMPLATE_DECL
+bool LooseOctree<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
 {
 	return data.GetOffset(entity) > 0;
 }
 
-Aabb LooseOctree::GetAabb(EntityType entity) const
+SPP_TEMPLATE_DECL
+Aabb LooseOctree<SPP_TEMPLATE_ARGS>::GetAabb(EntityType entity) const
 {
 	int32_t did = data.GetOffset(entity);
 	return data[did].aabb;
 }
 
-MaskType LooseOctree::GetMask(EntityType entity) const
+SPP_TEMPLATE_DECL
+MaskType LooseOctree<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
 {
 	int32_t did = data.GetOffset(entity);
 	return data[did].mask;
 }
 
-void LooseOctree::Rebuild()
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::Rebuild()
 {
 	printf(
 		"                          ^^^^^^^^^^^^^^^^^^^^^^^ nodes count: %i\n",
 		nodes.Size());
 }
 
-void LooseOctree::IntersectAabb(IntersectionCallback &cb)
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -295,7 +317,8 @@ void LooseOctree::IntersectAabb(IntersectionCallback &cb)
 	_Internal_IntersectAabb(cb, rootNode);
 }
 
-void LooseOctree::_Internal_IntersectAabb(IntersectionCallback &cb,
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback &cb,
 										  const int32_t n)
 {
 	++cb.nodesTestedCount;
@@ -318,7 +341,8 @@ void LooseOctree::_Internal_IntersectAabb(IntersectionCallback &cb,
 	}
 }
 
-void LooseOctree::IntersectRay(RayCallback &cb)
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -330,7 +354,8 @@ void LooseOctree::IntersectRay(RayCallback &cb)
 	_Internal_IntersectRay(cb, rootNode, levels);
 }
 
-void LooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n,
+SPP_TEMPLATE_DECL
+void LooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb, const int32_t n,
 										 int32_t level)
 {
 	const Aabb aabb = GetAabbOfNode(n);
@@ -389,22 +414,26 @@ void LooseOctree::_Internal_IntersectRay(RayCallback &cb, const int32_t n,
 	}
 }
 
-BroadphaseBaseIterator *LooseOctree::RestartIterator()
+SPP_TEMPLATE_DECL
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *LooseOctree<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
-LooseOctree::Iterator::Iterator(LooseOctree &bp)
+SPP_TEMPLATE_DECL
+LooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Iterator(LooseOctree &bp)
 {
 	data = &bp.data._Data()._Data();
 	it = 0;
 	Next();
 }
 
-LooseOctree::Iterator::~Iterator() {}
+SPP_TEMPLATE_DECL
+LooseOctree<SPP_TEMPLATE_ARGS>::Iterator::~Iterator() {}
 
-bool LooseOctree::Iterator::Next()
+SPP_TEMPLATE_DECL
+bool LooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Next()
 {
 	do {
 		++it;
@@ -412,17 +441,22 @@ bool LooseOctree::Iterator::Next()
 	return FetchData();
 }
 
-bool LooseOctree::Iterator::FetchData()
+SPP_TEMPLATE_DECL
+bool LooseOctree<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 {
 	if (Valid()) {
-		entity = (*data)[it].entity;
-		aabb = (*data)[it].aabb;
-		mask = (*data)[it].mask;
+		this->entity = (*data)[it].entity;
+		this->aabb = (*data)[it].aabb;
+		this->mask = (*data)[it].mask;
 		return true;
 	}
 	return false;
 }
 
-bool LooseOctree::Iterator::Valid() { return it < data->size(); }
+SPP_TEMPLATE_DECL
+bool LooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+
+SPP_DEFINE_VARIANTS(LooseOctree)
+
 } // namespace experimental
 } // namespace spp

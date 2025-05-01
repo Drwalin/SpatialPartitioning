@@ -23,9 +23,15 @@ namespace experimental
  * Restrict positions ranges to less than 2^21 * resolution.
  * Position ranges cannot be more than +-2^31 * resolution.
  */
-class HashLooseOctree final : public BroadphaseBase
+SPP_TEMPLATE_DECL
+class HashLooseOctree final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
+	
+	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
+	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
+	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+	
 	HashLooseOctree(float resolution, int32_t levels,
 					float loosenessFactor = 1.5);
 	virtual ~HashLooseOctree();
@@ -47,7 +53,7 @@ public:
 	virtual Aabb GetAabb(EntityType entity) const override;
 	virtual MaskType GetMask(EntityType entity) const override;
 
-	virtual void IntersectAabb(IntersectionCallback &callback) override;
+	virtual void IntersectAabb(AabbCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	virtual void Rebuild() override;
@@ -63,9 +69,9 @@ private:
 
 	static Aabb CalcLocalAabbOfNode(glm::ivec3 pos, int32_t level);
 
-	void _Internal_IntersectAabb(IntersectionCallback &cb, glm::ivec3 pos,
+	void _Internal_IntersectAabb(AabbCallback &cb, glm::ivec3 pos,
 								 int32_t level, const Aabb &cbaabb);
-	void _Inernal_IntersectAabbIterateOverData(IntersectionCallback &cb,
+	void _Inernal_IntersectAabbIterateOverData(AabbCallback &cb,
 											   int32_t firstNode,
 											   const Aabb &cbaabb);
 
@@ -98,7 +104,7 @@ private:
 
 	struct Key {
 		Key(const Key &o) : pos(o.pos), level(o.level) {}
-		Key(const HashLooseOctree *bp, glm::ivec3 pos, int32_t level)
+		Key(const HashLooseOctree<SPP_TEMPLATE_ARGS> *bp, glm::ivec3 pos, int32_t level)
 			: pos(pos >> level), level(level)
 		{
 			if (level > bp->levels) {
@@ -113,8 +119,8 @@ private:
 		struct Hash {
 		public:
 			Hash(const Hash &o) : bp(o.bp) {}
-			Hash(HashLooseOctree *bp) : bp(bp) {}
-			HashLooseOctree *bp;
+			Hash(HashLooseOctree<SPP_TEMPLATE_ARGS> *bp) : bp(bp) {}
+			HashLooseOctree<SPP_TEMPLATE_ARGS> *bp;
 			size_t operator()(const Key &v) const
 			{
 				return bp->Hash(v.pos, v.level);
@@ -126,7 +132,7 @@ private:
 		int32_t level;
 	};
 
-	std::unordered_map<Key, NodeData, HashLooseOctree::Key::Hash> nodes;
+	std::unordered_map<Key, NodeData, typename HashLooseOctree<SPP_TEMPLATE_ARGS>::Key::Hash> nodes;
 
 public:
 	const float loosenessFactor;
@@ -152,5 +158,8 @@ public:
 		int it;
 	} iterator;
 };
+
+SPP_EXTERN_VARIANTS(HashLooseOctree)
+	
 } // namespace experimental
 } // namespace spp

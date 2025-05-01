@@ -13,9 +13,15 @@
 
 namespace spp
 {
-class BulletDbvt final : public BroadphaseBase
+SPP_TEMPLATE_DECL
+class BulletDbvt final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
+	
+	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
+	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
+	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+	
 	BulletDbvt();
 	virtual ~BulletDbvt();
 
@@ -38,7 +44,7 @@ public:
 	virtual Aabb GetAabb(EntityType entity) const override;
 	virtual MaskType GetMask(EntityType entity) const override;
 
-	virtual void IntersectAabb(IntersectionCallback &callback) override;
+	virtual void IntersectAabb(AabbCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	virtual void Rebuild() override;
@@ -80,4 +86,7 @@ private:
 		int it;
 	} iterator;
 };
+
+SPP_EXTERN_VARIANTS(BulletDbvt)
+	
 } // namespace spp

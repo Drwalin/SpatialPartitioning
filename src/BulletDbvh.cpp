@@ -10,15 +10,19 @@ static glm::vec3 gl(bullet::btVector3 v) { return {v.x(), v.y(), v.z()}; }
 namespace spp
 {
 
-BulletDbvh::BulletDbvh() : broadphase(&cache), iterator(*this)
+SPP_TEMPLATE_DECL
+BulletDbvh<SPP_TEMPLATE_ARGS>::BulletDbvh() : broadphase(&cache), iterator(*this)
 {
 	broadphase.m_deferedcollide = true;
 }
-BulletDbvh::~BulletDbvh() { Clear(); }
+SPP_TEMPLATE_DECL
+BulletDbvh<SPP_TEMPLATE_ARGS>::~BulletDbvh() { Clear(); }
 
-const char *BulletDbvh::GetName() const { return "BulletDbvh"; }
+SPP_TEMPLATE_DECL
+const char *BulletDbvh<SPP_TEMPLATE_ARGS>::GetName() const { return "BulletDbvh"; }
 
-void BulletDbvh::Clear()
+SPP_TEMPLATE_DECL
+void BulletDbvh<SPP_TEMPLATE_ARGS>::Clear()
 {
 	auto &of = ents._Offsets();
 
@@ -30,7 +34,8 @@ void BulletDbvh::Clear()
 	ents.Clear();
 }
 
-size_t BulletDbvh::GetMemoryUsage() const
+SPP_TEMPLATE_DECL
+size_t BulletDbvh<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 {
 	return ents.GetMemoryUsage() +
 		   (broadphase.m_sets[0].m_leaves * 2 - 1) *
@@ -44,9 +49,11 @@ size_t BulletDbvh::GetMemoryUsage() const
 		   64 * 64 + ents.Size() * sizeof(bullet::btDbvtProxy);
 }
 
-void BulletDbvh::ShrinkToFit() {}
+SPP_TEMPLATE_DECL
+void BulletDbvh<SPP_TEMPLATE_ARGS>::ShrinkToFit() {}
 
-void BulletDbvh::SmallRebuildIfNeeded()
+SPP_TEMPLATE_DECL
+void BulletDbvh<SPP_TEMPLATE_ARGS>::SmallRebuildIfNeeded()
 {
 	if (requiresRebuild > 0) {
 		IncrementalOptimize(requiresRebuild / 100 + 1);
@@ -54,13 +61,15 @@ void BulletDbvh::SmallRebuildIfNeeded()
 	}
 }
 
-void BulletDbvh::IncrementalOptimize(int iterations)
+SPP_TEMPLATE_DECL
+void BulletDbvh<SPP_TEMPLATE_ARGS>::IncrementalOptimize(int iterations)
 {
 	broadphase.m_sets[0].optimizeIncremental(iterations);
 	broadphase.m_sets[1].optimizeIncremental(iterations);
 }
 
-void BulletDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
+SPP_TEMPLATE_DECL
+void BulletDbvh<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	int32_t offset = ents.Add(entity, Data{aabb, entity, mask});
 	aabb = aabb.Expanded(BIG_EPSILON);
@@ -71,7 +80,8 @@ void BulletDbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 	requiresRebuild++;
 }
 
-void BulletDbvh::Update(EntityType entity, Aabb aabb)
+SPP_TEMPLATE_DECL
+void BulletDbvh<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 {
 	int32_t offset = ents.GetOffset(entity);
 	ents[offset].aabb = aabb;
@@ -80,7 +90,8 @@ void BulletDbvh::Update(EntityType entity, Aabb aabb)
 	requiresRebuild++;
 }
 
-void BulletDbvh::Remove(EntityType entity)
+SPP_TEMPLATE_DECL
+void BulletDbvh<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 {
 	int32_t offset = ents.GetOffset(entity);
 	broadphase.destroyProxy(ents[offset].proxy, nullptr);
@@ -88,7 +99,8 @@ void BulletDbvh::Remove(EntityType entity)
 	requiresRebuild++;
 }
 
-void BulletDbvh::SetMask(EntityType entity, MaskType mask)
+SPP_TEMPLATE_DECL
+void BulletDbvh<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
 {
 	int32_t offset = ents.GetOffset(entity);
 	ents[offset].proxy->m_collisionFilterMask = mask;
@@ -96,40 +108,46 @@ void BulletDbvh::SetMask(EntityType entity, MaskType mask)
 	ents[offset].mask = mask;
 }
 
-int32_t BulletDbvh::GetCount() const { return ents.Size(); }
+SPP_TEMPLATE_DECL
+int32_t BulletDbvh<SPP_TEMPLATE_ARGS>::GetCount() const { return ents.Size(); }
 
-bool BulletDbvh::Exists(EntityType entity) const
+SPP_TEMPLATE_DECL
+bool BulletDbvh<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
 {
 	return ents.GetOffset(entity) > 0;
 }
 
-Aabb BulletDbvh::GetAabb(EntityType entity) const
+SPP_TEMPLATE_DECL
+Aabb BulletDbvh<SPP_TEMPLATE_ARGS>::GetAabb(EntityType entity) const
 {
 	const Data &data = ents[ents.GetOffset(entity)];
 	return data.aabb;
 }
 
-MaskType BulletDbvh::GetMask(EntityType entity) const
+SPP_TEMPLATE_DECL
+MaskType BulletDbvh<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
 {
 	return ents[ents.GetOffset(entity)].mask;
 }
 
-void BulletDbvh::Rebuild()
+SPP_TEMPLATE_DECL
+void BulletDbvh<SPP_TEMPLATE_ARGS>::Rebuild()
 {
 	// 	broadphase.optimize();
 	requiresRebuild = false;
 	IncrementalOptimize(100);
 }
 
+SPP_TEMPLATE_DECL
 class btAabbCb final : public bullet::btBroadphaseAabbCallback
 {
 public:
-	btAabbCb(BulletDbvh *bp, IntersectionCallback *cb) : bp(bp), cb(cb) {}
+	btAabbCb(BulletDbvh<SPP_TEMPLATE_ARGS> *bp, AabbCallback<SPP_TEMPLATE_ARGS> *cb) : bp(bp), cb(cb) {}
 	virtual ~btAabbCb() {}
 	virtual bool process(const bullet::btBroadphaseProxy *p) override
 	{
 		int32_t offset = (int32_t)(uint64_t)(p->m_clientObject);
-		BulletDbvh::Data &data = bp->ents[offset];
+		auto &data = bp->ents[offset];
 		if (cb->mask & data.mask) {
 			cb->callback(cb, data.entity);
 			cb->testedCount++;
@@ -138,11 +156,12 @@ public:
 		return true;
 	}
 
-	BulletDbvh *bp;
-	IntersectionCallback *cb;
+	BulletDbvh<SPP_TEMPLATE_ARGS> *bp;
+	AabbCallback<SPP_TEMPLATE_ARGS> *cb;
 };
 
-void BulletDbvh::IntersectAabb(IntersectionCallback &cb)
+SPP_TEMPLATE_DECL
+void BulletDbvh<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -155,10 +174,11 @@ void BulletDbvh::IntersectAabb(IntersectionCallback &cb)
 	broadphase.aabbTest(bt(cb.aabb.min), bt(cb.aabb.max), btCb);
 }
 
+SPP_TEMPLATE_DECL
 class btRayCb final : public bullet::btBroadphaseRayCallback
 {
 public:
-	btRayCb(BulletDbvh *bp, RayCallback *cb) : bp(bp), cb(cb)
+	btRayCb(BulletDbvh<SPP_TEMPLATE_ARGS> *bp, RayCallback<SPP_TEMPLATE_ARGS> *cb) : bp(bp), cb(cb)
 	{
 		bullet::btVector3 rayDir = bt(cb->end - cb->start);
 
@@ -186,7 +206,7 @@ public:
 
 		bool hasHit = false;
 		int32_t offset = (int32_t)(uint64_t)(p->m_clientObject);
-		BulletDbvh::Data &data = bp->ents[offset];
+		auto &data = bp->ents[offset];
 		if (cb->mask & data.mask) {
 			auto res = cb->ExecuteCallback(data.entity);
 			if (res.intersection) {
@@ -198,12 +218,13 @@ public:
 		return !hasHit;
 	}
 
-	BulletDbvh *bp;
-	RayCallback *cb;
+	BulletDbvh<SPP_TEMPLATE_ARGS> *bp;
+	RayCallback<SPP_TEMPLATE_ARGS> *cb;
 	float lambdaOrig;
 };
 
-void BulletDbvh::IntersectRay(RayCallback &cb)
+SPP_TEMPLATE_DECL
+void BulletDbvh<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -218,22 +239,26 @@ void BulletDbvh::IntersectRay(RayCallback &cb)
 	broadphase.rayTest(bt(cb.start), bt(cb.end), btCb);
 }
 
-BroadphaseBaseIterator *BulletDbvh::RestartIterator()
+SPP_TEMPLATE_DECL
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *BulletDbvh<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
-BulletDbvh::Iterator::Iterator(BulletDbvh &bp)
+SPP_TEMPLATE_DECL
+BulletDbvh<SPP_TEMPLATE_ARGS>::Iterator::Iterator(BulletDbvh &bp)
 {
 	data = &(bp.ents._Data()._Data());
 	it = 0;
 	Next();
 }
 
-BulletDbvh::Iterator::~Iterator() {}
+SPP_TEMPLATE_DECL
+BulletDbvh<SPP_TEMPLATE_ARGS>::Iterator::~Iterator() {}
 
-bool BulletDbvh::Iterator::Next()
+SPP_TEMPLATE_DECL
+bool BulletDbvh<SPP_TEMPLATE_ARGS>::Iterator::Next()
 {
 	do {
 		++it;
@@ -241,17 +266,22 @@ bool BulletDbvh::Iterator::Next()
 	return FetchData();
 }
 
-bool BulletDbvh::Iterator::FetchData()
+SPP_TEMPLATE_DECL
+bool BulletDbvh<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 {
 	if (Valid()) {
-		entity = (*data)[it].entity;
+		this->entity = (*data)[it].entity;
 		Data d = (*data)[it];
-		aabb = {gl(d.proxy->m_aabbMin), gl(d.proxy->m_aabbMax)};
-		mask = (*data)[it].mask;
+		this->aabb = {gl(d.proxy->m_aabbMin), gl(d.proxy->m_aabbMax)};
+		this->mask = (*data)[it].mask;
 		return true;
 	}
 	return false;
 }
 
-bool BulletDbvh::Iterator::Valid() { return it < data->size(); }
+SPP_TEMPLATE_DECL
+bool BulletDbvh<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+
+SPP_DEFINE_VARIANTS(BulletDbvh)
+	
 } // namespace spp

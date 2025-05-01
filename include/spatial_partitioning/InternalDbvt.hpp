@@ -21,19 +21,23 @@ misrepresented as being the original software.
 
 #pragma once
 
-#include "Aabb.hpp"
 #include "IntersectionCallbacks.hpp"
 #include "AssociativeArray.hpp"
 
 namespace spp
 {
+SPP_TEMPLATE_DECL_OFFSET
 class Dbvt;
 
+SPP_TEMPLATE_DECL_OFFSET
 class btDbvt
 {
 public:
 	
-	btDbvt(spp::Dbvt *dbvt);
+	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
+	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
+	
+	btDbvt(spp::Dbvt<SPP_TEMPLATE_ARGS_OFFSET> *dbvt);
 
 	~btDbvt();
 	void clear();
@@ -49,7 +53,7 @@ public:
 	
 	void updateOffsetOfEntity(uint32_t oldEntityOffset, uint32_t newEntityOffset);
 
-	void collideTV(IntersectionCallback &cb);
+	void collideTV(AabbCallback &cb);
 	void rayTestInternal(RayCallback &cb);
 	
 	size_t GetMemoryUsage() const;
@@ -109,7 +113,7 @@ protected:
 	uint32_t rootId = 0;
 	unsigned m_opath = 0;
 
-	AssociativeArray<EntityType, uint32_t, spp::btDbvt::Data, false> *ents;
+	AssociativeArray<EntityType, uint32_t, spp::btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::Data, false> *ents;
 	std::vector<NodeData> nodes;
 
 	std::vector<uint32_t> stack;
@@ -121,4 +125,7 @@ protected:
 	 * nodes[free].childs[1] === 0 -> this is a free node
 	 */
 };
+
+SPP_EXTERN_VARIANTS_OFFSET(btDbvt)
+	
 } // namespace spp

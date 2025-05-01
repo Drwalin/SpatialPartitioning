@@ -12,18 +12,23 @@ static bullet::btDbvtAabbMm bt(spp::Aabb v)
 
 namespace spp
 {
-BulletDbvt::BulletDbvt() : iterator(*this) {}
-BulletDbvt::~BulletDbvt() { Clear(); }
+SPP_TEMPLATE_DECL
+BulletDbvt<SPP_TEMPLATE_ARGS>::BulletDbvt() : iterator(*this) {}
+SPP_TEMPLATE_DECL
+BulletDbvt<SPP_TEMPLATE_ARGS>::~BulletDbvt() { Clear(); }
 
-const char *BulletDbvt::GetName() const { return "BulletDbvt"; }
+SPP_TEMPLATE_DECL
+const char *BulletDbvt<SPP_TEMPLATE_ARGS>::GetName() const { return "BulletDbvt"; }
 
-void BulletDbvt::Clear()
+SPP_TEMPLATE_DECL
+void BulletDbvt<SPP_TEMPLATE_ARGS>::Clear()
 {
 	ents.Clear();
 	dbvt.clear();
 }
 
-size_t BulletDbvt::GetMemoryUsage() const
+SPP_TEMPLATE_DECL
+size_t BulletDbvt<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 {
 	return ents.GetMemoryUsage() +
 		   (GetCount() * 2 - 1) * sizeof(bullet::btDbvtNode) +
@@ -31,9 +36,11 @@ size_t BulletDbvt::GetMemoryUsage() const
 		   stack.capacity() * sizeof(const bullet::btDbvtNode *);
 }
 
-void BulletDbvt::ShrinkToFit() { ents.ShrinkToFit(); }
+SPP_TEMPLATE_DECL
+void BulletDbvt<SPP_TEMPLATE_ARGS>::ShrinkToFit() { ents.ShrinkToFit(); }
 
-void BulletDbvt::SmallRebuildIfNeeded()
+SPP_TEMPLATE_DECL
+void BulletDbvt<SPP_TEMPLATE_ARGS>::SmallRebuildIfNeeded()
 {
 	if (requiresRebuild > 1000) {
 		IncrementalOptimize(requiresRebuild / 133 + 1);
@@ -41,12 +48,14 @@ void BulletDbvt::SmallRebuildIfNeeded()
 	}
 }
 
-void BulletDbvt::IncrementalOptimize(int iterations)
+SPP_TEMPLATE_DECL
+void BulletDbvt<SPP_TEMPLATE_ARGS>::IncrementalOptimize(int iterations)
 {
 	dbvt.optimizeIncremental(iterations);
 }
 
-void BulletDbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
+SPP_TEMPLATE_DECL
+void BulletDbvt<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	assert(Exists(entity) == false);
 
@@ -57,7 +66,8 @@ void BulletDbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
 	requiresRebuild++;
 }
 
-void BulletDbvt::Update(EntityType entity, Aabb aabb)
+SPP_TEMPLATE_DECL
+void BulletDbvt<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 {
 	int32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
@@ -70,7 +80,8 @@ void BulletDbvt::Update(EntityType entity, Aabb aabb)
 	}
 }
 
-void BulletDbvt::Remove(EntityType entity)
+SPP_TEMPLATE_DECL
+void BulletDbvt<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 {
 	int32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
@@ -82,7 +93,8 @@ void BulletDbvt::Remove(EntityType entity)
 	}
 }
 
-void BulletDbvt::SetMask(EntityType entity, MaskType mask)
+SPP_TEMPLATE_DECL
+void BulletDbvt<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
 {
 	int32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
@@ -92,14 +104,17 @@ void BulletDbvt::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
-int32_t BulletDbvt::GetCount() const { return ents.Size(); }
+SPP_TEMPLATE_DECL
+int32_t BulletDbvt<SPP_TEMPLATE_ARGS>::GetCount() const { return ents.Size(); }
 
-bool BulletDbvt::Exists(EntityType entity) const
+SPP_TEMPLATE_DECL
+bool BulletDbvt<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
 {
 	return ents.GetOffset(entity) > 0;
 }
 
-Aabb BulletDbvt::GetAabb(EntityType entity) const
+SPP_TEMPLATE_DECL
+Aabb BulletDbvt<SPP_TEMPLATE_ARGS>::GetAabb(EntityType entity) const
 {
 	int32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
@@ -109,7 +124,8 @@ Aabb BulletDbvt::GetAabb(EntityType entity) const
 	return {};
 }
 
-MaskType BulletDbvt::GetMask(EntityType entity) const
+SPP_TEMPLATE_DECL
+MaskType BulletDbvt<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
 {
 	assert(Exists(entity) == true);
 	int32_t offset = ents.GetOffset(entity);
@@ -119,13 +135,15 @@ MaskType BulletDbvt::GetMask(EntityType entity) const
 	return 0;
 }
 
-void BulletDbvt::Rebuild()
+SPP_TEMPLATE_DECL
+void BulletDbvt<SPP_TEMPLATE_ARGS>::Rebuild()
 {
 	requiresRebuild += 3000;
 	SmallRebuildIfNeeded();
 }
 
-void BulletDbvt::IntersectAabb(IntersectionCallback &cb)
+SPP_TEMPLATE_DECL
+void BulletDbvt<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -138,7 +156,7 @@ void BulletDbvt::IntersectAabb(IntersectionCallback &cb)
 	class btDbvtAabbCb final : public bullet::btDbvt::ICollide
 	{
 	public:
-		btDbvtAabbCb(BulletDbvt *bp, IntersectionCallback *cb) : bp(bp), cb(cb)
+		btDbvtAabbCb(BulletDbvt *bp, AabbCallback *cb) : bp(bp), cb(cb)
 		{
 		}
 		virtual ~btDbvtAabbCb() {}
@@ -151,8 +169,8 @@ void BulletDbvt::IntersectAabb(IntersectionCallback &cb)
 			}
 		}
 
-		BulletDbvt *bp;
-		IntersectionCallback *cb;
+		BulletDbvt<SPP_TEMPLATE_ARGS> *bp;
+		AabbCallback *cb;
 	};
 
 	btDbvtAabbCb btCb{this, &cb};
@@ -161,7 +179,8 @@ void BulletDbvt::IntersectAabb(IntersectionCallback &cb)
 	dbvt.collideTVNoStackAlloc(dbvt.m_root, bounds, stack, btCb);
 }
 
-void BulletDbvt::IntersectRay(RayCallback &cb)
+SPP_TEMPLATE_DECL
+void BulletDbvt<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -230,22 +249,26 @@ void BulletDbvt::IntersectRay(RayCallback &cb)
 						 bullet::btVector3(0, 0, 0), stack, btCb);
 }
 
-BroadphaseBaseIterator *BulletDbvt::RestartIterator()
+SPP_TEMPLATE_DECL
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *BulletDbvt<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
-BulletDbvt::Iterator::Iterator(BulletDbvt &bp)
+SPP_TEMPLATE_DECL
+BulletDbvt<SPP_TEMPLATE_ARGS>::Iterator::Iterator(BulletDbvt &bp)
 {
 	data = &(bp.ents._Data()._Data());
 	it = 0;
 	Next();
 }
 
-BulletDbvt::Iterator::~Iterator() {}
+SPP_TEMPLATE_DECL
+BulletDbvt<SPP_TEMPLATE_ARGS>::Iterator::~Iterator() {}
 
-bool BulletDbvt::Iterator::Next()
+SPP_TEMPLATE_DECL
+bool BulletDbvt<SPP_TEMPLATE_ARGS>::Iterator::Next()
 {
 	do {
 		++it;
@@ -253,17 +276,22 @@ bool BulletDbvt::Iterator::Next()
 	return FetchData();
 }
 
-bool BulletDbvt::Iterator::FetchData()
+SPP_TEMPLATE_DECL
+bool BulletDbvt<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 {
 	if (Valid()) {
 		Data d = (*data)[it];
-		entity = d.entity;
-		aabb = d.aabb;
-		mask = d.mask;
+		this->entity = d.entity;
+		this->aabb = d.aabb;
+		this->mask = d.mask;
 		return true;
 	}
 	return false;
 }
 
-bool BulletDbvt::Iterator::Valid() { return it < data->size(); }
+SPP_TEMPLATE_DECL
+bool BulletDbvt<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+
+SPP_DEFINE_VARIANTS(BulletDbvt)
+	
 } // namespace spp

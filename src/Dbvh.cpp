@@ -8,12 +8,16 @@
 
 namespace spp
 {
-Dbvh::Dbvh() : iterator(*this) { Clear(); }
-Dbvh::~Dbvh() {}
+SPP_TEMPLATE_DECL
+Dbvh<SPP_TEMPLATE_ARGS>::Dbvh() : iterator(*this) { Clear(); }
+SPP_TEMPLATE_DECL
+Dbvh<SPP_TEMPLATE_ARGS>::~Dbvh() {}
 
-const char *Dbvh::GetName() const { return "Dbvh"; }
+SPP_TEMPLATE_DECL
+const char *Dbvh<SPP_TEMPLATE_ARGS>::GetName() const { return "Dbvh"; }
 
-void Dbvh::Clear()
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::Clear()
 {
 	data.Clear();
 	nodes.Clear();
@@ -21,18 +25,21 @@ void Dbvh::Clear()
 	fastRebalance = false;
 }
 
-size_t Dbvh::GetMemoryUsage() const
+SPP_TEMPLATE_DECL
+size_t Dbvh<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 {
 	return data.GetMemoryUsage() + nodes.GetMemoryUsage();
 }
 
-void Dbvh::ShrinkToFit()
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::ShrinkToFit()
 {
 	data.ShrinkToFit();
 	nodes.ShrinkToFit();
 }
 
-void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	assert(Exists(entity) == false);
 	assert(rootNode != 0);
@@ -107,7 +114,8 @@ void Dbvh::Add(EntityType entity, Aabb aabb, MaskType mask)
 	}
 }
 
-int32_t Dbvh::CountNodes() const
+SPP_TEMPLATE_DECL
+int32_t Dbvh<SPP_TEMPLATE_ARGS>::CountNodes() const
 {
 	static int32_t (*fun)(const Dbvh *s, int32_t node) =
 		+[](const Dbvh *s, int32_t node) -> int32_t {
@@ -120,7 +128,8 @@ int32_t Dbvh::CountNodes() const
 	return fun(this, rootNode);
 }
 
-int32_t Dbvh::CountEntities() const
+SPP_TEMPLATE_DECL
+int32_t Dbvh<SPP_TEMPLATE_ARGS>::CountEntities() const
 {
 	static int32_t (*fun)(const Dbvh *s, int32_t node) =
 		+[](const Dbvh *s, int32_t node) -> int32_t {
@@ -136,7 +145,8 @@ int32_t Dbvh::CountEntities() const
 	return fun(this, rootNode);
 }
 
-int32_t Dbvh::CountDepth() const
+SPP_TEMPLATE_DECL
+int32_t Dbvh<SPP_TEMPLATE_ARGS>::CountDepth() const
 {
 	static int32_t (*fun)(const Dbvh *s, int32_t node) =
 		+[](const Dbvh *s, int32_t node) -> int32_t {
@@ -149,14 +159,16 @@ int32_t Dbvh::CountDepth() const
 	return fun(this, rootNode);
 }
 
-void Dbvh::Update(EntityType entity, Aabb aabb)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 {
 	int32_t offset = data.GetOffset(entity);
 	data[offset].aabb = aabb;
 	UpdateAabb(data[offset].parent);
 }
 
-void Dbvh::Remove(EntityType entity)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 {
 	const int32_t offset = data.GetOffset(entity);
 	const int32_t id = data[offset].parent;
@@ -190,7 +202,8 @@ void Dbvh::Remove(EntityType entity)
 	data.RemoveByKey(entity);
 }
 
-void Dbvh::SetMask(EntityType entity, MaskType mask)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
 {
 	const int32_t offset = data.GetOffset(entity);
 	data[offset].mask = mask;
@@ -207,14 +220,17 @@ void Dbvh::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
-int32_t Dbvh::GetCount() const { return data.Size(); }
+SPP_TEMPLATE_DECL
+int32_t Dbvh<SPP_TEMPLATE_ARGS>::GetCount() const { return data.Size(); }
 
-bool Dbvh::Exists(EntityType entity) const
+SPP_TEMPLATE_DECL
+bool Dbvh<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
 {
 	return data.GetOffset(entity) > 0;
 }
 
-Aabb Dbvh::GetAabb(EntityType entity) const
+SPP_TEMPLATE_DECL
+Aabb Dbvh<SPP_TEMPLATE_ARGS>::GetAabb(EntityType entity) const
 {
 	int32_t offset = data.GetOffset(entity);
 	if (offset > 0) {
@@ -223,7 +239,8 @@ Aabb Dbvh::GetAabb(EntityType entity) const
 	return {};
 }
 
-MaskType Dbvh::GetMask(EntityType entity) const
+SPP_TEMPLATE_DECL
+MaskType Dbvh<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
 {
 	int32_t offset = data.GetOffset(entity);
 	if (offset > 0) {
@@ -232,7 +249,8 @@ MaskType Dbvh::GetMask(EntityType entity) const
 	return 0;
 }
 
-void Dbvh::IntersectAabb(IntersectionCallback &cb)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -241,7 +259,8 @@ void Dbvh::IntersectAabb(IntersectionCallback &cb)
 	_Internal_IntersectAabb(cb, rootNode);
 }
 
-void Dbvh::_Internal_IntersectAabb(IntersectionCallback &cb, const int32_t node)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback &cb, const int32_t node)
 {
 	if (node <= 0) {
 		return;
@@ -263,7 +282,8 @@ void Dbvh::_Internal_IntersectAabb(IntersectionCallback &cb, const int32_t node)
 	}
 }
 
-void Dbvh::IntersectRay(RayCallback &cb)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -275,7 +295,8 @@ void Dbvh::IntersectRay(RayCallback &cb)
 	_Internal_IntersectRay(cb, rootNode);
 }
 
-void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 {
 	if (node <= 0) {
 		return;
@@ -321,16 +342,19 @@ void Dbvh::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
 	}
 }
 
-void Dbvh::Rebuild() { FastRebalance(); }
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::Rebuild() { FastRebalance(); }
 
-void Dbvh::FastRebalance()
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::FastRebalance()
 {
 	fastRebalance = false;
 
 	RebalanceNodesRecursively(rootNode, -1);
 }
 
-void Dbvh::RebalanceUpToRoot(int32_t node, int32_t rebalancingDepth)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::RebalanceUpToRoot(int32_t node, int32_t rebalancingDepth)
 {
 	while (node > 0 && node != rootNode) {
 		RebalanceNodesRecursively(node, rebalancingDepth);
@@ -338,7 +362,8 @@ void Dbvh::RebalanceUpToRoot(int32_t node, int32_t rebalancingDepth)
 	}
 }
 
-void Dbvh::RebalanceNodesRecursively(int32_t node, int32_t depth)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::RebalanceNodesRecursively(int32_t node, int32_t depth)
 {
 	if (depth == 0) {
 		return;
@@ -360,7 +385,8 @@ void Dbvh::RebalanceNodesRecursively(int32_t node, int32_t depth)
 	DoBestNodeRotation(node);
 }
 
-void Dbvh::DoBestNodeRotation(int32_t node)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::DoBestNodeRotation(int32_t node)
 {
 	if (node <= 0) { // leaf
 		assert(!"should not happen");
@@ -392,7 +418,8 @@ void Dbvh::DoBestNodeRotation(int32_t node)
 	}
 }
 
-bool Dbvh::GetRotationIntersectionVolume(int32_t parentNode, int32_t lId,
+SPP_TEMPLATE_DECL
+bool Dbvh<SPP_TEMPLATE_ARGS>::GetRotationIntersectionVolume(int32_t parentNode, int32_t lId,
 										 int32_t rId, float *resultValue) const
 {
 	if ((lId | rId) == 0b1100 || lId == 0 || rId == 0) {
@@ -440,7 +467,8 @@ bool Dbvh::GetRotationIntersectionVolume(int32_t parentNode, int32_t lId,
 	return true;
 }
 
-void Dbvh::DoRotation(int32_t parentNode, int32_t lId, int32_t rId)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::DoRotation(int32_t parentNode, int32_t lId, int32_t rId)
 {
 	if ((lId | rId) == 0b1100 || lId == 0 || rId == 0) {
 		return;
@@ -485,7 +513,8 @@ void Dbvh::DoRotation(int32_t parentNode, int32_t lId, int32_t rId)
 	}
 }
 
-void Dbvh::SetParent(int32_t node, int32_t parent)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::SetParent(int32_t node, int32_t parent)
 {
 	if (node <= 0) {
 		assert(!"Should not happen");
@@ -496,7 +525,8 @@ void Dbvh::SetParent(int32_t node, int32_t parent)
 	}
 }
 
-bool Dbvh::GetNodeOffsetsAndInfo(int32_t rootNodeId, int32_t id,
+SPP_TEMPLATE_DECL
+bool Dbvh<SPP_TEMPLATE_ARGS>::GetNodeOffsetsAndInfo(int32_t rootNodeId, int32_t id,
 								 int32_t *nodeId, int32_t *parentNodeId,
 								 int32_t *childIdOfParent) const
 {
@@ -539,7 +569,8 @@ bool Dbvh::GetNodeOffsetsAndInfo(int32_t rootNodeId, int32_t id,
 	return true;
 }
 
-int32_t Dbvh::GetIndirectMask(int32_t node) const
+SPP_TEMPLATE_DECL
+int32_t Dbvh<SPP_TEMPLATE_ARGS>::GetIndirectMask(int32_t node) const
 {
 	if (node <= 0) {
 		return 0;
@@ -554,7 +585,8 @@ int32_t Dbvh::GetIndirectMask(int32_t node) const
 	}
 }
 
-int32_t Dbvh::GetDirectMask(int32_t node) const
+SPP_TEMPLATE_DECL
+int32_t Dbvh<SPP_TEMPLATE_ARGS>::GetDirectMask(int32_t node) const
 {
 	if (node <= 0) {
 		return 0;
@@ -565,7 +597,8 @@ int32_t Dbvh::GetDirectMask(int32_t node) const
 	}
 }
 
-Aabb Dbvh::GetIndirectAabb(int32_t node) const
+SPP_TEMPLATE_DECL
+Aabb Dbvh<SPP_TEMPLATE_ARGS>::GetIndirectAabb(int32_t node) const
 {
 	if (node <= 0) {
 		assert(!"cannot happen");
@@ -591,7 +624,8 @@ Aabb Dbvh::GetIndirectAabb(int32_t node) const
 	return {};
 }
 
-Aabb Dbvh::GetDirectAabb(int32_t node) const
+SPP_TEMPLATE_DECL
+Aabb Dbvh<SPP_TEMPLATE_ARGS>::GetDirectAabb(int32_t node) const
 {
 	if (node <= 0) {
 		assert(!"cannot happen");
@@ -732,7 +766,8 @@ void Dbvh::PruneEmptyEntitiesAtEnd()
 }
 */
 
-void Dbvh::UpdateAabb(const int32_t nodeId)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::UpdateAabb(const int32_t nodeId)
 {
 	if (nodeId > OFFSET) {
 		UpdateAabb(data[nodeId - OFFSET].parent);
@@ -757,7 +792,8 @@ void Dbvh::UpdateAabb(const int32_t nodeId)
 	}
 }
 
-void Dbvh::UpdateAabbSimple(const int32_t nodeId)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::UpdateAabbSimple(const int32_t nodeId)
 {
 	if (nodeId > OFFSET) {
 		UpdateAabbSimple(data[nodeId - OFFSET].parent);
@@ -781,7 +817,8 @@ void Dbvh::UpdateAabbSimple(const int32_t nodeId)
 	}
 }
 
-void Dbvh::UpdateMask(const int32_t nodeId)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::UpdateMask(const int32_t nodeId)
 {
 	if (nodeId > OFFSET) {
 		UpdateMask(data[nodeId - OFFSET].parent);
@@ -806,7 +843,8 @@ void Dbvh::UpdateMask(const int32_t nodeId)
 	}
 }
 
-void Dbvh::UpdateAabbAndMask(const int32_t nodeId)
+SPP_TEMPLATE_DECL
+void Dbvh<SPP_TEMPLATE_ARGS>::UpdateAabbAndMask(const int32_t nodeId)
 {
 	if (nodeId > OFFSET) {
 		UpdateAabbAndMask(data[nodeId - OFFSET].parent);
@@ -838,22 +876,26 @@ void Dbvh::UpdateAabbAndMask(const int32_t nodeId)
 	}
 }
 
-BroadphaseBaseIterator *Dbvh::RestartIterator()
+SPP_TEMPLATE_DECL
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *Dbvh<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
-Dbvh::Iterator::Iterator(Dbvh &bp)
+SPP_TEMPLATE_DECL
+Dbvh<SPP_TEMPLATE_ARGS>::Iterator::Iterator(Dbvh &bp)
 {
 	data = &bp.data._Data()._Data();
 	it = 0;
 	Next();
 }
 
-Dbvh::Iterator::~Iterator() {}
+SPP_TEMPLATE_DECL
+Dbvh<SPP_TEMPLATE_ARGS>::Iterator::~Iterator() {}
 
-bool Dbvh::Iterator::Next()
+SPP_TEMPLATE_DECL
+bool Dbvh<SPP_TEMPLATE_ARGS>::Iterator::Next()
 {
 	do {
 		++it;
@@ -861,16 +903,21 @@ bool Dbvh::Iterator::Next()
 	return FetchData();
 }
 
-bool Dbvh::Iterator::FetchData()
+SPP_TEMPLATE_DECL
+bool Dbvh<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 {
 	if (Valid()) {
-		entity = (*data)[it].entity;
-		aabb = (*data)[it].aabb;
-		mask = (*data)[it].mask;
+		this->entity = (*data)[it].entity;
+		this->aabb = (*data)[it].aabb;
+		this->mask = (*data)[it].mask;
 		return true;
 	}
 	return false;
 }
 
-bool Dbvh::Iterator::Valid() { return it < data->size(); }
+SPP_TEMPLATE_DECL
+bool Dbvh<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+
+SPP_DEFINE_VARIANTS(Dbvh)
+
 } // namespace spp

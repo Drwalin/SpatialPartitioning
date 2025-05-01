@@ -6,25 +6,32 @@
 
 namespace spp
 {
-Dbvt::Dbvt() : dbvt(this), iterator(*this) {}
-Dbvt::~Dbvt() { Clear(); }
+SPP_TEMPLATE_DECL_OFFSET
+Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Dbvt() : dbvt(this), iterator(*this) {}
+SPP_TEMPLATE_DECL_OFFSET
+Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::~Dbvt() { Clear(); }
 
-const char *Dbvt::GetName() const { return "Dbvt"; }
+SPP_TEMPLATE_DECL_OFFSET
+const char *Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::GetName() const { return "Dbvt"; }
 
-void Dbvt::Clear()
+SPP_TEMPLATE_DECL_OFFSET
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Clear()
 {
 	ents.Clear();
 	dbvt.clear();
 }
 
-size_t Dbvt::GetMemoryUsage() const
+SPP_TEMPLATE_DECL_OFFSET
+size_t Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::GetMemoryUsage() const
 {
 	return ents.GetMemoryUsage() + dbvt.GetMemoryUsage();
 }
 
-void Dbvt::ShrinkToFit() { ents.ShrinkToFit(); }
+SPP_TEMPLATE_DECL_OFFSET
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::ShrinkToFit() { ents.ShrinkToFit(); }
 
-void Dbvt::SmallRebuildIfNeeded()
+SPP_TEMPLATE_DECL_OFFSET
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::SmallRebuildIfNeeded()
 {
 	if (requiresRebuild > 1000) {
 		IncrementalOptimize(requiresRebuild / 133 + 1);
@@ -32,12 +39,14 @@ void Dbvt::SmallRebuildIfNeeded()
 	}
 }
 
-void Dbvt::IncrementalOptimize(int iterations)
+SPP_TEMPLATE_DECL_OFFSET
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::IncrementalOptimize(int iterations)
 {
 	dbvt.optimizeIncremental(iterations);
 }
 
-void Dbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
+SPP_TEMPLATE_DECL_OFFSET
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Add(EntityType entity, Aabb aabb, MaskType mask)
 {
 	assert(Exists(entity) == false);
 
@@ -46,7 +55,8 @@ void Dbvt::Add(EntityType entity, Aabb aabb, MaskType mask)
 	requiresRebuild++;
 }
 
-void Dbvt::Update(EntityType entity, Aabb aabb)
+SPP_TEMPLATE_DECL_OFFSET
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Update(EntityType entity, Aabb aabb)
 {
 	uint32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
@@ -58,7 +68,8 @@ void Dbvt::Update(EntityType entity, Aabb aabb)
 	}
 }
 
-void Dbvt::Remove(EntityType entity)
+SPP_TEMPLATE_DECL_OFFSET
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Remove(EntityType entity)
 {
 	uint32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
@@ -70,7 +81,8 @@ void Dbvt::Remove(EntityType entity)
 	}
 }
 
-void Dbvt::SetMask(EntityType entity, MaskType mask)
+SPP_TEMPLATE_DECL_OFFSET
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::SetMask(EntityType entity, MaskType mask)
 {
 	uint32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
@@ -80,14 +92,17 @@ void Dbvt::SetMask(EntityType entity, MaskType mask)
 	}
 }
 
-int32_t Dbvt::GetCount() const { return ents.Size(); }
+SPP_TEMPLATE_DECL_OFFSET
+int32_t Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::GetCount() const { return ents.Size(); }
 
-bool Dbvt::Exists(EntityType entity) const
+SPP_TEMPLATE_DECL_OFFSET
+bool Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Exists(EntityType entity) const
 {
 	return ents.GetOffset(entity) > 0;
 }
 
-Aabb Dbvt::GetAabb(EntityType entity) const
+SPP_TEMPLATE_DECL_OFFSET
+Aabb Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::GetAabb(EntityType entity) const
 {
 	uint32_t offset = ents.GetOffset(entity);
 	if (offset > 0) {
@@ -97,7 +112,8 @@ Aabb Dbvt::GetAabb(EntityType entity) const
 	return {};
 }
 
-MaskType Dbvt::GetMask(EntityType entity) const
+SPP_TEMPLATE_DECL_OFFSET
+MaskType Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::GetMask(EntityType entity) const
 {
 	assert(Exists(entity) == true);
 	uint32_t offset = ents.GetOffset(entity);
@@ -107,13 +123,15 @@ MaskType Dbvt::GetMask(EntityType entity) const
 	return 0;
 }
 
-void Dbvt::Rebuild()
+SPP_TEMPLATE_DECL_OFFSET
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Rebuild()
 {
 	requiresRebuild += 3000;
 	SmallRebuildIfNeeded();
 }
 
-void Dbvt::IntersectAabb(IntersectionCallback &cb)
+SPP_TEMPLATE_DECL_OFFSET
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::IntersectAabb(AabbCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -126,7 +144,8 @@ void Dbvt::IntersectAabb(IntersectionCallback &cb)
 	dbvt.collideTV(cb);
 }
 
-void Dbvt::IntersectRay(RayCallback &cb)
+SPP_TEMPLATE_DECL_OFFSET
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::IntersectRay(RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -140,22 +159,26 @@ void Dbvt::IntersectRay(RayCallback &cb)
 	dbvt.rayTestInternal(cb);
 }
 
-BroadphaseBaseIterator *Dbvt::RestartIterator()
+SPP_TEMPLATE_DECL_OFFSET
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
-Dbvt::Iterator::Iterator(Dbvt &bp)
+SPP_TEMPLATE_DECL_OFFSET
+Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Iterator::Iterator(Dbvt &bp)
 {
 	data = &(bp.ents._Data()._Data());
 	it = 0;
 	Next();
 }
 
-Dbvt::Iterator::~Iterator() {}
+SPP_TEMPLATE_DECL_OFFSET
+Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Iterator::~Iterator() {}
 
-bool Dbvt::Iterator::Next()
+SPP_TEMPLATE_DECL_OFFSET
+bool Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Iterator::Next()
 {
 	do {
 		++it;
@@ -163,17 +186,22 @@ bool Dbvt::Iterator::Next()
 	return FetchData();
 }
 
-bool Dbvt::Iterator::FetchData()
+SPP_TEMPLATE_DECL_OFFSET
+bool Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Iterator::FetchData()
 {
 	if (Valid()) {
 		Data d = (*data)[it];
-		entity = d.entity;
-		aabb = d.aabb;
-		mask = d.mask;
+		this->entity = d.entity;
+		this->aabb = d.aabb;
+		this->mask = d.mask;
 		return true;
 	}
 	return false;
 }
 
-bool Dbvt::Iterator::Valid() { return it < data->size(); }
+SPP_TEMPLATE_DECL_OFFSET
+bool Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Iterator::Valid() { return it < data->size(); }
+
+SPP_DEFINE_VARIANTS_OFFSET(Dbvt)
+
 } // namespace spp

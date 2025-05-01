@@ -12,9 +12,15 @@
 
 namespace spp
 {
-class Dbvt final : public BroadphaseBase
+SPP_TEMPLATE_DECL_OFFSET
+class Dbvt final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
+	
+	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
+	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
+	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+	
 	Dbvt();
 	virtual ~Dbvt();
 
@@ -37,26 +43,23 @@ public:
 	virtual Aabb GetAabb(EntityType entity) const override;
 	virtual MaskType GetMask(EntityType entity) const override;
 
-	virtual void IntersectAabb(IntersectionCallback &callback) override;
+	virtual void IntersectAabb(AabbCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	virtual void Rebuild() override;
-
-	friend class btDbvtAabbCb;
-	friend class btDbvtRayCb;
 
 	virtual BroadphaseBaseIterator *RestartIterator() override;
 
 private:
 	void SmallRebuildIfNeeded();
 	
-	friend class spp::btDbvt;
+	friend class spp::btDbvt<SPP_TEMPLATE_ARGS_OFFSET>;
 
 private:
-	using Data = spp::btDbvt::Data;
+	using Data = spp::btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::Data;
 	
-	AssociativeArray<EntityType, uint32_t, spp::btDbvt::Data, false> ents;
-	btDbvt dbvt;
+	AssociativeArray<EntityType, uint32_t, typename btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::Data, false> ents;
+	btDbvt<SPP_TEMPLATE_ARGS_OFFSET> dbvt;
 
 	size_t requiresRebuild = 0;
 
@@ -76,4 +79,7 @@ private:
 		int it;
 	} iterator;
 };
+
+SPP_EXTERN_VARIANTS_OFFSET(Dbvt)
+	
 } // namespace spp

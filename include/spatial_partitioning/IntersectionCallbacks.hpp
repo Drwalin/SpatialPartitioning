@@ -9,9 +9,14 @@
 
 namespace spp
 {
-struct IntersectionCallback {
-	IntersectionCallback() = default;
-	virtual ~IntersectionCallback() = default;
+SPP_TEMPLATE_DECL
+class BroadphaseBase;
+
+SPP_TEMPLATE_DECL
+class AabbCallback {
+public:
+	AabbCallback() = default;
+	~AabbCallback() = default;
 
 	bool IsRelevant(AabbCentered aabb) const;
 	bool IsRelevant(Aabb aabb) const;
@@ -21,12 +26,12 @@ struct IntersectionCallback {
 	bool ExecuteIfRelevant(AabbCentered aabb, EntityType entity);
 	bool ExecuteIfRelevant(Aabb aabb, EntityType entity);
 
-	void (*callback)(IntersectionCallback *, EntityType entity) = nullptr;
+	void (*callback)(AabbCallback *, EntityType entity) = nullptr;
 
 	Aabb aabb;
 	MaskType mask;
 
-	class BroadphaseBase *broadphase = nullptr;
+	BroadphaseBase<SPP_TEMPLATE_ARGS> *broadphase = nullptr;
 
 	size_t nodesTestedCount = 0;
 	size_t testedCount = 0;
@@ -50,7 +55,9 @@ struct RayPartialResult {
 	bool intersection = false;
 };
 
-struct RayCallback {
+SPP_TEMPLATE_DECL
+class RayCallback {
+public:
 	RayCallback() = default;
 	~RayCallback() = default;
 
@@ -84,14 +91,16 @@ struct RayCallback {
 
 	void InitVariables();
 
-	class BroadphaseBase *broadphase = nullptr;
+	BroadphaseBase<SPP_TEMPLATE_ARGS> *broadphase = nullptr;
 
 	size_t nodesTestedCount = 0;
 	size_t testedCount = 0;
 	size_t hitCount = 0;
 };
 
-struct RayCallbackFirstHit : public RayCallback {
+SPP_TEMPLATE_DECL
+class RayCallbackFirstHit : public RayCallback<SPP_TEMPLATE_ARGS> {
+public:
 	RayCallbackFirstHit() = default;
 	~RayCallbackFirstHit() = default;
 
@@ -100,4 +109,9 @@ struct RayCallbackFirstHit : public RayCallback {
 	EntityType hitEntity;
 	bool hasHit = false;
 };
+
+SPP_EXTERN_VARIANTS(AabbCallback)
+SPP_EXTERN_VARIANTS(RayCallback)
+SPP_EXTERN_VARIANTS(RayCallbackFirstHit)
+
 } // namespace spp

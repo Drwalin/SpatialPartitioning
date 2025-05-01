@@ -4,21 +4,27 @@
 
 #pragma once
 
-#include <cstdint>
+#define SPP_TEMPLATE_DECL template<typename Aabb, typename EntityType, typename MaskType, EntityType EMPTY_ENTITY>
+#define SPP_TEMPLATE_ARGS Aabb, EntityType, MaskType, EMPTY_ENTITY
+#define SPP_TEMPLATE_DECL_OFFSET template<typename Aabb, typename EntityType, typename MaskType, EntityType EMPTY_ENTITY, typename OffsetType>
+#define SPP_TEMPLATE_ARGS_OFFSET Aabb, EntityType, MaskType, EMPTY_ENTITY, OffsetType
 
-namespace spp
-{
-#ifndef SPP_ENTITY_TYPE
-using EntityType = uint64_t;
-#else
-using EntityType = SPP_ENTITY_TYPE
-#endif
+#define SPP_EXTERN_VARIANTS(CLASS) \
+	extern template class CLASS<spp::Aabb, uint32_t, uint32_t, 0>; \
+	extern template class CLASS<spp::Aabb, uint64_t, uint32_t, 0>;
 
-#ifndef SPP_MASK_TYPE
-using MaskType = uint32_t;
-#else
-	using MaskType = SPP_MASK_TYPE
-#endif
+#define SPP_EXTERN_VARIANTS_OFFSET(CLASS) \
+	extern template class CLASS<spp::Aabb, uint32_t, uint32_t, 0, uint32_t>; \
+	extern template class CLASS<spp::Aabb, uint64_t, uint32_t, 0, uint32_t>; \
+	extern template class CLASS<spp::Aabb, uint32_t, uint32_t, 0, uint16_t>; \
+	extern template class CLASS<spp::Aabb, uint64_t, uint32_t, 0, uint16_t>;
 
-inline const EntityType EMPTY_ENTITY = 0;
-} // namespace spp
+#define SPP_DEFINE_VARIANTS(CLASS) \
+	template class CLASS<spp::Aabb, uint32_t, uint32_t, 0>; \
+	template class CLASS<spp::Aabb, uint64_t, uint32_t, 0>;
+
+#define SPP_DEFINE_VARIANTS_OFFSET(CLASS) \
+	template class CLASS<spp::Aabb, uint32_t, uint32_t, 0, uint32_t>; \
+	template class CLASS<spp::Aabb, uint64_t, uint32_t, 0, uint32_t>; \
+	template class CLASS<spp::Aabb, uint32_t, uint32_t, 0, uint16_t>; \
+	template class CLASS<spp::Aabb, uint64_t, uint32_t, 0, uint16_t>;

@@ -48,9 +48,12 @@ enum TestType {
 const char *testTypeNames[] = {"[NULL-NONE]", "TEST_AABB", "TEST_RAY_FIRST",
 							   "TEST_ALL_RAYS", "MIXED"};
 
+using EntityType = uint64_t;
+
+
 struct EntityData {
 	spp::Aabb aabb;
-	spp::EntityType id = 0;
+	EntityType id = 0;
 	uint32_t mask = ~0;
 };
 
@@ -69,14 +72,14 @@ struct StartEndPoint {
 	spp::Aabb aabb2;
 	glm::vec3 start, end, point;
 	float n = -3;
-	spp::EntityType e = -3;
+	EntityType e = -3;
 	bool isAabbTest;
 
 	bool operator<(const StartEndPoint &o) const { return e < o.e; }
 };
 
 std::vector<std::vector<spp::Aabb>> currentEntitiesAabbs;
-void _SetEntityAabb(std::vector<spp::Aabb> &aabbs, spp::EntityType entity,
+void _SetEntityAabb(std::vector<spp::Aabb> &aabbs, EntityType entity,
 					spp::Aabb aabb)
 {
 	if (aabbs.size() <= entity) {
@@ -85,13 +88,13 @@ void _SetEntityAabb(std::vector<spp::Aabb> &aabbs, spp::EntityType entity,
 	aabbs[entity] = aabb;
 }
 
-std::vector<spp::EntityType> ee;
+std::vector<EntityType> ee;
 std::vector<glm::vec3> vv;
 
 uint64_t TEST_RANDOM_SEED = 0;
 
 std::vector<spp::Aabb> aabbsToTest;
-SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
+SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broadphase,
 							const std::vector<spp::Aabb> &aabbsToTest,
 							size_t testsCount,
 							std::vector<uint64_t> &offsetOfPatch,
@@ -106,13 +109,13 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 	switch (testType) {
 	case TEST_AABB: {
 
-		struct _Cb : public spp::IntersectionCallback {
+		struct _Cb : public spp::AabbCallback<spp::Aabb, EntityType, uint32_t, 0> {
 			std::vector<StartEndPoint> *hitPoints = nullptr;
 		} cb;
 		cb.hitPoints = &hitPoints;
 		cb.mask = ~(uint32_t)0;
-		typedef void (*CbT)(spp::IntersectionCallback *, spp::EntityType);
-		cb.callback = (CbT) + [](_Cb *cb, spp::EntityType entity) {
+		typedef void (*CbT)(spp::AabbCallback<spp::Aabb, EntityType, uint32_t, 0> *, EntityType);
+		cb.callback = (CbT) + [](_Cb *cb, EntityType entity) {
 			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
 			if (cb->IsRelevant(aabb)) {
 				ret.hitCount++;
@@ -150,16 +153,16 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 	} break;
 	case TEST_RAY_ALL: {
 
-		struct _Cb : public spp::RayCallback {
+		struct _Cb : public spp::RayCallback<spp::Aabb, EntityType, uint32_t, 0> {
 			std::vector<StartEndPoint> *hitPoints = nullptr;
 		} cb;
 		cb.hitPoints = &hitPoints;
 		cb.mask = ~(uint32_t)0;
-		typedef spp::RayPartialResult (*CbT)(spp::RayCallback *,
-											 spp::EntityType);
+		typedef spp::RayPartialResult (*CbT)(spp::RayCallback<spp::Aabb, EntityType, uint32_t, 0> *,
+											 EntityType);
 		cb.callback =
 			(CbT) +
-			[](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
+			[](_Cb *cb, EntityType entity) -> spp::RayPartialResult {
 			assert(entity > 0);
 			float n, f;
 			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
@@ -201,14 +204,14 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 		return ret;
 	} break;
 	case TEST_RAY_FIRST: {
-		struct _Cb : public spp::RayCallbackFirstHit {
+		struct _Cb : public spp::RayCallbackFirstHit<spp::Aabb, EntityType, uint32_t, 0> {
 		} cb;
 		cb.mask = ~(uint32_t)0;
-		typedef spp::RayPartialResult (*CbT)(spp::RayCallback *,
-											 spp::EntityType);
+		typedef spp::RayPartialResult (*CbT)(spp::RayCallback<spp::Aabb, EntityType, uint32_t, 0> *,
+											 EntityType);
 		cb.callback =
 			(CbT) +
-			[](_Cb *cb, spp::EntityType entity) -> spp::RayPartialResult {
+			[](_Cb *cb, EntityType entity) -> spp::RayPartialResult {
 			float n, f;
 			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
 			if (cb->IsRelevant(aabb, n, f)) {
@@ -276,13 +279,13 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 	} break;
 	case TEST_MIXED: {
 
-		struct _CbAabb : public spp::IntersectionCallback {
+		struct _CbAabb : public spp::AabbCallback<spp::Aabb, EntityType, uint32_t, 0> {
 			std::vector<StartEndPoint> *hitPoints = nullptr;
 		} cbAabb;
 		cbAabb.hitPoints = &hitPoints;
 		cbAabb.mask = ~(uint32_t)0;
-		typedef void (*CbTAabb)(spp::IntersectionCallback *, spp::EntityType);
-		cbAabb.callback = (CbTAabb) + [](_CbAabb *cb, spp::EntityType entity) {
+		typedef void (*CbTAabb)(spp::AabbCallback<spp::Aabb, EntityType, uint32_t, 0> *, EntityType);
+		cbAabb.callback = (CbTAabb) + [](_CbAabb *cb, EntityType entity) {
 			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
 			if (cb->IsRelevant(aabb)) {
 				ret.hitCount++;
@@ -303,14 +306,14 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 			}
 		};
 
-		struct _CbRay : public spp::RayCallbackFirstHit {
+		struct _CbRay : public spp::RayCallbackFirstHit<spp::Aabb, EntityType, uint32_t, 0> {
 		} cbRay;
 		cbRay.mask = ~(uint32_t)0;
-		typedef spp::RayPartialResult (*CbTRay)(spp::RayCallback *,
-												spp::EntityType);
+		typedef spp::RayPartialResult (*CbTRay)(spp::RayCallback<spp::Aabb, EntityType, uint32_t, 0> *,
+												EntityType);
 		cbRay.callback =
 			(CbTRay) +
-			[](_CbRay *cb, spp::EntityType entity) -> spp::RayPartialResult {
+			[](_CbRay *cb, EntityType entity) -> spp::RayPartialResult {
 			float n, f;
 			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
 			if (cb->IsRelevant(aabb, n, f)) {
@@ -345,7 +348,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 
 		testsCount = std::min(testsCount / 5, vv.size() / 5) * 5;
 
-		static std::vector<spp::EntityType> removeEntities;
+		static std::vector<EntityType> removeEntities;
 		removeEntities.reserve(10000);
 		removeEntities.clear();
 
@@ -370,12 +373,12 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 			return s;
 		};
 
-		static spp::EntityType (*popRandom)(
+		static EntityType (*popRandom)(
 			uint64_t &s, size_t i,
-			std::vector<spp::EntityType> &removeEntities) =
+			std::vector<EntityType> &removeEntities) =
 			+[](uint64_t &s, size_t i,
-				std::vector<spp::EntityType> &removeEntities)
-			-> spp::EntityType {
+				std::vector<EntityType> &removeEntities)
+			-> EntityType {
 			if (!removeEntities.empty() && (Random(s, i) % 13) > 10) {
 				size_t x = Random(s, i) % removeEntities.size();
 				auto r = removeEntities[x];
@@ -487,7 +490,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase *broadphase,
 }
 
 std::vector<spp::Aabb> globalAabbs;
-void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
+void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *> broadphases, size_t testsCount,
 		  TestType testType)
 {
 	broadphasePerformances.resize(broadphases.size(), {0, 0});
@@ -864,7 +867,7 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 				}
 			}
 
-			std::map<spp::EntityType, size_t> e0, ei;
+			std::map<EntityType, size_t> e0, ei;
 			for (size_t entry = patchStarti; entry < patchEndi; ++entry) {
 				ei[hitPoints[i][entry].e] = entry;
 			}
@@ -1010,14 +1013,14 @@ void Test(std::vector<spp::BroadphaseBase *> broadphases, size_t testsCount,
 }
 
 void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
-							std::shared_ptr<spp::BroadphaseBase> dbvh,
+							std::shared_ptr<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0>> dbvh,
 							std::shared_ptr<void> data)
 {
 	static std::atomic<int> size = 0;
 	static std::mutex mutex;
 	static bool done = false;
 	using Pair = std::pair<std::shared_ptr<std::atomic<bool>>,
-						   std::shared_ptr<spp::BroadphaseBase>>;
+						   std::shared_ptr<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0>>>;
 	static std::queue<Pair> queue;
 	if (done == false) {
 		done = true;
@@ -1157,7 +1160,7 @@ int main(int argc, char **argv)
 	entities.resize(TOTAL_ENTITIES);
 	std::uniform_real_distribution<float> distPos(-10, 10);
 	std::uniform_real_distribution<float> distSize(0.4, 5);
-	spp::EntityType id = 1;
+	EntityType id = 1;
 	for (auto &e : entities) {
 		e.aabb.min = {distPos(mt), distPos(mt) / 8.0f, distPos(mt)};
 		e.aabb.max = {distSize(mt), distSize(mt) * 2, distSize(mt)};
@@ -1174,7 +1177,7 @@ int main(int argc, char **argv)
 		e.aabb.max += e.aabb.min;
 	}
 
-	std::vector<spp::BroadphaseBase *> broadphases;
+	std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *> broadphases;
 
 	if (customizeStructures) {
 		broadphases.clear();
@@ -1182,59 +1185,59 @@ int main(int argc, char **argv)
 			char *str = argv[i];
 			if (false) {
 			} else if (strcmp(str, "BF") == false) {
-				broadphases.push_back(new spp::BruteForce());
+				broadphases.push_back(new spp::BruteForce<spp::Aabb, EntityType, uint32_t, 0>());
 			} else if (strcmp(str, "BVH") == false) {
-				spp::BvhMedianSplitHeap *bvh;
-				bvh = new spp::BvhMedianSplitHeap(TOTAL_ENTITIES);
+				spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0> *bvh;
+				bvh = new spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>(TOTAL_ENTITIES);
 				broadphases.push_back(bvh);
 			} else if (strcmp(str, "DBVT") == false) {
-				broadphases.push_back(new spp::Dbvt);
+				broadphases.push_back(new spp::Dbvt<spp::Aabb, EntityType, uint32_t, 0, uint32_t>);
 			} else if (strcmp(str, "DBVH") == false) {
-				broadphases.push_back(new spp::Dbvh);
+				broadphases.push_back(new spp::Dbvh<spp::Aabb, EntityType, uint32_t, 0>);
 			} else if (strcmp(str, "BTDBVH") == false) {
-				broadphases.push_back(new spp::BulletDbvh);
+				broadphases.push_back(new spp::BulletDbvh<spp::Aabb, EntityType, uint32_t, 0>);
 			} else if (strcmp(str, "BTDBVT") == false) {
-				broadphases.push_back(new spp::BulletDbvt);
+				broadphases.push_back(new spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>);
 			} else if (strcmp(str, "TSH_BF") == false) {
-				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
-					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-					std::make_unique<spp::BruteForce>());
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_unique<spp::BruteForce<spp::Aabb, EntityType, uint32_t, 0>>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "TSH_BTDBVT") == false) {
-				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
-					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-					std::make_unique<spp::BulletDbvt>());
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_unique<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "TSH_BTDBVT3") == false) {
-				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
-					std::make_shared<spp::BulletDbvt>(),
-					std::make_shared<spp::BulletDbvt>(),
-					std::make_unique<spp::BulletDbvt>());
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>(),
+					std::make_shared<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>(),
+					std::make_unique<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "TSH_DBVH") == false) {
-				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
-					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-					std::make_unique<spp::Dbvh>());
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_unique<spp::Dbvh<spp::Aabb, EntityType, uint32_t, 0>>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "TSH_DBVT") == false) {
-				spp::ThreeStageDbvh *tsdbvh = new spp::ThreeStageDbvh(
-					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-					std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-					std::make_unique<spp::Dbvt>());
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_unique<spp::Dbvt<spp::Aabb, EntityType, uint32_t, 0, uint32_t>>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "HLO") == false) {
 				broadphases.push_back(
-					new spp::experimental::HashLooseOctree(1.0, 13, 1.6));
+					new spp::experimental::HashLooseOctree<spp::Aabb, EntityType, uint32_t, 0>(1.0, 13, 1.6));
 			} else if (strcmp(str, "LO") == false) {
-				broadphases.push_back(new spp::experimental::LooseOctree(
+				broadphases.push_back(new spp::experimental::LooseOctree<spp::Aabb, EntityType, uint32_t, 0>(
 					-glm::vec3(1, 1, 1) * (1024 * 16.f), 15, 1.6));
 			} else if (strcmp(str, "CLO") == false) {
 				printf("ChunkedLooseOctree not implemented\n");
@@ -1242,13 +1245,13 @@ int main(int argc, char **argv)
 			fflush(stdout);
 		}
 	} else {
-		spp::ThreeStageDbvh *s;
+		spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *s;
 		broadphases = {
-			new spp::Dbvh,
-			(s = new spp::ThreeStageDbvh(
-				 std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-				 std::make_shared<spp::BvhMedianSplitHeap>(TOTAL_ENTITIES),
-				 std::make_unique<spp::BulletDbvt>()),
+			new spp::Dbvh<spp::Aabb, EntityType, uint32_t, 0>,
+			(s = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+				 std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+				 std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+				 std::make_unique<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>()),
 			 s->SetRebuildSchedulerFunction(EnqueueRebuildThreaded), s)};
 	}
 	
@@ -1396,11 +1399,11 @@ int main(int argc, char **argv)
 
 		for (auto bp : broadphases) {
 			double us;
-			if (auto b = dynamic_cast<spp::BvhMedianSplitHeap *>(bp)) {
+			if (auto b = dynamic_cast<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0> *>(bp)) {
 				std::multimap<double, int32_t, std::greater<double>> timestage;
 				std::vector<char> bytesCacheTrashing;
 				bytesCacheTrashing.resize(1024);
-				spp::BvhMedianSplitHeap::RebuildProgress pr;
+				spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>::RebuildProgress pr;
 				while (pr.done == false) {
 					{
 						char *_ptr = bytesCacheTrashing.data();

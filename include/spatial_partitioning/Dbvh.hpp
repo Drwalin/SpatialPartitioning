@@ -21,9 +21,15 @@ namespace spp
  *
  * Supports dynamically adding and removing entities
  */
-class Dbvh final : public BroadphaseBase
+SPP_TEMPLATE_DECL
+class Dbvh final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
+	
+	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
+	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
+	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+	
 	Dbvh();
 	virtual ~Dbvh();
 
@@ -44,7 +50,7 @@ public:
 	virtual Aabb GetAabb(EntityType entity) const override;
 	virtual MaskType GetMask(EntityType entity) const override;
 
-	virtual void IntersectAabb(IntersectionCallback &callback) override;
+	virtual void IntersectAabb(AabbCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
 
 	virtual void Rebuild() override;
@@ -75,7 +81,7 @@ private:
 	Aabb GetIndirectAabb(int32_t nodeId) const;
 	void SetParent(int32_t node, int32_t parent);
 
-	void _Internal_IntersectAabb(IntersectionCallback &cb,
+	void _Internal_IntersectAabb(AabbCallback &cb,
 								 const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 
@@ -123,4 +129,7 @@ private:
 		int it;
 	} iterator;
 };
+
+SPP_EXTERN_VARIANTS(Dbvh)
+	
 } // namespace spp

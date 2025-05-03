@@ -151,7 +151,7 @@ void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 		dynamic->Add(entity, aabb, mask);
 	}
 
-	if (dynamicUpdates + optimisedUpdates > 5000) {
+	if (dynamicUpdates + optimisedUpdates > 100000) {
 		TryScheduleRebuild();
 	}
 }

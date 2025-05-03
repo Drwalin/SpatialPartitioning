@@ -620,14 +620,14 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::IsTreeValid(uint32_t node) const
 SPP_TEMPLATE_DECL_OFFSET
 bool btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::ContainsRecurence(uint32_t node, uint32_t rel) const
 {
-	if (node == rel) {
-		return true;
-	}
 	if (rel == 0) {
 		rel = rootId;
 	}
 	if (rel == 0) {
 		return false;
+	}
+	if (node == rel) {
+		return true;
 	}
 	if (isLeaf(rel)) {
 		assert(!isLeaf(getLeafParent(rel)));

@@ -10,32 +10,47 @@
 
 namespace spp
 {
-SPP_TEMPLATE_DECL
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::BvhMedianSplitHeap(EntityType denseEntityRange)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::BvhMedianSplitHeap(
+	EntityType denseEntityRange)
 	: entitiesOffsets(denseEntityRange), iterator(*this)
 {
 }
-SPP_TEMPLATE_DECL
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::~BvhMedianSplitHeap() {}
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::~BvhMedianSplitHeap()
+{
+}
 
-SPP_TEMPLATE_DECL
-const char *BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetName() const { return "BvhMedianSplitHeap"; }
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+const char *
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::GetName() const
+{
+	switch(SKIP_LOW_LAYERS) {
+		case 0: return "BvhMedianSplitHeap" ;
+		case 1: return "BvhMedianSplitHeap1" ;
+		case 2: return "BvhMedianSplitHeap2" ;
+		default: return "BvhMedianSplitHeapN" ;
+	}
+}
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::SetAabbUpdatePolicy(AabbUpdatePolicy policy)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
+	SKIP_LOW_LAYERS)>::SetAabbUpdatePolicy(AabbUpdatePolicy policy)
 {
 	updatePolicy = policy;
 }
 
-SPP_TEMPLATE_DECL
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::AabbUpdatePolicy
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetAabbUpdatePolicy() const
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::AabbUpdatePolicy
+BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::GetAabbUpdatePolicy() const
 {
 	return updatePolicy;
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Clear()
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::Clear()
 {
 	entitiesData.clear();
 	nodesHeapAabb.clear();
@@ -45,23 +60,26 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Clear()
 	entitiesPowerOfTwoCount = 0;
 }
 
-SPP_TEMPLATE_DECL
-size_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+size_t
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::GetMemoryUsage()
+	const
 {
 	return entitiesOffsets.GetMemoryUsage() +
 		   nodesHeapAabb.capacity() * sizeof(NodeData) +
 		   entitiesData.capacity() * sizeof(Data);
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::ShrinkToFit()
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::ShrinkToFit()
 {
 	nodesHeapAabb.shrink_to_fit();
 	entitiesData.shrink_to_fit();
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::Add(
+	EntityType entity, Aabb aabb, MaskType mask)
 {
 	if (entitiesOffsets.find(entity) != nullptr) {
 		assert(!"Entity already exists");
@@ -73,8 +91,9 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, Ma
 	++entitiesCount;
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::Update(
+	EntityType entity, Aabb aabb)
 {
 	uint32_t offset = entitiesOffsets[entity];
 	entitiesData[offset].aabb = aabb;
@@ -85,8 +104,9 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 	}
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::Remove(
+	EntityType entity)
 {
 	auto it = entitiesOffsets.find(entity);
 	if (it == nullptr) {
@@ -114,8 +134,9 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 	}
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::SetMask(
+	EntityType entity, MaskType mask)
 {
 	auto it = entitiesOffsets.find(entity);
 	if (it == nullptr) {
@@ -135,25 +156,33 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType 
 		}
 	}
 
-	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> 1; n > 0; n >>= 1) {
+	uint32_t n = (offset + entitiesPowerOfTwoCount) >> (1 + SKIP_LOW_LAYERS);
+
+	for (; n > 0; n >>= 1) {
 		nodesHeapAabb[n].mask = mask;
-		if ((n ^ 1) < nodesHeapAabb.size() && (n^1) > 0) {
+		if ((n ^ 1) < nodesHeapAabb.size() && (n ^ 1) > 0) {
 			mask |= nodesHeapAabb[n ^ 1].mask;
 		}
 	}
 }
 
-SPP_TEMPLATE_DECL
-int32_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetCount() const { return entitiesCount; }
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+int32_t
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::GetCount() const
+{
+	return entitiesCount;
+}
 
-SPP_TEMPLATE_DECL
-bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::Exists(
+	EntityType entity) const
 {
 	return entitiesOffsets.Has(entity);
 }
 
-SPP_TEMPLATE_DECL
-Aabb BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetAabb(EntityType entity) const
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+Aabb BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::GetAabb(
+	EntityType entity) const
 {
 	auto it = entitiesOffsets.find(entity);
 	if (it != nullptr) {
@@ -162,8 +191,9 @@ Aabb BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetAabb(EntityType entity) const
 	return {};
 }
 
-SPP_TEMPLATE_DECL
-MaskType BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+MaskType BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::GetMask(
+	EntityType entity) const
 {
 	auto it = entitiesOffsets.find(entity);
 	if (it != nullptr) {
@@ -172,13 +202,14 @@ MaskType BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
 	return 0;
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::IntersectAabb(
+	AabbCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
 	}
-
+	
 	if (rebuildTree) {
 		Rebuild();
 	}
@@ -188,11 +219,13 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 	_Internal_IntersectAabb(cb, 1);
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback &cb,
-												 const int32_t nodeId)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
+	SKIP_LOW_LAYERS)>::_Internal_IntersectAabb(AabbCallback &cb,
+											   const int32_t nodeId)
 {
 	const int32_t n = nodeId << 1;
+
 	if (n >= entitiesPowerOfTwoCount) {
 		int32_t o = n - entitiesPowerOfTwoCount;
 		for (int i = 0; i <= 1 && o < entitiesData.size(); ++i, ++o) {
@@ -202,6 +235,22 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback
 				if (entitiesData[o].aabb && cb.aabb) {
 					++cb.testedCount;
 					cb.callback(&cb, entitiesData[o].entity);
+				}
+			}
+		}
+	} else if (n >= nodesHeapAabb.size()) {
+		assert(SKIP_LOW_LAYERS);
+		const int32_t start = (n << SKIP_LOW_LAYERS) - entitiesPowerOfTwoCount;
+		const int32_t end_ = start + (2 << SKIP_LOW_LAYERS);
+		const int32_t end = std::min<int32_t>(end_, entitiesData.size());
+		assert(start >= 0);
+		for (int32_t i = start; i < end; ++i) {
+			if ((entitiesData[i].mask & cb.mask) &&
+				entitiesData[i].entity != EMPTY_ENTITY) {
+				++cb.nodesTestedCount;
+				if (entitiesData[i].aabb && cb.aabb) {
+					++cb.testedCount;
+					cb.callback(&cb, entitiesData[i].entity);
 				}
 			}
 		}
@@ -217,8 +266,9 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback
 	}
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::IntersectRay(
+	RayCallback &cb)
 {
 	if (cb.callback == nullptr) {
 		return;
@@ -234,9 +284,10 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 	_Internal_IntersectRay(cb, 1);
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb,
-												const int32_t nodeId)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
+	SKIP_LOW_LAYERS)>::_Internal_IntersectRay(RayCallback &cb,
+											  const int32_t nodeId)
 {
 	const int32_t n = nodeId << 1;
 	if (n >= entitiesPowerOfTwoCount) {
@@ -245,6 +296,19 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &
 			if ((entitiesData[o].mask & cb.mask) &&
 				entitiesData[o].entity != EMPTY_ENTITY) {
 				auto &ed = entitiesData[o];
+				cb.ExecuteIfRelevant(ed.aabb, ed.entity);
+			}
+		}
+	} else if (SKIP_LOW_LAYERS && n >= nodesHeapAabb.size()) {
+		assert(SKIP_LOW_LAYERS);
+		const int32_t start = (n << SKIP_LOW_LAYERS) - entitiesPowerOfTwoCount;
+		const int32_t end_ = start + (2 << SKIP_LOW_LAYERS);
+		const int32_t end = std::min<int32_t>(end_, entitiesData.size());
+		assert(start >= 0);
+		for (int32_t i = start; i < end; ++i) {
+			if ((entitiesData[i].mask & cb.mask) &&
+				entitiesData[i].entity != EMPTY_ENTITY) {
+				auto &ed = entitiesData[i];
 				cb.ExecuteIfRelevant(ed.aabb, ed.entity);
 			}
 		}
@@ -285,13 +349,18 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &
 	}
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Rebuild()
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::Rebuild()
 {
 	rebuildTree = false;
 	entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)entitiesCount);
 
-	nodesHeapAabb.resize(entitiesPowerOfTwoCount / 2 + (entitiesCount + 1) / 2 + 7);
+	if (SKIP_LOW_LAYERS) {
+		nodesHeapAabb.resize(entitiesPowerOfTwoCount >> SKIP_LOW_LAYERS);
+	} else {
+		nodesHeapAabb.resize(entitiesPowerOfTwoCount / 2 +
+							 (entitiesCount + 1) / 2);
+	}
 	for (auto &n : nodesHeapAabb) {
 		n.mask = 0;
 	}
@@ -311,8 +380,9 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Rebuild()
 	RebuildNode(1);
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RebuildNode(int32_t nodeId)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::RebuildNode(
+	int32_t nodeId)
 {
 	int32_t tcount = 0;
 	nodeId = RebuildNodePartial(nodeId, &tcount);
@@ -324,8 +394,10 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RebuildNode(int32_t nodeId)
 	}
 }
 
-SPP_TEMPLATE_DECL
-int32_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RebuildNodePartial(int32_t nodeId, int32_t *tcount)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+int32_t
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::RebuildNodePartial(
+	int32_t nodeId, int32_t *tcount)
 {
 	*tcount = 0;
 	int32_t offset = nodeId;
@@ -349,13 +421,13 @@ int32_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RebuildNodePartial(int32_t nodeId
 
 	Aabb totalAabb = entitiesData[offset].aabb;
 	MaskType mask = entitiesData[offset].mask;
-	for (int32_t i = offset+1; i < offset + count; ++i) {
+	for (int32_t i = offset + 1; i < offset + count; ++i) {
 		totalAabb = totalAabb + entitiesData[i].aabb;
 		mask |= entitiesData[i].mask;
 	}
 	nodesHeapAabb[nodeId] = {totalAabb.Expanded(BIG_EPSILON), mask};
 
-	if (count <= 2) {
+	if (count <= (2 << SKIP_LOW_LAYERS)) {
 		for (int32_t i = offset; i < offset + count; ++i) {
 			entitiesOffsets.Set(entitiesData[i].entity, i);
 		}
@@ -401,8 +473,9 @@ int32_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RebuildNodePartial(int32_t nodeId
 	return nodeId << 1;
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::PruneEmptyEntitiesAtEnd()
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::PruneEmptyEntitiesAtEnd()
 {
 	for (int32_t i = entitiesData.size() - 1; i >= 0; --i) {
 		if (entitiesData[i].entity != EMPTY_ENTITY) {
@@ -413,28 +486,30 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::PruneEmptyEntitiesAtEnd()
 	entitiesData.clear();
 }
 
-SPP_TEMPLATE_DECL
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::UpdateAabb(int32_t offset)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::UpdateAabb(
+	int32_t offset)
 {
+	const int32_t of = (offset >> (SKIP_LOW_LAYERS + 1)) << (SKIP_LOW_LAYERS + 1);
+	int32_t max = std::max<int32_t>(of + (2 << SKIP_LOW_LAYERS), entitiesData.size());
+	
 	MaskType mask = 0;
 	Aabb aabb = {{0, 0, 0}, {0, 0, 0}};
-	for (int i = 0; i <= 1; ++i, offset ^= 1) {
-		if (offset < entitiesData.size()) {
-			if ((entitiesData[offset].entity != EMPTY_ENTITY) &&
-				(entitiesData[offset].mask != 0)) {
-				if (mask != 0) {
-					aabb = aabb + entitiesData[offset].aabb;
-				} else {
-					aabb = entitiesData[offset].aabb;
-				}
-				mask |= entitiesData[offset].mask;
+	for (int32_t i = of; i < max; ++i) {
+		if ((entitiesData[i].entity != EMPTY_ENTITY) &&
+			(entitiesData[i].mask != 0)) {
+			if (mask != 0) {
+				aabb = aabb + entitiesData[i].aabb;
+			} else {
+				aabb = entitiesData[i].aabb;
 			}
+			mask |= entitiesData[i].mask;
 		}
 	}
-	
+
 	aabb = aabb.Expanded(BIG_EPSILON);
 
-	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> 1; n > 0; n >>= 1) {
+	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> (1+SKIP_LOW_LAYERS); n > 0; n >>= 1) {
 		nodesHeapAabb[n].aabb = aabb;
 		nodesHeapAabb[n].mask = mask;
 		n ^= 1;
@@ -451,8 +526,9 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::UpdateAabb(int32_t offset)
 	}
 }
 
-SPP_TEMPLATE_DECL
-bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RebuildStep(RebuildProgress &progress)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::RebuildStep(
+	RebuildProgress &progress)
 {
 	if (progress.done) {
 		return true;
@@ -462,7 +538,12 @@ bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RebuildStep(RebuildProgress &progres
 	case 0:
 		rebuildTree = false;
 		entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)entitiesCount);
-		nodesHeapAabb.resize(entitiesPowerOfTwoCount);
+		if (SKIP_LOW_LAYERS) {
+			nodesHeapAabb.resize(entitiesPowerOfTwoCount >> SKIP_LOW_LAYERS);
+		} else {
+			nodesHeapAabb.resize(entitiesPowerOfTwoCount / 2 +
+								 (entitiesCount + 1) / 2 + 7);
+		}
 		progress.stage = 1;
 		progress.it = 0;
 		break;
@@ -536,26 +617,32 @@ bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RebuildStep(RebuildProgress &progres
 	return progress.done;
 }
 
-SPP_TEMPLATE_DECL
-BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::RestartIterator()
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
-SPP_TEMPLATE_DECL
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::Iterator(BvhMedianSplitHeap &bp)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::Iterator::Iterator(
+	BvhMedianSplitHeap &bp)
 {
 	data = &bp.entitiesData;
 	it = -1;
 	Next();
 }
 
-SPP_TEMPLATE_DECL
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::~Iterator() {}
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::Iterator::~Iterator()
+{
+}
 
-SPP_TEMPLATE_DECL
-bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::Next()
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+bool BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::Iterator::Next()
 {
 	do {
 		++it;
@@ -564,8 +651,9 @@ bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::Next()
 	return FetchData();
 }
 
-SPP_TEMPLATE_DECL
-bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+bool BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::Iterator::FetchData()
 {
 	if (Valid()) {
 		this->entity = (*data)[it].entity;
@@ -576,9 +664,14 @@ bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 	return false;
 }
 
-SPP_TEMPLATE_DECL
-bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
+bool BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::Iterator::Valid()
+{
+	return it < data->size();
+}
 
-SPP_DEFINE_VARIANTS(BvhMedianSplitHeap)
+SPP_DEFINE_VARIANTS_MORE(BvhMedianSplitHeap, 0)
+SPP_DEFINE_VARIANTS_MORE(BvhMedianSplitHeap, 1)
 
 } // namespace spp

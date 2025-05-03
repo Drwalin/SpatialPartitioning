@@ -24,7 +24,7 @@ namespace spp
  *
  * Tree is perfectly balanced due to heap use as nodes storage
  */
-SPP_TEMPLATE_DECL
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS=0)
 class BvhMedianSplitHeap final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
@@ -127,6 +127,7 @@ private:
 	} iterator;
 };
 
-SPP_EXTERN_VARIANTS(BvhMedianSplitHeap)
+SPP_EXTERN_VARIANTS_MORE(BvhMedianSplitHeap, 0)
+SPP_EXTERN_VARIANTS_MORE(BvhMedianSplitHeap, 1)
 	
 } // namespace spp

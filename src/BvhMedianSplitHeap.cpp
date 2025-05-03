@@ -26,11 +26,15 @@ SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
 const char *
 BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::GetName() const
 {
-	switch(SKIP_LOW_LAYERS) {
-		case 0: return "BvhMedianSplitHeap" ;
-		case 1: return "BvhMedianSplitHeap1" ;
-		case 2: return "BvhMedianSplitHeap2" ;
-		default: return "BvhMedianSplitHeapN" ;
+	switch (SKIP_LOW_LAYERS) {
+	case 0:
+		return "BvhMedianSplitHeap";
+	case 1:
+		return "BvhMedianSplitHeap1";
+	case 2:
+		return "BvhMedianSplitHeap2";
+	default:
+		return "BvhMedianSplitHeapN";
 	}
 }
 
@@ -209,7 +213,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::IntersectAabb(
 	if (cb.callback == nullptr) {
 		return;
 	}
-	
+
 	if (rebuildTree) {
 		Rebuild();
 	}
@@ -231,14 +235,11 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 		for (int i = 0; i <= 1 && o < entitiesData.size(); ++i, ++o) {
 			if ((entitiesData[o].mask & cb.mask) &&
 				entitiesData[o].entity != EMPTY_ENTITY) {
-				++cb.nodesTestedCount;
-				if (entitiesData[o].aabb && cb.aabb) {
-					++cb.testedCount;
-					cb.callback(&cb, entitiesData[o].entity);
-				}
+				cb.ExecuteIfRelevant(entitiesData[o].aabb,
+									 entitiesData[o].entity);
 			}
 		}
-	} else if (n >= nodesHeapAabb.size()) {
+	} else if (SKIP_LOW_LAYERS && n >= nodesHeapAabb.size()) {
 		assert(SKIP_LOW_LAYERS);
 		const int32_t start = (n << SKIP_LOW_LAYERS) - entitiesPowerOfTwoCount;
 		const int32_t end_ = start + (2 << SKIP_LOW_LAYERS);
@@ -247,18 +248,15 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 		for (int32_t i = start; i < end; ++i) {
 			if ((entitiesData[i].mask & cb.mask) &&
 				entitiesData[i].entity != EMPTY_ENTITY) {
-				++cb.nodesTestedCount;
-				if (entitiesData[i].aabb && cb.aabb) {
-					++cb.testedCount;
-					cb.callback(&cb, entitiesData[i].entity);
-				}
+				cb.ExecuteIfRelevant(entitiesData[i].aabb,
+									 entitiesData[i].entity);
 			}
 		}
 	} else {
 		for (int i = 0; i <= 1 && n + i < nodesHeapAabb.size(); ++i) {
 			if (nodesHeapAabb[n + i].mask & cb.mask) {
 				++cb.nodesTestedCount;
-				if (nodesHeapAabb[n + i].aabb && cb.aabb) {
+				if (cb.IsRelevant(nodesHeapAabb[n + i].aabb)) {
 					_Internal_IntersectAabb(cb, n + i);
 				}
 			}
@@ -490,26 +488,29 @@ SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::UpdateAabb(
 	int32_t offset)
 {
-	const int32_t of = (offset >> (SKIP_LOW_LAYERS + 1)) << (SKIP_LOW_LAYERS + 1);
-	int32_t max = std::max<int32_t>(of + (2 << SKIP_LOW_LAYERS), entitiesData.size());
-	
 	MaskType mask = 0;
 	Aabb aabb = {{0, 0, 0}, {0, 0, 0}};
-	for (int32_t i = of; i < max; ++i) {
-		if ((entitiesData[i].entity != EMPTY_ENTITY) &&
-			(entitiesData[i].mask != 0)) {
-			if (mask != 0) {
-				aabb = aabb + entitiesData[i].aabb;
-			} else {
-				aabb = entitiesData[i].aabb;
+	for (int32_t i = 0; i < (2 << SKIP_LOW_LAYERS); ++i) {
+		const int32_t o = offset ^ i;
+		if (o < entitiesData.size()) {
+			const auto &ed = entitiesData[o];
+			if ((ed.entity != EMPTY_ENTITY) &&
+				(ed.mask != 0)) {
+				if (mask != 0) {
+					aabb = aabb + ed.aabb;
+				} else {
+					aabb = ed.aabb;
+				}
+				mask |= ed.mask;
 			}
-			mask |= entitiesData[i].mask;
 		}
 	}
 
 	aabb = aabb.Expanded(BIG_EPSILON);
 
-	for (uint32_t n = (offset + entitiesPowerOfTwoCount) >> (1+SKIP_LOW_LAYERS); n > 0; n >>= 1) {
+	for (uint32_t n =
+			 (offset + entitiesPowerOfTwoCount) >> (1 + SKIP_LOW_LAYERS);
+		 n > 0; n >>= 1) {
 		nodesHeapAabb[n].aabb = aabb;
 		nodesHeapAabb[n].mask = mask;
 		n ^= 1;

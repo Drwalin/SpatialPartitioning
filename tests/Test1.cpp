@@ -401,7 +401,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 
 		const size_t stride =
 			MIXED_AABB_COUNT + MIXED_RAY_COUNT + MIXED_UPDATE_COUNT;
-
+		
 		for (size_t i = 0; i + stride < testsCount;) {
 			for (int j = 0; j < MIXED_AABB_COUNT; ++j, ++i) {
 				if (ENABLE_VERIFICATION) {
@@ -445,13 +445,13 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 				}
 			}
 
-			for (int j = 3; j < 5; ++j) {
+			for (int j = 0; j < MIXED_RAY_COUNT; ++j, ++i) {
 				cbRay.hasHit = false;
 				if (ENABLE_VERIFICATION) {
 					offsetOfPatch.push_back(hitPoints.size());
 				}
-				cbRay.start = aabbsToTest[i + j].GetCenter();
-				glm::vec3 end = cbRay.end = vv[i + j];
+				cbRay.start = aabbsToTest[i].GetCenter();
+				glm::vec3 end = cbRay.end = vv[i];
 				cbRay.initedVars = false;
 				broadphase->IntersectRay(cbRay);
 				if (ENABLE_VERIFICATION) {
@@ -552,11 +552,12 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 		broadphasePerformances[i].first += us;
 		broadphasePerformances[i].second += tC;
 		if (BENCHMARK == false || disable_benchmark_report == false) {
-			printf("%20s intersection test [count: %lu]: %8.3f us/op",
-				   it->GetName(), tC, us / double(tC));
+			printf("intersection test [count: %lu]: %8.3f us/op",
+				   tC, us / double(tC));
 			printf("    \t   nodesTested: %11lu,   testedCount: %10lu     "
-				   "[count = %lu]:\n",
-				   vec.nodesTestedCount, vec.testedCount, vec.hitCount);
+				   "[count = %lu]    %s \n",
+				   vec.nodesTestedCount, vec.testedCount, vec.hitCount,
+				   it->GetName());
 			fflush(stdout);
 		}
 	}
@@ -1040,8 +1041,9 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 						}
 					}
 					if (has && p.second.use_count() > 1) {
-						auto beg = std::chrono::steady_clock::now();
+						// auto beg = std::chrono::steady_clock::now();
 						p.second->Rebuild();
+						/*
 						auto end = std::chrono::steady_clock::now();
 						auto diff = end - beg;
 						int64_t ns =
@@ -1057,6 +1059,7 @@ void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
 								   us / double(TOTAL_AABB_MOVEMENTS));
 							fflush(stdout);
 						}
+						*/
 
 						p.first->store(true);
 					}
@@ -1125,18 +1128,24 @@ int main(int argc, char **argv)
 				   "\t-mixed-ray-count=\n"
 				   "\t-mixed-update-count=\n"
 				   "\t-benchmark\n"
-				   "\tBF         - BruteForce\n"
-				   "\tBVH        - BvhMedianSplitHeap\n"
-				   "\tDBVT       - Rewritten btDbvt from Bullet\n"
-				   "\tDBVH       - Dbvh (DynamicBoundingVolumeHierarchy)\n"
-				   "\tBTDBVH     - BulletDbvh (Bullet dbvh - two stages)\n"
-				   "\tBTDBVT     - BulletDbvt (Bullet dbvt one stage)\n"
-				   "\tTSH_BF     - ThreeStageDbvh BvhMedian + BruteForce\n"
-				   "\tTSH_BTDBVT - ThreeStageDbvh BvhMedian + BulletDbvt\n"
-				   "\tTSH_DBVH   - ThreeStageDbvh BvhMedian + Dbvh\n"
-				   "\tTSH_DBVT   - ThreeStageDbvh BvhMedian + Dbvt\n"
-				   "\tHLO        - HashedLooseOctree\n"
-				   "\tLO         - LooseOctree\n");
+				   "\tBF          - BruteForce\n"
+				   "\tBVH         - BvhMedianSplitHeap\n"
+				   "\tBVH1        - BvhMedianSplitHeap1\n"
+				   "\tDBVT        - Rewritten btDbvt from Bullet\n"
+				   "\tDBVH        - Dbvh (DynamicBoundingVolumeHierarchy)\n"
+				   "\tBTDBVH      - BulletDbvh (Bullet dbvh - two stages)\n"
+				   "\tBTDBVT      - BulletDbvt (Bullet dbvt one stage)\n"
+				   "\tTSH_BF      - ThreeStageDbvh BvhMedian + BruteForce\n"
+				   "\tTSH_BTDBVT  - ThreeStageDbvh BvhMedian + BulletDbvt\n"
+				   "\tTSH_BTDBVT3 - ThreeStageDbvh BulletDbvt + BulletDbvt\n"
+				   "\tTSH_DBVH    - ThreeStageDbvh BvhMedian + Dbvh\n"
+				   "\tTSH_DBVT    - ThreeStageDbvh BvhMedian + Dbvt\n"
+				   "\tTSH_DBVT1   - ThreeStageDbvh BvhMedian1 + Dbvt\n"
+				   "\tTSH_BVH     - ThreeStageDbvh BvhMedian + BvhMedian\n"
+				   "\tTSH_BVH1    - ThreeStageDbvh BvhMedian1 + BvhMedian1 (no schedule)\n"
+				   "\tTSH_DBVT2   - ThreeStageDbvh Dbvt + Dbvt (no schedule)\n"
+				   "\tHLO         - HashedLooseOctree\n"
+				   "\tLO          - LooseOctree\n");
 			return 0;
 		} else if (std::string(argv[i]).starts_with("-random-seed=random")) {
 			std::random_device rd;
@@ -1244,6 +1253,24 @@ int main(int argc, char **argv)
 					std::make_unique<spp::Dbvt<spp::Aabb, EntityType, uint32_t, 0, uint32_t>>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_BVH") == false) {
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					nullptr,//std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_unique<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(0));
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_BVH1") == false) {
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
+					nullptr,//std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
+					std::make_unique<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(0));
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_DBVT2") == false) {
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>(),
+					nullptr,//std::make_shared<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>(),
+					std::make_unique<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>());
+				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "HLO") == false) {
 				broadphases.push_back(
 					new spp::experimental::HashLooseOctree<spp::Aabb, EntityType, uint32_t, 0>(1.0, 13, 1.6));
@@ -1287,7 +1314,7 @@ int main(int argc, char **argv)
 					diff)
 					.count();
 			double us = double(ns) / 1000.0;
-			printf("%s adding time: %.3f us\n", bp->GetName(), us);
+			printf("adding time: %10.3f us      %s\n", us, bp->GetName());
 			fflush(stdout);
 		}
 		printf("\n");
@@ -1302,16 +1329,15 @@ int main(int argc, char **argv)
 					diff)
 					.count();
 			double us = double(ns) / 1000.0;
-			printf("%s build: %.3f us\n", bp->GetName(), us);
+			printf("build time: %10.3f us      %s\n", us, bp->GetName());
 			fflush(stdout);
 		}
 		printf("\n");
 
 		for (auto bp : broadphases) {
-			printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n",
-				   bp->GetName(), bp->GetMemoryUsage(),
-				   bp->GetMemoryUsage() / (1024.0 * 1024.0),
-				   (double)bp->GetMemoryUsage() / (double)bp->GetCount());
+			printf("memory: %10lu B , %11.6f MiB,   %7.2f B/entity      %s\n",
+				   bp->GetMemoryUsage(), bp->GetMemoryUsage() / (1024.0 * 1024.0),
+				   (double)bp->GetMemoryUsage() / (double)bp->GetCount(), bp->GetName());
 			fflush(stdout);
 		}
 		printf("\n");
@@ -1353,7 +1379,7 @@ int main(int argc, char **argv)
 					diff)
 					.count();
 			double us = double(ns) / 1000.0;
-			printf("%s rebuild: %.3f us\n", bp->GetName(), us);
+			printf("rebuild time: %10.3f us      %s\n", us, bp->GetName());
 			fflush(stdout);
 		}
 		printf("\n");
@@ -1393,8 +1419,8 @@ int main(int argc, char **argv)
 					diff)
 					.count();
 			double us = double(ns) / 1000.0;
-			printf("%s update data: %.3f us/op\n", bp->GetName(),
-				   us / double(TOTAL_AABB_MOVEMENTS));
+			printf("update data: %.3f us/op     %s\n",
+				   us / double(TOTAL_AABB_MOVEMENTS), bp->GetName());
 			fflush(stdout);
 		}
 		printf("\n");
@@ -1458,7 +1484,7 @@ int main(int argc, char **argv)
 						.count();
 				us = double(ns) / 1000.0;
 			}
-			printf("%s rebuild: %.3f us\n", bp->GetName(), us);
+			printf("rebuild: %10.3f us     %s\n", us, bp->GetName());
 			fflush(stdout);
 		}
 		printf("\n");
@@ -1507,7 +1533,7 @@ int main(int argc, char **argv)
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%s adding time: %.3f us\n", bp->GetName(), us);
+		printf("adding time: %10.3f us       %s\n", us, bp->GetName());
 		fflush(stdout);
 	}
 	printf("\n");
@@ -1521,15 +1547,15 @@ int main(int argc, char **argv)
 			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
 		double us = double(ns) / 1000.0;
-		printf("%s build: %.3f us\n", bp->GetName(), us);
+		printf("build: %10.3f us      %s\n", us, bp->GetName());
 		fflush(stdout);
 	}
 	printf("\n");
 
 	for (auto bp : broadphases) {
-		printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n", bp->GetName(),
+		printf("memory: %10lu B , %11.6f MiB,   %7.2f B/entity      %s\n",
 			   bp->GetMemoryUsage(), bp->GetMemoryUsage() / (1024.0 * 1024.0),
-			   (double)bp->GetMemoryUsage() / (double)bp->GetCount());
+			   (double)bp->GetMemoryUsage() / (double)bp->GetCount(), bp->GetName());
 		fflush(stdout);
 	}
 	printf("\n");
@@ -1563,10 +1589,10 @@ int main(int argc, char **argv)
 		if (BENCHMARK == false || disable_benchmark_report == false) {
 			printf("\n");
 			for (auto bp : broadphases) {
-				printf("%s memory: %lu B , %.6f MiB,   %.2f B/entity\n",
-					   bp->GetName(), bp->GetMemoryUsage(),
+				printf("memory: %10lu B , %11.6f MiB,   %7.2f B/entity      %s\n",
+					   bp->GetMemoryUsage(),
 					   bp->GetMemoryUsage() / (1024.0 * 1024.0),
-					   (double)bp->GetMemoryUsage() / (double)bp->GetCount());
+					   (double)bp->GetMemoryUsage() / (double)bp->GetCount(), bp->GetName());
 			}
 			printf("\n");
 			fflush(stdout);
@@ -1607,7 +1633,7 @@ int main(int argc, char **argv)
 		auto bp = broadphases[i];
 		double usPerOp =
 			broadphasePerformances[i].first / broadphasePerformances[i].second;
-		printf("%s average ops/usec: %.3f us/op\n", bp->GetName(), usPerOp);
+		printf("average ops/usec: %10.3f us/op     %s\n", usPerOp, bp->GetName());
 	}
 	fflush(stdout);
 

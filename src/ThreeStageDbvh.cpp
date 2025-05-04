@@ -2,6 +2,8 @@
 // Copyright (c) 2025 Marek Zalewski aka Drwalin
 // You should have received a copy of the MIT License along with this program.
 
+#include <cstring>
+
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
 void BreakPoint() {}
@@ -50,7 +52,11 @@ SPP_TEMPLATE_DECL
 ThreeStageDbvh<SPP_TEMPLATE_ARGS>::~ThreeStageDbvh() {}
 
 SPP_TEMPLATE_DECL
-const char *ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetName() const { return "ThreeStageDbvh"; }
+const char *ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetName() const {
+	thread_local char n[1024];
+	snprintf(n, 1023, "ThreeStageDbvh %s %s [%i]", optimised->GetName(), dynamic->GetName(), dynamic->GetCount());
+	return n;
+}
 
 SPP_TEMPLATE_DECL
 void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Clear()
@@ -66,7 +72,7 @@ void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Clear()
 SPP_TEMPLATE_DECL
 size_t ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 {
-	return dbvhs[0]->GetMemoryUsage() + dbvhs[1]->GetMemoryUsage() +
+	return dbvhs[0]->GetMemoryUsage() + (dbvhs[1] ? dbvhs[1]->GetMemoryUsage() : 0lu) +
 		   dynamic->GetMemoryUsage() +
 
 		   6 * 32 +
@@ -80,7 +86,9 @@ SPP_TEMPLATE_DECL
 void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::ShrinkToFit()
 {
 	dbvhs[0]->ShrinkToFit();
-	dbvhs[1]->ShrinkToFit();
+	if (dbvhs[1]) {
+		dbvhs[1]->ShrinkToFit();
+	}
 	dynamic->ShrinkToFit();
 	toRemoveAfterRebuild.shrink_to_fit();
 }
@@ -266,7 +274,7 @@ void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::TryScheduleRebuild()
 		}
 	}
 
-	if (scheduleRebuildFunc) {
+	if (scheduleRebuildFunc && dbvhs[1] != nullptr) {
 		rebuild = _rebuild.get();
 		rebuild->Clear();
 		for (auto it = optimised->RestartIterator(); it->Valid(); it->Next()) {

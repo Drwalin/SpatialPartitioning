@@ -423,7 +423,10 @@ BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::RebuildNodePartial(
 		totalAabb = totalAabb + entitiesData[i].aabb;
 		mask |= entitiesData[i].mask;
 	}
-	nodesHeapAabb[nodeId] = {totalAabb.Expanded(BIG_EPSILON), mask};
+	
+	if (nodeId < nodesHeapAabb.size()) {
+		nodesHeapAabb[nodeId] = {totalAabb.Expanded(BIG_EPSILON), mask};
+	}
 
 	if (count <= (2 << SKIP_LOW_LAYERS)) {
 		for (int32_t i = offset; i < offset + count; ++i) {

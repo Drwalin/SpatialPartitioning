@@ -6,6 +6,7 @@
 
 #include "Aabb.hpp"
 #include "EntityTypes.hpp"
+#include "RayInfo.hpp"
 
 namespace spp
 {
@@ -56,7 +57,7 @@ struct RayPartialResult {
 };
 
 SPP_TEMPLATE_DECL
-class RayCallback {
+class RayCallback : public RayInfo {
 public:
 	RayCallback() = default;
 	~RayCallback() = default;
@@ -78,14 +79,7 @@ public:
 	RayPartialResult (*callback)(RayCallback *, EntityType entity) = nullptr;
 
 	// end and dir can change during execution
-	glm::vec3 start;
-	glm::vec3 end;
 	MaskType mask;
-	glm::vec3 dir;
-	glm::vec3 dirNormalized;
-	glm::vec3 invDir;
-	int signs[3];
-	float length;
 	float cutFactor;
 	bool initedVars = false;
 

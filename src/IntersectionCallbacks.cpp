@@ -10,17 +10,9 @@ SPP_TEMPLATE_DECL
 void RayCallback<SPP_TEMPLATE_ARGS>::InitVariables()
 {
 	if (initedVars == false) {
+		Calc(start, end);
 		initedVars = true;
-		dir = end - start;
 		cutFactor = 1.0f;
-		length = glm::length(dir);
-		dirNormalized = glm::normalize(dir);
-		for (int i=0; i<3; ++i) {
-			invDir[i] = dir[i] == 0.0f ? 1e18f : 1.0f / dir[i];
-		}
-		signs[0] = invDir[0] < 0.0 ? 1 : 0;
-		signs[1] = invDir[1] < 0.0 ? 1 : 0;
-		signs[2] = invDir[2] < 0.0 ? 1 : 0;
 	}
 }
 

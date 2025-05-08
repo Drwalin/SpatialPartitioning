@@ -33,10 +33,9 @@ SPP_TEMPLATE_DECL_OFFSET
 class btDbvt
 {
 public:
-	
 	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
 	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
-	
+
 	btDbvt(spp::Dbvt<SPP_TEMPLATE_ARGS_OFFSET> *dbvt);
 
 	~btDbvt();
@@ -48,30 +47,30 @@ public:
 
 	void updateLeaf(uint32_t leaf, int lookahead = -1);
 	void updateEntityOffset(uint32_t entityOffset, const Aabb &aabb);
-	bool updateEntityOffset(uint32_t entityOffset, const Aabb &aabb, float margin);
+	bool updateEntityOffset(uint32_t entityOffset, const Aabb &aabb,
+							float margin);
 	void remove(uint32_t entityOffset);
-	
-	void updateOffsetOfEntity(uint32_t oldEntityOffset, uint32_t newEntityOffset);
+
+	void updateOffsetOfEntity(uint32_t oldEntityOffset,
+							  uint32_t newEntityOffset);
 
 	void collideTV(AabbCallback &cb);
 	void rayTestInternal(RayCallback &cb);
-	
+
 	size_t GetMemoryUsage() const;
-	
+
 	void IsTreeValid(uint32_t node = 0) const;
 	bool ContainsRecurence(uint32_t node, uint32_t rel = 0) const;
-	
-public:
 
+public:
 	struct Data {
 		Aabb aabb;
 		uint32_t parent = 0;
 		EntityType entity = 0;
 		MaskType mask = 0;
 	};
-	
+
 protected:
-	
 	inline const static uint32_t OFFSET = 0x80000000;
 
 	struct NodeData {
@@ -113,11 +112,12 @@ protected:
 	uint32_t rootId = 0;
 	unsigned m_opath = 0;
 
-	AssociativeArray<EntityType, uint32_t, spp::btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::Data, false> *ents;
+	AssociativeArray<EntityType, uint32_t,
+					 spp::btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::Data, false> *ents;
 	std::vector<NodeData> nodes;
 
 	std::vector<uint32_t> stack;
-	
+
 	/*
 	 * nodes[0] - first emtpty node id holder
 	 * nodes[free].parent - previous free node
@@ -127,5 +127,5 @@ protected:
 };
 
 SPP_EXTERN_VARIANTS_OFFSET(btDbvt)
-	
+
 } // namespace spp

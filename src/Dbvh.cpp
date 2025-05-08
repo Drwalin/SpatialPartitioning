@@ -182,7 +182,7 @@ void Dbvh<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 		if (nodes[id].children[i ^ 1] > 0) {
 			nodes[id].mask = GetDirectMask(nodes[id].children[i ^ 1]);
 		} else {
-			nodes[id].mask = 0; 
+			nodes[id].mask = 0;
 		}
 	} else {
 		const int32_t otherId = nodes[id].children[i ^ 1];
@@ -260,7 +260,8 @@ void Dbvh<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 }
 
 SPP_TEMPLATE_DECL
-void Dbvh<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback &cb, const int32_t node)
+void Dbvh<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback &cb,
+													  const int32_t node)
 {
 	if (node <= 0) {
 		return;
@@ -296,7 +297,8 @@ void Dbvh<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 }
 
 SPP_TEMPLATE_DECL
-void Dbvh<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb, const int32_t node)
+void Dbvh<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb,
+													 const int32_t node)
 {
 	if (node <= 0) {
 		return;
@@ -354,7 +356,8 @@ void Dbvh<SPP_TEMPLATE_ARGS>::FastRebalance()
 }
 
 SPP_TEMPLATE_DECL
-void Dbvh<SPP_TEMPLATE_ARGS>::RebalanceUpToRoot(int32_t node, int32_t rebalancingDepth)
+void Dbvh<SPP_TEMPLATE_ARGS>::RebalanceUpToRoot(int32_t node,
+												int32_t rebalancingDepth)
 {
 	while (node > 0 && node != rootNode) {
 		RebalanceNodesRecursively(node, rebalancingDepth);
@@ -363,7 +366,8 @@ void Dbvh<SPP_TEMPLATE_ARGS>::RebalanceUpToRoot(int32_t node, int32_t rebalancin
 }
 
 SPP_TEMPLATE_DECL
-void Dbvh<SPP_TEMPLATE_ARGS>::RebalanceNodesRecursively(int32_t node, int32_t depth)
+void Dbvh<SPP_TEMPLATE_ARGS>::RebalanceNodesRecursively(int32_t node,
+														int32_t depth)
 {
 	if (depth == 0) {
 		return;
@@ -419,8 +423,8 @@ void Dbvh<SPP_TEMPLATE_ARGS>::DoBestNodeRotation(int32_t node)
 }
 
 SPP_TEMPLATE_DECL
-bool Dbvh<SPP_TEMPLATE_ARGS>::GetRotationIntersectionVolume(int32_t parentNode, int32_t lId,
-										 int32_t rId, float *resultValue) const
+bool Dbvh<SPP_TEMPLATE_ARGS>::GetRotationIntersectionVolume(
+	int32_t parentNode, int32_t lId, int32_t rId, float *resultValue) const
 {
 	if ((lId | rId) == 0b1100 || lId == 0 || rId == 0) {
 		const NodeData &n = nodes[parentNode];
@@ -468,7 +472,8 @@ bool Dbvh<SPP_TEMPLATE_ARGS>::GetRotationIntersectionVolume(int32_t parentNode, 
 }
 
 SPP_TEMPLATE_DECL
-void Dbvh<SPP_TEMPLATE_ARGS>::DoRotation(int32_t parentNode, int32_t lId, int32_t rId)
+void Dbvh<SPP_TEMPLATE_ARGS>::DoRotation(int32_t parentNode, int32_t lId,
+										 int32_t rId)
 {
 	if ((lId | rId) == 0b1100 || lId == 0 || rId == 0) {
 		return;
@@ -526,9 +531,9 @@ void Dbvh<SPP_TEMPLATE_ARGS>::SetParent(int32_t node, int32_t parent)
 }
 
 SPP_TEMPLATE_DECL
-bool Dbvh<SPP_TEMPLATE_ARGS>::GetNodeOffsetsAndInfo(int32_t rootNodeId, int32_t id,
-								 int32_t *nodeId, int32_t *parentNodeId,
-								 int32_t *childIdOfParent) const
+bool Dbvh<SPP_TEMPLATE_ARGS>::GetNodeOffsetsAndInfo(
+	int32_t rootNodeId, int32_t id, int32_t *nodeId, int32_t *parentNodeId,
+	int32_t *childIdOfParent) const
 {
 	NodeData const *root = &nodes[rootNodeId];
 	NodeData const *child = nullptr;
@@ -877,7 +882,8 @@ void Dbvh<SPP_TEMPLATE_ARGS>::UpdateAabbAndMask(const int32_t nodeId)
 }
 
 SPP_TEMPLATE_DECL
-BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *Dbvh<SPP_TEMPLATE_ARGS>::RestartIterator()
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *
+Dbvh<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;

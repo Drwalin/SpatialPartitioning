@@ -16,14 +16,15 @@ SPP_TEMPLATE_DECL
 class ThreeStageDbvh final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
-	
 	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
 	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
-	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
-	
-	ThreeStageDbvh(std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> optimised,
-				   std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> rebuilding,
-				   std::unique_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> &&dynamic);
+	using BroadphaseBaseIterator =
+		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+
+	ThreeStageDbvh(
+		std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> optimised,
+		std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> rebuilding,
+		std::unique_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> &&dynamic);
 	virtual ~ThreeStageDbvh();
 
 	virtual const char *GetName() const override;
@@ -56,7 +57,8 @@ public:
 	void SetRebuildSchedulerFunction(
 		void (*_ScheduleRebuildFunc)(
 			std::shared_ptr<std::atomic<bool>> finishedRebuilding,
-			std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> dbvh, std::shared_ptr<void> data),
+			std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> dbvh,
+			std::shared_ptr<void> data),
 		std::shared_ptr<void> scheduleUpdateUserData = nullptr);
 
 private:
@@ -111,5 +113,5 @@ private:
 };
 
 SPP_EXTERN_VARIANTS(ThreeStageDbvh)
-	
+
 } // namespace spp

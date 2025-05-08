@@ -11,9 +11,9 @@ namespace spp
 struct RayInfo {
 	RayInfo() = default;
 	RayInfo(glm::vec3 start, glm::vec3 end) { Calc(start, end); }
-	
+
 	void Calc(glm::vec3 start, glm::vec3 end);
-	
+
 	glm::vec3 start;
 	glm::vec3 end;
 	glm::vec3 dir;
@@ -22,4 +22,4 @@ struct RayInfo {
 	int signs[3];
 	float length;
 };
-}
+} // namespace spp

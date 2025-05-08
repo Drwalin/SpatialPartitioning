@@ -423,7 +423,7 @@ BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::RebuildNodePartial(
 		totalAabb = totalAabb + entitiesData[i].aabb;
 		mask |= entitiesData[i].mask;
 	}
-	
+
 	if (nodeId < nodesHeapAabb.size()) {
 		nodesHeapAabb[nodeId] = {totalAabb.Expanded(BIG_EPSILON), mask};
 	}
@@ -497,8 +497,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS)>::UpdateAabb(
 		const int32_t o = offset ^ i;
 		if (o < entitiesData.size()) {
 			const auto &ed = entitiesData[o];
-			if ((ed.entity != EMPTY_ENTITY) &&
-				(ed.mask != 0)) {
+			if ((ed.entity != EMPTY_ENTITY) && (ed.mask != 0)) {
 				if (mask != 0) {
 					aabb = aabb + ed.aabb;
 				} else {

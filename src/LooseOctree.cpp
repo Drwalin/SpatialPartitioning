@@ -17,8 +17,9 @@ namespace spp
 namespace experimental
 {
 SPP_TEMPLATE_DECL
-LooseOctree<SPP_TEMPLATE_ARGS>::LooseOctree(glm::vec3 centerOffset, int32_t levels,
-						 float loosnessFactor)
+LooseOctree<SPP_TEMPLATE_ARGS>::LooseOctree(glm::vec3 centerOffset,
+											int32_t levels,
+											float loosnessFactor)
 	: data(), nodes(), centerOffset(centerOffset), levels(levels),
 	  loosnessFactor(loosnessFactor), invLoosenessFactor(1.0f / loosnessFactor),
 	  maxExtent(1 << (levels - 1)), margin((loosnessFactor - 1.0) / 2.0),
@@ -30,7 +31,10 @@ SPP_TEMPLATE_DECL
 LooseOctree<SPP_TEMPLATE_ARGS>::~LooseOctree() {}
 
 SPP_TEMPLATE_DECL
-const char *LooseOctree<SPP_TEMPLATE_ARGS>::GetName() const { return "LooseOctree"; }
+const char *LooseOctree<SPP_TEMPLATE_ARGS>::GetName() const
+{
+	return "LooseOctree";
+}
 
 SPP_TEMPLATE_DECL
 void LooseOctree<SPP_TEMPLATE_ARGS>::Clear()
@@ -60,7 +64,8 @@ void LooseOctree<SPP_TEMPLATE_ARGS>::ShrinkToFit()
 }
 
 SPP_TEMPLATE_DECL
-void LooseOctree<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
+void LooseOctree<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb,
+										 MaskType mask)
 {
 	const int32_t did = data.Add(entity, {aabb, entity, mask});
 	data[did].prev = 0;
@@ -113,7 +118,8 @@ void LooseOctree<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 }
 
 SPP_TEMPLATE_DECL
-LooseOctree<SPP_TEMPLATE_ARGS>::IPosLevel LooseOctree<SPP_TEMPLATE_ARGS>::CalcIPosLevel(Aabb aabb) const
+LooseOctree<SPP_TEMPLATE_ARGS>::IPosLevel
+LooseOctree<SPP_TEMPLATE_ARGS>::CalcIPosLevel(Aabb aabb) const
 {
 #define max_comp(V) glm::max(V.x, glm::max(V.y, V.z))
 	const glm::vec3 sizes = (aabb.max - aabb.min) * 0.5f;
@@ -236,7 +242,8 @@ void LooseOctree<SPP_TEMPLATE_ARGS>::RemoveStructureFor(int32_t did)
 
 SPP_TEMPLATE_DECL
 int32_t LooseOctree<SPP_TEMPLATE_ARGS>::CalcChildId(glm::ivec3 parentCenter,
-								 glm::ivec3 childCenter, int32_t childLevel)
+													glm::ivec3 childCenter,
+													int32_t childLevel)
 {
 	const glm::ivec3 s =
 		glm::sign(childCenter - parentCenter) | glm::ivec3(1, 1, 1);
@@ -245,8 +252,8 @@ int32_t LooseOctree<SPP_TEMPLATE_ARGS>::CalcChildId(glm::ivec3 parentCenter,
 	// 	const glm::ivec3 p = (parentCenter - childCenter) >> childLevel;
 	const int32_t ret = (p.x & 1) | ((p.y << 1) & 2) | ((p.z << 2) & 4);
 	// 	printf(" calc child diff: %i %i %i -> %i         from %i %i %i  >  %i %i
-	// %i\n", p.x, p.y, p.z, ret, 			parentPos.x, parentPos.y, parentPos.z,
-	// 			childPos.x, childPos.y, childPos.z
+	// %i\n", p.x, p.y, p.z, ret, 			parentPos.x, parentPos.y,
+	// parentPos.z, 			childPos.x, childPos.y, childPos.z
 	// 			);
 	return ret;
 }
@@ -319,7 +326,7 @@ void LooseOctree<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 
 SPP_TEMPLATE_DECL
 void LooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback &cb,
-										  const int32_t n)
+															 const int32_t n)
 {
 	++cb.nodesTestedCount;
 	if (n == rootNode || (GetAabbOfNode(n) && cb.aabb)) {
@@ -355,8 +362,9 @@ void LooseOctree<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 }
 
 SPP_TEMPLATE_DECL
-void LooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb, const int32_t n,
-										 int32_t level)
+void LooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb,
+															const int32_t n,
+															int32_t level)
 {
 	const Aabb aabb = GetAabbOfNode(n);
 
@@ -415,7 +423,8 @@ void LooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb, con
 }
 
 SPP_TEMPLATE_DECL
-BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *LooseOctree<SPP_TEMPLATE_ARGS>::RestartIterator()
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *
+LooseOctree<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
@@ -454,7 +463,10 @@ bool LooseOctree<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 }
 
 SPP_TEMPLATE_DECL
-bool LooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+bool LooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Valid()
+{
+	return it < data->size();
+}
 
 SPP_DEFINE_VARIANTS(LooseOctree)
 

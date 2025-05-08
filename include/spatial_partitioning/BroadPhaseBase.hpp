@@ -34,10 +34,11 @@ public:
 	virtual ~BroadphaseBase();
 
 	virtual const char *GetName() const = 0;
-	
+
 	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
 	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
-	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+	using BroadphaseBaseIterator =
+		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
 
 public:
 	virtual void Clear() = 0;

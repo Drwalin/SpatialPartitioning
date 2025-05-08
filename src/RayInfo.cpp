@@ -15,11 +15,11 @@ void RayInfo::Calc(glm::vec3 start, glm::vec3 end)
 	dir = end - start;
 	length = glm::length(dir);
 	dirNormalized = glm::normalize(dir);
-	for (int i=0; i<3; ++i) {
+	for (int i = 0; i < 3; ++i) {
 		invDir[i] = dir[i] == 0.0f ? 1e18f : 1.0f / dir[i];
 	}
 	signs[0] = invDir[0] < 0.0 ? 1 : 0;
 	signs[1] = invDir[1] < 0.0 ? 1 : 0;
 	signs[2] = invDir[2] < 0.0 ? 1 : 0;
 }
-}
+} // namespace spp

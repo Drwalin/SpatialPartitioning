@@ -18,7 +18,10 @@ SPP_TEMPLATE_DECL
 BulletDbvt<SPP_TEMPLATE_ARGS>::~BulletDbvt() { Clear(); }
 
 SPP_TEMPLATE_DECL
-const char *BulletDbvt<SPP_TEMPLATE_ARGS>::GetName() const { return "BulletDbvt"; }
+const char *BulletDbvt<SPP_TEMPLATE_ARGS>::GetName() const
+{
+	return "BulletDbvt";
+}
 
 SPP_TEMPLATE_DECL
 void BulletDbvt<SPP_TEMPLATE_ARGS>::Clear()
@@ -55,7 +58,8 @@ void BulletDbvt<SPP_TEMPLATE_ARGS>::IncrementalOptimize(int iterations)
 }
 
 SPP_TEMPLATE_DECL
-void BulletDbvt<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
+void BulletDbvt<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb,
+										MaskType mask)
 {
 	assert(Exists(entity) == false);
 
@@ -156,9 +160,7 @@ void BulletDbvt<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 	class btDbvtAabbCb final : public bullet::btDbvt::ICollide
 	{
 	public:
-		btDbvtAabbCb(BulletDbvt *bp, AabbCallback *cb) : bp(bp), cb(cb)
-		{
-		}
+		btDbvtAabbCb(BulletDbvt *bp, AabbCallback *cb) : bp(bp), cb(cb) {}
 		virtual ~btDbvtAabbCb() {}
 		virtual void Process(const bullet::btDbvtNode *leaf) override
 		{
@@ -250,7 +252,8 @@ void BulletDbvt<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 }
 
 SPP_TEMPLATE_DECL
-BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *BulletDbvt<SPP_TEMPLATE_ARGS>::RestartIterator()
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *
+BulletDbvt<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
@@ -290,8 +293,11 @@ bool BulletDbvt<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 }
 
 SPP_TEMPLATE_DECL
-bool BulletDbvt<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+bool BulletDbvt<SPP_TEMPLATE_ARGS>::Iterator::Valid()
+{
+	return it < data->size();
+}
 
 SPP_DEFINE_VARIANTS(BulletDbvt)
-	
+
 } // namespace spp

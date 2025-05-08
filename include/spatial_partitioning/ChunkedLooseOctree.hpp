@@ -23,11 +23,11 @@ SPP_TEMPLATE_DECL
 class ChunkedLooseOctree final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
-	
 	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
 	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
-	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
-	
+	using BroadphaseBaseIterator =
+		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+
 	ChunkedLooseOctree(int32_t chunkSize = 32, int32_t worldSize = 1024,
 					   float loosness = 1.3f);
 	virtual ~ChunkedLooseOctree();
@@ -87,8 +87,7 @@ private:
 	glm::ivec4 GetNodePosSize(Aabb aabb) const;
 	bool FitsInChunk(Aabb aabb) const;
 
-	void _Internal_IntersectAabb(AabbCallback &cb,
-								 const int32_t nodeId);
+	void _Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 
 private:
@@ -161,6 +160,6 @@ private:
 };
 
 SPP_EXTERN_VARIANTS(ChunkedLooseOctree)
-	
+
 } // namespace experimental
 } // namespace spp

@@ -14,16 +14,17 @@ SPP_TEMPLATE_DECL
 class BroadphaseBase;
 
 SPP_TEMPLATE_DECL
-class AabbCallback {
+class AabbCallback
+{
 public:
 	AabbCallback() = default;
 	~AabbCallback() = default;
 
 	bool IsRelevant(AabbCentered aabb) const;
 	bool IsRelevant(Aabb aabb) const;
-	
+
 	void ExecuteCallback(EntityType entity);
-	
+
 	bool ExecuteIfRelevant(AabbCentered aabb, EntityType entity);
 	bool ExecuteIfRelevant(Aabb aabb, EntityType entity);
 
@@ -57,7 +58,8 @@ struct RayPartialResult {
 };
 
 SPP_TEMPLATE_DECL
-class RayCallback : public RayInfo {
+class RayCallback : public RayInfo
+{
 public:
 	RayCallback() = default;
 	~RayCallback() = default;
@@ -93,7 +95,8 @@ public:
 };
 
 SPP_TEMPLATE_DECL
-class RayCallbackFirstHit : public RayCallback<SPP_TEMPLATE_ARGS> {
+class RayCallbackFirstHit : public RayCallback<SPP_TEMPLATE_ARGS>
+{
 public:
 	RayCallbackFirstHit() = default;
 	~RayCallbackFirstHit() = default;

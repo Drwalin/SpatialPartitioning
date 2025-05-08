@@ -46,7 +46,8 @@ void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::IncrementalOptimize(int iterations)
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Add(EntityType entity, Aabb aabb, MaskType mask)
+void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Add(EntityType entity, Aabb aabb,
+										 MaskType mask)
 {
 	assert(Exists(entity) == false);
 
@@ -160,7 +161,8 @@ void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::IntersectRay(RayCallback &cb)
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::RestartIterator()
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *
+Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
@@ -200,7 +202,10 @@ bool Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Iterator::FetchData()
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-bool Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Iterator::Valid() { return it < data->size(); }
+bool Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Iterator::Valid()
+{
+	return it < data->size();
+}
 
 SPP_DEFINE_VARIANTS_OFFSET(Dbvt)
 

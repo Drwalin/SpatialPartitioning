@@ -25,9 +25,10 @@ namespace spp
 {
 
 SPP_TEMPLATE_DECL
-ThreeStageDbvh<SPP_TEMPLATE_ARGS>::ThreeStageDbvh(std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> optimised,
-							   std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> rebuilding,
-							   std::unique_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> &&dynamic)
+ThreeStageDbvh<SPP_TEMPLATE_ARGS>::ThreeStageDbvh(
+	std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> optimised,
+	std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> rebuilding,
+	std::unique_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> &&dynamic)
 	: iterator(*this)
 {
 	this->_finishedRebuilding = std::make_shared<std::atomic<bool>>();
@@ -49,9 +50,12 @@ SPP_TEMPLATE_DECL
 ThreeStageDbvh<SPP_TEMPLATE_ARGS>::~ThreeStageDbvh() {}
 
 SPP_TEMPLATE_DECL
-const char *ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetName() const {
+const char *ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetName() const
+{
 	thread_local char n[1024];
-	snprintf(n, 1023, "ThreeStageDbvh %s%s %s [%i]", _rebuild.get()?"":"(NO_REBUILD_STAGE) ", optimised->GetName(), dynamic->GetName(), dynamic->GetCount());
+	snprintf(n, 1023, "ThreeStageDbvh %s%s %s [%i]",
+			 _rebuild.get() ? "" : "(NO_REBUILD_STAGE) ", optimised->GetName(),
+			 dynamic->GetName(), dynamic->GetCount());
 	return n;
 }
 
@@ -69,7 +73,8 @@ void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Clear()
 SPP_TEMPLATE_DECL
 size_t ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 {
-	return dbvhs[0]->GetMemoryUsage() + (dbvhs[1] ? dbvhs[1]->GetMemoryUsage() : 0lu) +
+	return dbvhs[0]->GetMemoryUsage() +
+		   (dbvhs[1] ? dbvhs[1]->GetMemoryUsage() : 0lu) +
 		   dynamic->GetMemoryUsage() +
 
 		   6 * 32 +
@@ -115,7 +120,8 @@ SPP_TEMPLATE_DECL
 void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::StopFastAdding() { fastAdding = false; }
 
 SPP_TEMPLATE_DECL
-void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb,
+											MaskType mask)
 {
 	assert(Exists(entity) == false);
 
@@ -188,7 +194,8 @@ void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 }
 
 SPP_TEMPLATE_DECL
-void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
+void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity,
+												MaskType mask)
 {
 	if (dynamic->Exists(entity)) {
 		dynamic->SetMask(entity, mask);
@@ -386,7 +393,8 @@ void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::Rebuild()
 }
 
 SPP_TEMPLATE_DECL
-BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *ThreeStageDbvh<SPP_TEMPLATE_ARGS>::RestartIterator()
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *
+ThreeStageDbvh<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
@@ -453,7 +461,8 @@ SPP_TEMPLATE_DECL
 void ThreeStageDbvh<SPP_TEMPLATE_ARGS>::SetRebuildSchedulerFunction(
 	void (*_ScheduleRebuildFunc)(
 		std::shared_ptr<std::atomic<bool>> finishedRebuilding,
-		std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> dbvh, std::shared_ptr<void> data),
+		std::shared_ptr<BroadphaseBase<SPP_TEMPLATE_ARGS>> dbvh,
+		std::shared_ptr<void> data),
 	std::shared_ptr<void> scheduleUpdateUserData)
 {
 	scheduleRebuildFunc = _ScheduleRebuildFunc;

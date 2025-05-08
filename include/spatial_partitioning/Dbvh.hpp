@@ -25,11 +25,11 @@ SPP_TEMPLATE_DECL
 class Dbvh final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
-	
 	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
 	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
-	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
-	
+	using BroadphaseBaseIterator =
+		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+
 	Dbvh();
 	virtual ~Dbvh();
 
@@ -81,8 +81,7 @@ private:
 	Aabb GetIndirectAabb(int32_t nodeId) const;
 	void SetParent(int32_t node, int32_t parent);
 
-	void _Internal_IntersectAabb(AabbCallback &cb,
-								 const int32_t nodeId);
+	void _Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 
 	int32_t CountDepth() const;
@@ -131,5 +130,5 @@ private:
 };
 
 SPP_EXTERN_VARIANTS(Dbvh)
-	
+
 } // namespace spp

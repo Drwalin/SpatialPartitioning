@@ -23,11 +23,11 @@ SPP_TEMPLATE_DECL
 class LooseOctree final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
-	
 	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
 	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
-	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
-	
+	using BroadphaseBaseIterator =
+		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+
 	// example usage LooseOctree(glm::ivec3(1,1,1)<<(levels-1), 1.0, levels)
 	LooseOctree(glm::vec3 offset, int32_t levels, float loosnessFactor = 1.6);
 	virtual ~LooseOctree();
@@ -65,8 +65,7 @@ private:
 	void PruneEmptyEntitiesAtEnd();
 	void UpdateAabb(int32_t entityId);
 
-	void _Internal_IntersectAabb(AabbCallback &cb,
-								 const int32_t nodeId);
+	void _Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId,
 								int32_t level);
 
@@ -138,6 +137,6 @@ private:
 };
 
 SPP_EXTERN_VARIANTS(LooseOctree)
-	
+
 } // namespace experimental
 } // namespace spp

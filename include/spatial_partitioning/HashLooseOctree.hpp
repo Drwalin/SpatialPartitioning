@@ -27,11 +27,11 @@ SPP_TEMPLATE_DECL
 class HashLooseOctree final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
-	
 	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
 	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
-	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
-	
+	using BroadphaseBaseIterator =
+		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+
 	HashLooseOctree(float resolution, int32_t levels,
 					float loosenessFactor = 1.5);
 	virtual ~HashLooseOctree();
@@ -104,7 +104,8 @@ private:
 
 	struct Key {
 		Key(const Key &o) : pos(o.pos), level(o.level) {}
-		Key(const HashLooseOctree<SPP_TEMPLATE_ARGS> *bp, glm::ivec3 pos, int32_t level)
+		Key(const HashLooseOctree<SPP_TEMPLATE_ARGS> *bp, glm::ivec3 pos,
+			int32_t level)
 			: pos(pos >> level), level(level)
 		{
 			if (level > bp->levels) {
@@ -132,7 +133,9 @@ private:
 		int32_t level;
 	};
 
-	std::unordered_map<Key, NodeData, typename HashLooseOctree<SPP_TEMPLATE_ARGS>::Key::Hash> nodes;
+	std::unordered_map<Key, NodeData,
+					   typename HashLooseOctree<SPP_TEMPLATE_ARGS>::Key::Hash>
+		nodes;
 
 public:
 	const float loosenessFactor;
@@ -160,6 +163,6 @@ public:
 };
 
 SPP_EXTERN_VARIANTS(HashLooseOctree)
-	
+
 } // namespace experimental
 } // namespace spp

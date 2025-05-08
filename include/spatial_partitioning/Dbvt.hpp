@@ -16,11 +16,11 @@ SPP_TEMPLATE_DECL_OFFSET
 class Dbvt final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
-	
 	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
 	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
-	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
-	
+	using BroadphaseBaseIterator =
+		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+
 	Dbvt();
 	virtual ~Dbvt();
 
@@ -52,13 +52,15 @@ public:
 
 private:
 	void SmallRebuildIfNeeded();
-	
+
 	friend class spp::btDbvt<SPP_TEMPLATE_ARGS_OFFSET>;
 
 private:
 	using Data = spp::btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::Data;
-	
-	AssociativeArray<EntityType, uint32_t, typename btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::Data, false> ents;
+
+	AssociativeArray<EntityType, uint32_t,
+					 typename btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::Data, false>
+		ents;
 	btDbvt<SPP_TEMPLATE_ARGS_OFFSET> dbvt;
 
 	size_t requiresRebuild = 0;
@@ -81,5 +83,5 @@ private:
 };
 
 SPP_EXTERN_VARIANTS_OFFSET(Dbvt)
-	
+
 } // namespace spp

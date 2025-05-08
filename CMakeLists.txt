@@ -13,7 +13,7 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 else()
 endif()
 
-add_subdirectory(thirdparty/glm)
+add_subdirectory(glm)
 
 include_directories(include)
 

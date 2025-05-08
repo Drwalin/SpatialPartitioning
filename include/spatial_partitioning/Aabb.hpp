@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "../../thirdparty/glm/glm/ext/vector_float3.hpp"
-#include "../../thirdparty/glm/glm/common.hpp"
-#include "../../thirdparty/glm/glm/geometric.hpp"
-#include "../../thirdparty/glm/glm/vector_relational.hpp"
+#include "../../glm/glm/ext/vector_float3.hpp"
+#include "../../glm/glm/common.hpp"
+#include "../../glm/glm/geometric.hpp"
+#include "../../glm/glm/vector_relational.hpp"
 
 namespace spp
 {

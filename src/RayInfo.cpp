@@ -2,7 +2,7 @@
 // Copyright (c) 2024-2025 Marek Zalewski aka Drwalin
 // You should have received a copy of the MIT License along with this program.
 
-#include "../thirdparty/glm/glm/geometric.hpp"
+#include "../glm/glm/geometric.hpp"
 
 #include "../include/spatial_partitioning/RayInfo.hpp"
 

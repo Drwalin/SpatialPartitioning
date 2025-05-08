@@ -8,8 +8,8 @@
 
 #include <memory>
 
-#include "../../thirdparty/glm/glm/ext/vector_int3.hpp"
-#include "../../thirdparty/glm/glm/ext/vector_int4.hpp"
+#include "../../glm/glm/ext/vector_int3.hpp"
+#include "../../glm/glm/ext/vector_int4.hpp"
 
 #include "AssociativeArray.hpp"
 #include "BvhMedianSplitHeap.hpp"

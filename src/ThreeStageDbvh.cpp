@@ -21,9 +21,6 @@ bool Assert(bool condition, const char *text, const char *function,
 #define ASSERT(COND)                                                           \
 	Assert(COND, #COND, __PRETTY_FUNCTION__, __FILE__, __LINE__)
 
-// #undef assert
-// #define assert(COND) ASSERT(COND)
-
 namespace spp
 {
 
@@ -54,7 +51,7 @@ ThreeStageDbvh<SPP_TEMPLATE_ARGS>::~ThreeStageDbvh() {}
 SPP_TEMPLATE_DECL
 const char *ThreeStageDbvh<SPP_TEMPLATE_ARGS>::GetName() const {
 	thread_local char n[1024];
-	snprintf(n, 1023, "ThreeStageDbvh %s %s [%i]", optimised->GetName(), dynamic->GetName(), dynamic->GetCount());
+	snprintf(n, 1023, "ThreeStageDbvh %s%s %s [%i]", _rebuild.get()?"":"(NO_REBUILD_STAGE) ", optimised->GetName(), dynamic->GetName(), dynamic->GetCount());
 	return n;
 }
 

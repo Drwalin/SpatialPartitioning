@@ -415,6 +415,9 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 
 			for (int j = 0; j < MIXED_UPDATE_COUNT; ++j, ++i) {
 				auto e = ee[i];
+				if (Random(s, i) % 17 > 15) {
+					e = (Random(s, i) % (MAX_ENTITIES-1)) + 1;
+				}
 				if (((i * MIXED_UPDATE_COUNT) / stride + j) % 55 == 0 ||
 					broadphase->Exists(e) == false) {
 					if (broadphase->Exists(e) == false) {
@@ -1128,24 +1131,26 @@ int main(int argc, char **argv)
 				   "\t-mixed-ray-count=\n"
 				   "\t-mixed-update-count=\n"
 				   "\t-benchmark\n"
-				   "\tBF          - BruteForce\n"
-				   "\tBVH         - BvhMedianSplitHeap\n"
-				   "\tBVH1        - BvhMedianSplitHeap1\n"
-				   "\tDBVT        - Rewritten btDbvt from Bullet\n"
-				   "\tDBVH        - Dbvh (DynamicBoundingVolumeHierarchy)\n"
-				   "\tBTDBVH      - BulletDbvh (Bullet dbvh - two stages)\n"
-				   "\tBTDBVT      - BulletDbvt (Bullet dbvt one stage)\n"
-				   "\tTSH_BF      - ThreeStageDbvh BvhMedian + BruteForce\n"
-				   "\tTSH_BTDBVT  - ThreeStageDbvh BvhMedian + BulletDbvt\n"
-				   "\tTSH_BTDBVT3 - ThreeStageDbvh BulletDbvt + BulletDbvt\n"
-				   "\tTSH_DBVH    - ThreeStageDbvh BvhMedian + Dbvh\n"
-				   "\tTSH_DBVT    - ThreeStageDbvh BvhMedian + Dbvt\n"
-				   "\tTSH_DBVT1   - ThreeStageDbvh BvhMedian1 + Dbvt\n"
-				   "\tTSH_BVH     - ThreeStageDbvh BvhMedian + BvhMedian\n"
-				   "\tTSH_BVH1    - ThreeStageDbvh BvhMedian1 + BvhMedian1 (no schedule)\n"
-				   "\tTSH_DBVT2   - ThreeStageDbvh Dbvt + Dbvt (no schedule)\n"
-				   "\tHLO         - HashedLooseOctree\n"
-				   "\tLO          - LooseOctree\n");
+				   "\tBF              - BruteForce\n"
+				   "\tBVH             - BvhMedianSplitHeap\n"
+				   "\tBVH1            - BvhMedianSplitHeap1\n"
+				   "\tDBVT            - Rewritten btDbvt from Bullet\n"
+				   "\tDBVH            - Dbvh (DynamicBoundingVolumeHierarchy)\n"
+				   "\tBTDBVH          - BulletDbvh (Bullet dbvh - two stages)\n"
+				   "\tBTDBVT          - BulletDbvt (Bullet dbvt one stage)\n"
+				   "\tTSH_BF          - ThreeStageDbvh BvhMedian + BruteForce\n"
+				   "\tTSH_BTDBVT      - ThreeStageDbvh BvhMedian + BulletDbvt\n"
+				   "\tTSH_BTDBVT3     - ThreeStageDbvh BulletDbvt + BulletDbvt\n"
+				   "\tTSH_DBVH        - ThreeStageDbvh BvhMedian + Dbvh\n"
+				   "\tTSH_DBVT        - ThreeStageDbvh BvhMedian + Dbvt\n"
+				   "\tTSH_DBVT1       - ThreeStageDbvh BvhMedian1 + Dbvt\n"
+				   "\tTSH_BVH         - ThreeStageDbvh BvhMedian + BvhMedian\n"
+				   "\tTSH_BVH1        - ThreeStageDbvh BvhMedian1 + BvhMedian1 (no schedule)\n"
+				   "\tTSH_DBVT2       - ThreeStageDbvh Dbvt + Dbvt (no schedule)\n"
+				   "\tTSH_BTDBVT2     - ThreeStageDbvh BulletDbvt + BulletDbvt (no schedule)\n"
+				   "\tTSH_1_BVH1_DBVT - ThreeStageDbvh BvhMedian1 + BvhMedian1 (no schedule)\n"
+				   "\tHLO             - HashedLooseOctree\n"
+				   "\tLO              - LooseOctree\n");
 			return 0;
 		} else if (std::string(argv[i]).starts_with("-random-seed=random")) {
 			std::random_device rd;
@@ -1265,7 +1270,19 @@ int main(int argc, char **argv)
 					nullptr,//std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
 					std::make_unique<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(0));
 				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_1_BVH1_DBVT") == false) {
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
+					nullptr,//std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
+					std::make_unique<spp::Dbvt<spp::Aabb, EntityType, uint32_t, 0, uint32_t>>());
+				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "TSH_DBVT2") == false) {
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::Dbvt<spp::Aabb, EntityType, uint32_t, 0, uint32_t>>(),
+					nullptr,//std::make_shared<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>(),
+					std::make_unique<spp::Dbvt<spp::Aabb, EntityType, uint32_t, 0, uint32_t>>());
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_BTDBVT2") == false) {
 				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
 					std::make_shared<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>(),
 					nullptr,//std::make_shared<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>(),

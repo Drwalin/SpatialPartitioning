@@ -8,7 +8,7 @@
 
 #include <unordered_map>
 
-#include "../../thirdparty/glm/glm/ext/vector_int3.hpp"
+#include "../../glm/glm/ext/vector_int3.hpp"
 
 #include "AssociativeArray.hpp"
 #include "BroadPhaseBase.hpp"

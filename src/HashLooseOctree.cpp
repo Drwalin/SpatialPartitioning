@@ -7,7 +7,7 @@
 
 #include <bit>
 
-#include "../../thirdparty/glm/glm/ext/vector_int3.hpp"
+#include "../glm/glm/ext/vector_int3.hpp"
 
 #include "../include/spatial_partitioning/HashLooseOctree.hpp"
 

@@ -15,7 +15,8 @@ class HashMap : public std::unordered_map<K, V, Hash, Equal>
 public:
 	using Map = std::unordered_map<K, V, Hash, Equal>;
 
-	template <typename... Args> HashMap(Args&&... args) : Map(std::forward(args)...)
+	template <typename... Args>
+	HashMap(Args &&...args) : Map(std::forward(args)...)
 	{
 	}
 

@@ -7,12 +7,18 @@
 namespace spp
 {
 SPP_TEMPLATE_DECL
-BruteForce<SPP_TEMPLATE_ARGS>::BruteForce() : iterator(*this) { entitiesData[0] = {{}, 0, 0}; }
+BruteForce<SPP_TEMPLATE_ARGS>::BruteForce() : iterator(*this)
+{
+	entitiesData[0] = {{}, 0, 0};
+}
 SPP_TEMPLATE_DECL
 BruteForce<SPP_TEMPLATE_ARGS>::~BruteForce() {}
 
 SPP_TEMPLATE_DECL
-const char *BruteForce<SPP_TEMPLATE_ARGS>::GetName() const { return "BruteForce"; }
+const char *BruteForce<SPP_TEMPLATE_ARGS>::GetName() const
+{
+	return "BruteForce";
+}
 
 SPP_TEMPLATE_DECL
 void BruteForce<SPP_TEMPLATE_ARGS>::Clear() { entitiesData.Clear(); }
@@ -24,10 +30,14 @@ size_t BruteForce<SPP_TEMPLATE_ARGS>::GetMemoryUsage() const
 }
 
 SPP_TEMPLATE_DECL
-void BruteForce<SPP_TEMPLATE_ARGS>::ShrinkToFit() { entitiesData.ShrinkToFit(); }
+void BruteForce<SPP_TEMPLATE_ARGS>::ShrinkToFit()
+{
+	entitiesData.ShrinkToFit();
+}
 
 SPP_TEMPLATE_DECL
-void BruteForce<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
+void BruteForce<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb,
+										MaskType mask)
 {
 	assert(Exists(entity) == false);
 	entitiesData.Add(entity, Data{aabb, entity, mask});
@@ -66,7 +76,10 @@ void BruteForce<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
 }
 
 SPP_TEMPLATE_DECL
-int32_t BruteForce<SPP_TEMPLATE_ARGS>::GetCount() const { return entitiesData.Size(); }
+int32_t BruteForce<SPP_TEMPLATE_ARGS>::GetCount() const
+{
+	return entitiesData.Size();
+}
 
 SPP_TEMPLATE_DECL
 bool BruteForce<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
@@ -141,7 +154,8 @@ void BruteForce<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 }
 
 SPP_TEMPLATE_DECL
-BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *BruteForce<SPP_TEMPLATE_ARGS>::RestartIterator()
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *
+BruteForce<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
@@ -180,7 +194,10 @@ bool BruteForce<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 }
 
 SPP_TEMPLATE_DECL
-bool BruteForce<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < map->_Data()._Data().size(); }
+bool BruteForce<SPP_TEMPLATE_ARGS>::Iterator::Valid()
+{
+	return it < map->_Data()._Data().size();
+}
 
 SPP_DEFINE_VARIANTS(BruteForce)
 

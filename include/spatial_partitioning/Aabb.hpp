@@ -36,10 +36,8 @@ public:
 	inline glm::vec3 GetSizes() const { return max - min; }
 	inline glm::vec3 GetMin() const { return min; }
 	inline glm::vec3 GetMax() const { return max; }
-	
-	inline Aabb Expanded(float by) const {
-		return {min-by, max+by};
-	}
+
+	inline Aabb Expanded(float by) const { return {min - by, max + by}; }
 
 	inline bool HasIntersection(const Aabb &r, float eps = 0.0f) const
 	{
@@ -71,10 +69,11 @@ public:
 						glm::lessThanEqual(r.max, max + eps));
 	}
 
-	inline bool FastRayTestCenter(const glm::vec3 &ro, const glm::vec3 &rd, const glm::vec3 &invDir,
-							float length, float &near, float &far) const;
+	inline bool FastRayTestCenter(const glm::vec3 &ro, const glm::vec3 &rd,
+								  const glm::vec3 &invDir, float length,
+								  float &near, float &far) const;
 	inline bool SlowRayTestCenter(const glm::vec3 &start, const glm::vec3 &end,
-							float &near, float &far) const;
+								  float &near, float &far) const;
 
 	inline bool FastRayTest2(const glm::vec3 &ro, const glm::vec3 &invDir,
 							 const int raySign[3], float &near,
@@ -84,7 +83,7 @@ public:
 		alignas(16) glm::vec3 bounds[2] = {min, max}; //{min - ro, max - ro};
 		alignas(16) glm::vec3 tmin, tmax;
 
-		for (int i=0; i<2; ++i) {
+		for (int i = 0; i < 2; ++i) {
 			tmin[i] = (bounds[raySign[i]][i] - ro[i]) * invDir[i];
 			tmax[i] = (bounds[1 - raySign[i]][i] - ro[i]) * invDir[i];
 		}
@@ -98,14 +97,14 @@ public:
 		if (tmax.y < tmax.x)
 			tmax.x = tmax.y;
 
-		for (int i=2; i<3; ++i) {
+		for (int i = 2; i < 3; ++i) {
 			tmin[i] = (bounds[raySign[i]][i] - ro[i]) * invDir[i];
 			tmax[i] = (bounds[1 - raySign[i]][i] - ro[i]) * invDir[i];
 		}
 
 		if ((tmin.x > tmax.z) || (tmin.z > tmax.x))
 			return false;
-		
+
 		if (tmin.z > tmin.x)
 			tmin.x = tmin.z;
 		if (tmax.z < tmax.x)
@@ -126,8 +125,8 @@ public:
 		return true;
 	}
 
-	inline bool FastRayTest2(const glm::vec3 &ro, const glm::vec3 &invDir, float &near,
-							 float &far) const
+	inline bool FastRayTest2(const glm::vec3 &ro, const glm::vec3 &invDir,
+							 float &near, float &far) const
 	{
 		int signs[3] = {invDir[0] < 0.0, invDir[1] < 0.0, invDir[2] < 0.0};
 		return FastRayTest2(ro, invDir, signs, near, far);
@@ -142,7 +141,7 @@ public:
 	}
 
 	inline operator AabbCentered() const;
-	
+
 public:
 	inline bool operator&&(const Aabb &r) const { return HasIntersection(r); }
 	inline bool operator&&(const glm::vec3 &r) const { return IsIn(r); }
@@ -176,9 +175,10 @@ public:
 		const glm::vec3 v = halfSize;
 		return (v.x * v.y + v.x * v.z + v.y * v.z) * 2.0f * 4.0f;
 	}
-	
-	inline AabbCentered Expanded(float by) const {
-		return {center, halfSize+by};
+
+	inline AabbCentered Expanded(float by) const
+	{
+		return {center, halfSize + by};
 	}
 
 	inline glm::vec3 GetCenter() const { return center; }
@@ -194,8 +194,8 @@ public:
 
 	inline bool IsIn(const glm::vec3 &r, float eps = 0.0f) const
 	{
-		return glm::all(glm::lessThanEqual(glm::abs(center - r),
-										   halfSize + eps));
+		return glm::all(
+			glm::lessThanEqual(glm::abs(center - r), halfSize + eps));
 	}
 	inline Aabb Intersection(const AabbCentered &r) const
 	{
@@ -216,8 +216,9 @@ public:
 			glm::abs(center - r.center) + r.halfSize, halfSize + eps));
 	}
 
-	inline bool FastRayTestCenter(const glm::vec3 &_ro, const glm::vec3 &rd, const glm::vec3 &invDir,
-							float length, float &near, float &far) const
+	inline bool FastRayTestCenter(const glm::vec3 &_ro, const glm::vec3 &rd,
+								  const glm::vec3 &invDir, float length,
+								  float &near, float &far) const
 	{
 		const glm::vec3 rad = halfSize;
 		const glm::vec3 ro = _ro - center;
@@ -247,7 +248,7 @@ public:
 	}
 
 	inline bool SlowRayTestCenter(const glm::vec3 &start, const glm::vec3 &end,
-							float &near, float &far) const
+								  float &near, float &far) const
 	{
 		const glm::vec3 dir = end - start;
 		const float len = glm::length(dir);
@@ -283,15 +284,16 @@ inline Aabb::operator AabbCentered() const
 }
 
 inline bool Aabb::FastRayTestCenter(const glm::vec3 &ro, const glm::vec3 &rd,
-							  const glm::vec3 &invDir, float length, float &near,
-							  float &far) const
+									const glm::vec3 &invDir, float length,
+									float &near, float &far) const
 {
 	return ((AabbCentered) * this)
 		.FastRayTestCenter(ro, rd, invDir, length, near, far);
 }
 
-inline bool Aabb::SlowRayTestCenter(const glm::vec3 &start, const glm::vec3 &end,
-							  float &near, float &far) const
+inline bool Aabb::SlowRayTestCenter(const glm::vec3 &start,
+									const glm::vec3 &end, float &near,
+									float &far) const
 {
 	return ((AabbCentered) * this).SlowRayTestCenter(start, end, near, far);
 }

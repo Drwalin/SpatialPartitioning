@@ -29,7 +29,7 @@ namespace spp
 {
 typedef std::vector<uint32_t> tNodeArray;
 
-template<typename Aabb>
+template <typename Aabb>
 inline void SignedExpand(Aabb &aabb, const glm::vec3 &e)
 {
 	if (e.x > 0)
@@ -46,14 +46,12 @@ inline void SignedExpand(Aabb &aabb, const glm::vec3 &e)
 		aabb.min.z = aabb.min.z + e.z;
 }
 
-template<typename Aabb>
-inline bool Contain(const Aabb &aabb, const Aabb &a)
+template <typename Aabb> inline bool Contain(const Aabb &aabb, const Aabb &a)
 {
 	return aabb.ContainsAll(a);
 }
 
-template<typename Aabb>
-inline float Proximity(const Aabb &a, const Aabb &b)
+template <typename Aabb> inline float Proximity(const Aabb &a, const Aabb &b)
 {
 	const glm::vec3 d = (a.min + a.max) - (b.min + b.max);
 	return (glm::abs(d.x) + glm::abs(d.y) + glm::abs(d.z));
@@ -64,11 +62,13 @@ inline int Select(const Aabb &o, const Aabb &a, const Aabb &b)
 	return (Proximity(o, a) < Proximity(o, b) ? 0 : 1);
 }
 
-template<typename Aabb>
-inline void Merge(const Aabb &a, const Aabb &b, Aabb &r) { r = a + b; }
+template <typename Aabb>
+inline void Merge(const Aabb &a, const Aabb &b, Aabb &r)
+{
+	r = a + b;
+}
 
-template<typename Aabb>
-inline bool NotEqual(const Aabb &a, const Aabb &b)
+template <typename Aabb> inline bool NotEqual(const Aabb &a, const Aabb &b)
 {
 	return ((a.min.x != b.min.x) || (a.min.y != b.min.y) ||
 			(a.min.z != b.min.z) || (a.max.x != b.max.x) ||
@@ -100,10 +100,16 @@ int btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::indexofNode(uint32_t node) const
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-bool btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::isLeaf(uint32_t node) { return node & OFFSET; }
+bool btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::isLeaf(uint32_t node)
+{
+	return node & OFFSET;
+}
 
 SPP_TEMPLATE_DECL_OFFSET
-bool btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::isInternal(uint32_t node) { return !isLeaf(node); }
+bool btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::isInternal(uint32_t node)
+{
+	return !isLeaf(node);
+}
 
 SPP_TEMPLATE_DECL_OFFSET
 Aabb btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::getAabb(uint32_t node) const
@@ -164,13 +170,15 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::setParent(uint32_t node, uint32_t parent)
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::setNodeParent(uint32_t node, uint32_t parent)
+void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::setNodeParent(uint32_t node,
+													 uint32_t parent)
 {
 	nodes[node].parent = parent;
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::setLeafParent(uint32_t leaf, uint32_t parent)
+void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::setLeafParent(uint32_t leaf,
+													 uint32_t parent)
 {
 	(*ents)[leaf - OFFSET].parent = parent;
 }
@@ -223,7 +231,8 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::deletenode(const uint32_t node)
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-uint32_t btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::createnode(uint32_t parent, const Aabb &aabb)
+uint32_t btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::createnode(uint32_t parent,
+													  const Aabb &aabb)
 {
 	if (nodes[0].childs[0] != 0) {
 		const uint32_t node = nodes[0].childs[0];
@@ -247,17 +256,23 @@ uint32_t btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::createnode(uint32_t parent, const Aab
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-uint32_t btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::createnode(uint32_t parent) { return createnode(parent, {}); }
+uint32_t btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::createnode(uint32_t parent)
+{
+	return createnode(parent, {});
+}
 
 SPP_TEMPLATE_DECL_OFFSET
-uint32_t btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::createnode(uint32_t parent, const Aabb &aabb0,
-							const Aabb &aabb1)
+uint32_t btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::createnode(uint32_t parent,
+													  const Aabb &aabb0,
+													  const Aabb &aabb1)
 {
 	return createnode(parent, aabb0 + aabb1);
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::insertleaf(uint32_t root, const uint32_t leaf, const Aabb &aabb)
+void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::insertleaf(uint32_t root,
+												  const uint32_t leaf,
+												  const Aabb &aabb)
 {
 	assert(!ContainsRecurence(leaf));
 	assert(leaf);
@@ -283,7 +298,7 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::insertleaf(uint32_t root, const uint32_t 
 			{
 				const int i = indexofLeaf(sibling);
 				assert(nodes[parent].childs[i] == sibling);
-				assert(nodes[parent].childs[1-i] != sibling);
+				assert(nodes[parent].childs[1 - i] != sibling);
 				assert(getParent(nodes[parent].childs[i]) == parent);
 			}
 			nodes[parent].childs[indexofLeaf(sibling)] = node;
@@ -318,7 +333,7 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::insertleaf(uint32_t root, const uint32_t 
 		const uint32_t p = getLeafParent(leaf);
 		const int i = indexofLeaf(leaf);
 		assert(nodes[p].childs[i] == leaf);
-		assert(nodes[p].childs[1-i] != leaf);
+		assert(nodes[p].childs[1 - i] != leaf);
 	} else {
 		assert(rootId == leaf);
 	}
@@ -348,7 +363,7 @@ uint32_t btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::removeleaf(const uint32_t leaf)
 			while (_prev) {
 				const Aabb pb = getNodeAabb(_prev);
 				nodes[_prev].aabb = getAabb(nodes[_prev].childs[0]) +
-								   getAabb(nodes[_prev].childs[1]);
+									getAabb(nodes[_prev].childs[1]);
 				if (NotEqual(pb, nodes[_prev].aabb)) {
 					_prev = getNodeParent(_prev);
 				} else
@@ -399,17 +414,18 @@ uint32_t btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::sort(const uint32_t n, uint32_t &r)
 		nodes[n].childs[i] = p;
 		nodes[n].childs[j] = s;
 		std::swap(nodes[p].aabb, nodes[n].aabb);
-		
+
 		assert(getParent(nodes[n].childs[0]) == n);
 		assert(getParent(nodes[n].childs[1]) == n);
-		
+
 		return (p);
 	}
 	return (n);
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::btDbvt(spp::Dbvt<SPP_TEMPLATE_ARGS_OFFSET> *dbvt)
+btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::btDbvt(
+	spp::Dbvt<SPP_TEMPLATE_ARGS_OFFSET> *dbvt)
 {
 	ents = &(dbvt->ents);
 	clear();
@@ -449,7 +465,8 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::optimizeIncremental(int passes)
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::insert(const Aabb &aabb, uint32_t entityOffset)
+void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::insert(const Aabb &aabb,
+											  uint32_t entityOffset)
 {
 	uint32_t leaf = getLeafId(entityOffset);
 	assert(!ContainsRecurence(leaf));
@@ -480,7 +497,8 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateLeaf(uint32_t leaf, int lookahead)
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateEntityOffset(uint32_t entityOffset, const Aabb &aabb)
+void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateEntityOffset(uint32_t entityOffset,
+														  const Aabb &aabb)
 {
 	uint32_t leaf = getLeafId(entityOffset);
 	assert(ContainsRecurence(leaf));
@@ -491,15 +509,16 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateEntityOffset(uint32_t entityOffset,
 	}
 
 	assert(!NotEqual((*ents)[entityOffset].aabb, aabb));
-	
+
 	insertleaf(root, leaf, aabb);
 	assert(!isLeaf(getLeafParent(leaf)));
 	IsTreeValid();
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-bool btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateEntityOffset(uint32_t entityOffset, const Aabb &aabb,
-								float margin)
+bool btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateEntityOffset(uint32_t entityOffset,
+														  const Aabb &aabb,
+														  float margin)
 {
 	uint32_t leaf = getLeafId(entityOffset);
 	if (Contain(getLeafAabb(leaf), aabb))
@@ -518,8 +537,8 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::remove(uint32_t entityOffset)
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateOffsetOfEntity(uint32_t oldEntityOffset,
-								  uint32_t newEntityOffset)
+void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateOffsetOfEntity(
+	uint32_t oldEntityOffset, uint32_t newEntityOffset)
 {
 	uint32_t oldLeaf = getLeafId(oldEntityOffset);
 	assert(ContainsRecurence(oldLeaf));
@@ -609,16 +628,17 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::IsTreeValid(uint32_t node) const
 		assert(!isLeaf(getLeafParent(node)));
 		return;
 	}
-	
+
 	assert(getParent(nodes[node].childs[0]) == node);
 	assert(getParent(nodes[node].childs[1]) == node);
-	
+
 	IsTreeValid(nodes[node].childs[0]);
 	IsTreeValid(nodes[node].childs[1]);
 }
 
 SPP_TEMPLATE_DECL_OFFSET
-bool btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::ContainsRecurence(uint32_t node, uint32_t rel) const
+bool btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::ContainsRecurence(uint32_t node,
+														 uint32_t rel) const
 {
 	if (rel == 0) {
 		rel = rootId;
@@ -633,12 +653,12 @@ bool btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::ContainsRecurence(uint32_t node, uint32_t
 		assert(!isLeaf(getLeafParent(rel)));
 		return false;
 	}
-	
+
 	assert(getParent(nodes[rel].childs[0]) == rel);
 	assert(getParent(nodes[rel].childs[1]) == rel);
-	
-	return ContainsRecurence(node, nodes[rel].childs[0])
-	|| ContainsRecurence(node, nodes[rel].childs[1]);
+
+	return ContainsRecurence(node, nodes[rel].childs[0]) ||
+		   ContainsRecurence(node, nodes[rel].childs[1]);
 }
 
 SPP_DEFINE_VARIANTS_OFFSET(btDbvt)

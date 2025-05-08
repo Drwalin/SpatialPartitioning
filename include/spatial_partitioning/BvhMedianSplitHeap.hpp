@@ -24,15 +24,15 @@ namespace spp
  *
  * Tree is perfectly balanced due to heap use as nodes storage
  */
-SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS=0)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS = 0)
 class BvhMedianSplitHeap final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
-	
 	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
 	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
-	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
-	
+	using BroadphaseBaseIterator =
+		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+
 	BvhMedianSplitHeap(EntityType denseEntityRange);
 	virtual ~BvhMedianSplitHeap();
 
@@ -67,7 +67,7 @@ public:
 	virtual void Rebuild() override;
 
 	virtual BroadphaseBaseIterator *RestartIterator() override;
-	
+
 public:
 	struct RebuildProgress {
 		int32_t stack[64];
@@ -84,8 +84,7 @@ private:
 	void RebuildNode(int32_t nodeId);
 	int32_t RebuildNodePartial(int32_t nodeId, int32_t *tcount);
 
-	void _Internal_IntersectAabb(AabbCallback &cb,
-								 const int32_t nodeId);
+	void _Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 
 private:
@@ -129,5 +128,5 @@ private:
 
 SPP_EXTERN_VARIANTS_MORE(BvhMedianSplitHeap, 0)
 SPP_EXTERN_VARIANTS_MORE(BvhMedianSplitHeap, 1)
-	
+
 } // namespace spp

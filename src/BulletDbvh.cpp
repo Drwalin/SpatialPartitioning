@@ -11,7 +11,8 @@ namespace spp
 {
 
 SPP_TEMPLATE_DECL
-BulletDbvh<SPP_TEMPLATE_ARGS>::BulletDbvh() : broadphase(&cache), iterator(*this)
+BulletDbvh<SPP_TEMPLATE_ARGS>::BulletDbvh()
+	: broadphase(&cache), iterator(*this)
 {
 	broadphase.m_deferedcollide = true;
 }
@@ -19,7 +20,10 @@ SPP_TEMPLATE_DECL
 BulletDbvh<SPP_TEMPLATE_ARGS>::~BulletDbvh() { Clear(); }
 
 SPP_TEMPLATE_DECL
-const char *BulletDbvh<SPP_TEMPLATE_ARGS>::GetName() const { return "BulletDbvh"; }
+const char *BulletDbvh<SPP_TEMPLATE_ARGS>::GetName() const
+{
+	return "BulletDbvh";
+}
 
 SPP_TEMPLATE_DECL
 void BulletDbvh<SPP_TEMPLATE_ARGS>::Clear()
@@ -69,7 +73,8 @@ void BulletDbvh<SPP_TEMPLATE_ARGS>::IncrementalOptimize(int iterations)
 }
 
 SPP_TEMPLATE_DECL
-void BulletDbvh<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
+void BulletDbvh<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb,
+										MaskType mask)
 {
 	int32_t offset = ents.Add(entity, Data{aabb, entity, mask});
 	aabb = aabb.Expanded(BIG_EPSILON);
@@ -142,7 +147,11 @@ SPP_TEMPLATE_DECL
 class btAabbCb final : public bullet::btBroadphaseAabbCallback
 {
 public:
-	btAabbCb(BulletDbvh<SPP_TEMPLATE_ARGS> *bp, AabbCallback<SPP_TEMPLATE_ARGS> *cb) : bp(bp), cb(cb) {}
+	btAabbCb(BulletDbvh<SPP_TEMPLATE_ARGS> *bp,
+			 AabbCallback<SPP_TEMPLATE_ARGS> *cb)
+		: bp(bp), cb(cb)
+	{
+	}
 	virtual ~btAabbCb() {}
 	virtual bool process(const bullet::btBroadphaseProxy *p) override
 	{
@@ -178,7 +187,9 @@ SPP_TEMPLATE_DECL
 class btRayCb final : public bullet::btBroadphaseRayCallback
 {
 public:
-	btRayCb(BulletDbvh<SPP_TEMPLATE_ARGS> *bp, RayCallback<SPP_TEMPLATE_ARGS> *cb) : bp(bp), cb(cb)
+	btRayCb(BulletDbvh<SPP_TEMPLATE_ARGS> *bp,
+			RayCallback<SPP_TEMPLATE_ARGS> *cb)
+		: bp(bp), cb(cb)
 	{
 		bullet::btVector3 rayDir = bt(cb->end - cb->start);
 
@@ -240,7 +251,8 @@ void BulletDbvh<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 }
 
 SPP_TEMPLATE_DECL
-BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *BulletDbvh<SPP_TEMPLATE_ARGS>::RestartIterator()
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *
+BulletDbvh<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
@@ -280,8 +292,11 @@ bool BulletDbvh<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 }
 
 SPP_TEMPLATE_DECL
-bool BulletDbvh<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+bool BulletDbvh<SPP_TEMPLATE_ARGS>::Iterator::Valid()
+{
+	return it < data->size();
+}
 
 SPP_DEFINE_VARIANTS(BulletDbvh)
-	
+
 } // namespace spp

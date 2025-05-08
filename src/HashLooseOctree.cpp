@@ -16,9 +16,12 @@ namespace spp
 namespace experimental
 {
 SPP_TEMPLATE_DECL
-HashLooseOctree<SPP_TEMPLATE_ARGS>::HashLooseOctree(float resolution, int32_t levels,
-								 float loosenessFactor)
-	: nodes(12289, typename HashLooseOctree<SPP_TEMPLATE_ARGS>::Key::Hash(this)), loosenessFactor(loosenessFactor),
+HashLooseOctree<SPP_TEMPLATE_ARGS>::HashLooseOctree(float resolution,
+													int32_t levels,
+													float loosenessFactor)
+	: nodes(12289,
+			typename HashLooseOctree<SPP_TEMPLATE_ARGS>::Key::Hash(this)),
+	  loosenessFactor(loosenessFactor),
 	  invLoosenessFactor(1.0f / loosenessFactor), resolution(resolution),
 	  invResolution(1.0f / resolution), levels(levels), iterator(*this)
 {
@@ -31,7 +34,10 @@ SPP_TEMPLATE_DECL
 void HashLooseOctree<SPP_TEMPLATE_ARGS>::Rebuild() {}
 
 SPP_TEMPLATE_DECL
-const char *HashLooseOctree<SPP_TEMPLATE_ARGS>::GetName() const { return "HashLooseOctree"; }
+const char *HashLooseOctree<SPP_TEMPLATE_ARGS>::GetName() const
+{
+	return "HashLooseOctree";
+}
 
 SPP_TEMPLATE_DECL
 void HashLooseOctree<SPP_TEMPLATE_ARGS>::Clear()
@@ -71,7 +77,8 @@ int32_t HashLooseOctree<SPP_TEMPLATE_ARGS>::CalcHashMinLevel(Aabb aabb)
 #define ROT64(V, R) ((V << R) | (V >> (64 - R)))
 
 SPP_TEMPLATE_DECL
-uint64_t HashLooseOctree<SPP_TEMPLATE_ARGS>::Hash(const glm::vec3 pos, int32_t level) const
+uint64_t HashLooseOctree<SPP_TEMPLATE_ARGS>::Hash(const glm::vec3 pos,
+												  int32_t level) const
 {
 	if (level > levels) {
 		return 3141592653589793238lu;
@@ -82,7 +89,8 @@ uint64_t HashLooseOctree<SPP_TEMPLATE_ARGS>::Hash(const glm::vec3 pos, int32_t l
 }
 
 SPP_TEMPLATE_DECL
-uint64_t HashLooseOctree<SPP_TEMPLATE_ARGS>::Hash(const glm::ivec3 pos, int32_t level) const
+uint64_t HashLooseOctree<SPP_TEMPLATE_ARGS>::Hash(const glm::ivec3 pos,
+												  int32_t level) const
 {
 	if (level > levels) {
 		return 3141592653589793238lu;
@@ -96,7 +104,8 @@ uint64_t HashLooseOctree<SPP_TEMPLATE_ARGS>::Hash(const glm::ivec3 pos, int32_t 
 }
 
 SPP_TEMPLATE_DECL
-void HashLooseOctree<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb,
+											 MaskType mask)
 {
 	const int32_t offset = data.Add(entity, {aabb, entity, mask});
 
@@ -248,7 +257,8 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 }
 
 SPP_TEMPLATE_DECL
-void HashLooseOctree<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity,
+												 MaskType mask)
 {
 	const int32_t offset = data.GetOffset(entity);
 	const Aabb aabb = data[offset].aabb;
@@ -271,7 +281,10 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mas
 }
 
 SPP_TEMPLATE_DECL
-int32_t HashLooseOctree<SPP_TEMPLATE_ARGS>::GetCount() const { return data.Size(); }
+int32_t HashLooseOctree<SPP_TEMPLATE_ARGS>::GetCount() const
+{
+	return data.Size();
+}
 
 SPP_TEMPLATE_DECL
 bool HashLooseOctree<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
@@ -300,7 +313,8 @@ MaskType HashLooseOctree<SPP_TEMPLATE_ARGS>::GetMask(EntityType entity) const
 }
 
 SPP_TEMPLATE_DECL
-Aabb HashLooseOctree<SPP_TEMPLATE_ARGS>::CalcLocalAabbOfNode(glm::ivec3 pos, int32_t level)
+Aabb HashLooseOctree<SPP_TEMPLATE_ARGS>::CalcLocalAabbOfNode(glm::ivec3 pos,
+															 int32_t level)
 {
 	Aabb aabb;
 	pos &= ~((1 << level) - 1);
@@ -344,9 +358,8 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 }
 
 SPP_TEMPLATE_DECL
-void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback &cb,
-											  glm::ivec3 pos, int32_t level,
-											  const Aabb &cbaabb)
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(
+	AabbCallback &cb, glm::ivec3 pos, int32_t level, const Aabb &cbaabb)
 {
 	auto it = nodes.find(Key(this, pos, level));
 	if (it == nodes.end()) {
@@ -507,8 +520,9 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 }
 
 SPP_TEMPLATE_DECL
-void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb, glm::ivec3 pos,
-											 int32_t level)
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb,
+																glm::ivec3 pos,
+																int32_t level)
 {
 	auto it = nodes.find(Key(this, pos, level));
 	if (it == nodes.end()) {
@@ -543,7 +557,8 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb,
 		Aabb aabb = {p, p + ihalfSize};
 		float __n, __f;
 		if (aabb.FastRayTestCenter(cb.start * invResolution, cb.dirNormalized,
-							 cb.invDir, cb.length * invResolution, __n, __f)) {
+								   cb.invDir, cb.length * invResolution, __n,
+								   __f)) {
 
 			if (__n < cb.cutFactor) {
 				int j = 0;
@@ -571,8 +586,8 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb,
 }
 
 SPP_TEMPLATE_DECL
-void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Inernal_IntersectRayIterateOverData(RayCallback &cb,
-														   int32_t firstNode)
+void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Inernal_IntersectRayIterateOverData(
+	RayCallback &cb, int32_t firstNode)
 {
 	int32_t n = firstNode;
 	while (n >= 0) {
@@ -581,9 +596,9 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Inernal_IntersectRayIterateOverData(Ra
 			++cb.nodesTestedCount;
 
 			float __n, __f;
-			if (N.aabb.FastRayTestCenter(cb.start * invResolution, cb.dirNormalized,
-								   cb.invDir, cb.length * invResolution, __n,
-								   __f)) {
+			if (N.aabb.FastRayTestCenter(cb.start * invResolution,
+										 cb.dirNormalized, cb.invDir,
+										 cb.length * invResolution, __n, __f)) {
 				cb.ExecuteCallback(N.entity);
 			}
 		}
@@ -592,7 +607,8 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Inernal_IntersectRayIterateOverData(Ra
 }
 
 SPP_TEMPLATE_DECL
-BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *HashLooseOctree<SPP_TEMPLATE_ARGS>::RestartIterator()
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *
+HashLooseOctree<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
@@ -631,7 +647,10 @@ bool HashLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 }
 
 SPP_TEMPLATE_DECL
-bool HashLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+bool HashLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Valid()
+{
+	return it < data->size();
+}
 
 SPP_DEFINE_VARIANTS(HashLooseOctree)
 

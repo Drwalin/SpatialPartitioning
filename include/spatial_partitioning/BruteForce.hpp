@@ -13,11 +13,11 @@ SPP_TEMPLATE_DECL
 class BruteForce final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
-	
 	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
 	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
-	using BroadphaseBaseIterator = spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
-	
+	using BroadphaseBaseIterator =
+		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
+
 	BruteForce();
 	virtual ~BruteForce();
 

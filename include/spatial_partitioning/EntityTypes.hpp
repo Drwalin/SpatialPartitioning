@@ -30,7 +30,7 @@
 	__EXT_TEMPL_CLS CLASS<spp::Aabb, uint64_t, uint32_t, 0, __VA_ARGS__>;
 
 #define SPP_EXTERN_VARIANTS_OFFSET(CLASS)                                      \
-	SPP_EXTERN_VARIANTS_MORE(CLASS, uint32_t);                                        \
+	SPP_EXTERN_VARIANTS_MORE(CLASS, uint32_t);                                 \
 	SPP_EXTERN_VARIANTS_MORE(CLASS, uint16_t);
 
 #define SPP_DEFINE_VARIANTS(CLASS)                                             \

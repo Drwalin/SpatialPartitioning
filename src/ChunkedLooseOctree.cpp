@@ -13,8 +13,9 @@ namespace spp
 namespace experimental
 {
 SPP_TEMPLATE_DECL
-ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::ChunkedLooseOctree(int32_t chunkSize, int32_t worldSize,
-									   float loosness)
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::ChunkedLooseOctree(int32_t chunkSize,
+														  int32_t worldSize,
+														  float loosness)
 	: bigObjects(0), iterator(*this)
 {
 	this->loosness = loosness;
@@ -31,7 +32,10 @@ SPP_TEMPLATE_DECL
 ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::~ChunkedLooseOctree() {}
 
 SPP_TEMPLATE_DECL
-const char *ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetName() const { return "ChunkedLooseOctree"; }
+const char *ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetName() const
+{
+	return "ChunkedLooseOctree";
+}
 
 SPP_TEMPLATE_DECL
 void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Clear()
@@ -60,7 +64,8 @@ void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::ShrinkToFit()
 }
 
 SPP_TEMPLATE_DECL
-void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb, MaskType mask)
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb,
+												MaskType mask)
 {
 	if (FitsInChunk(aabb)) {
 		int32_t offset = data.Add(entity, {aabb, entity, mask});
@@ -119,13 +124,17 @@ void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 }
 
 SPP_TEMPLATE_DECL
-void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity, MaskType mask)
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity,
+													MaskType mask)
 {
 	data[data.GetOffset(entity)].mask = mask;
 }
 
 SPP_TEMPLATE_DECL
-int32_t ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetCount() const { return data.Size(); }
+int32_t ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetCount() const
+{
+	return data.Size();
+}
 
 SPP_TEMPLATE_DECL
 bool ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Exists(EntityType entity) const
@@ -166,8 +175,8 @@ void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 }
 
 SPP_TEMPLATE_DECL
-void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(AabbCallback &cb,
-												 const int32_t nodeId)
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectAabb(
+	AabbCallback &cb, const int32_t nodeId)
 {
 	NodeData &n = nodes[nodeId];
 	++cb.nodesTestedCount;
@@ -209,8 +218,8 @@ void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 }
 
 SPP_TEMPLATE_DECL
-void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb,
-												const int32_t nodeId)
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(
+	RayCallback &cb, const int32_t nodeId)
 {
 	NodeData &n = nodes[nodeId];
 	++cb.nodesTestedCount;
@@ -239,19 +248,22 @@ SPP_TEMPLATE_DECL
 void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Rebuild() { bigObjects.Rebuild(); }
 
 SPP_TEMPLATE_DECL
-glm::ivec3 ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetMaxChunk(glm::vec3 point) const
+glm::ivec3
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetMaxChunk(glm::vec3 point) const
 {
 	return (point + chunkCheckOffset) / (float)chunkSize;
 }
 
 SPP_TEMPLATE_DECL
-glm::ivec3 ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetMinChunk(glm::vec3 point) const
+glm::ivec3
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetMinChunk(glm::vec3 point) const
 {
 	return (point - chunkCheckOffset) / (float)chunkSize;
 }
 
 SPP_TEMPLATE_DECL
-glm::ivec4 ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetNodePosSize(Aabb aabb) const
+glm::ivec4
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetNodePosSize(Aabb aabb) const
 {
 	glm::vec3 s = aabb.max - aabb.min;
 	float sm = glm::max(s.x, glm::max(s.y, s.z)) * loosnessInv;
@@ -288,7 +300,8 @@ int32_t ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunkId(glm::vec3 pos) const
 }
 
 SPP_TEMPLATE_DECL
-int32_t ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunkId(EntityType entity) const
+int32_t
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunkId(EntityType entity) const
 {
 	assert(false);
 	return 0;
@@ -302,7 +315,8 @@ int32_t ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetCreateNodeId(Aabb aabb)
 }
 
 SPP_TEMPLATE_DECL
-void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::AddToChunk(int32_t chunkId, int32_t entityOffset)
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::AddToChunk(int32_t chunkId,
+													   int32_t entityOffset)
 {
 	Data &d = data[entityOffset];
 	chunkId = d.chunkId;
@@ -317,7 +331,8 @@ void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::AddToChunk(int32_t chunkId, int32_t 
 }
 
 SPP_TEMPLATE_DECL
-void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::RemoveFromChunk(int32_t entityOffset)
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::RemoveFromChunk(
+	int32_t entityOffset)
 {
 	int32_t nodeId = data[entityOffset].nodeId;
 	UnlinkFromChunk(entityOffset);
@@ -325,7 +340,8 @@ void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::RemoveFromChunk(int32_t entityOffset
 }
 
 SPP_TEMPLATE_DECL
-void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::UnlinkFromChunk(int32_t entityOffset)
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::UnlinkFromChunk(
+	int32_t entityOffset)
 {
 	Data &d = data[entityOffset];
 	int32_t nodeId = d.nodeId;
@@ -381,14 +397,15 @@ void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::CleanIfEmptyNodes(int32_t nodeId)
 }
 
 SPP_TEMPLATE_DECL
-std::shared_ptr<void> ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunkData(int32_t chunkId)
+std::shared_ptr<void>
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunkData(int32_t chunkId)
 {
 	return chunks[chunkId].userData;
 }
 
 SPP_TEMPLATE_DECL
-void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::SetChunkData(int32_t chunkId,
-									  std::shared_ptr<void> userData)
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::SetChunkData(
+	int32_t chunkId, std::shared_ptr<void> userData)
 {
 	chunks[chunkId].userData = userData;
 	if (userData.get() == nullptr) {
@@ -397,15 +414,16 @@ void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::SetChunkData(int32_t chunkId,
 }
 
 SPP_TEMPLATE_DECL
-void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunks(Aabb aabb, std::vector<int32_t> chunks)
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunks(
+	Aabb aabb, std::vector<int32_t> chunks)
 {
 	assert(false);
 }
 
 SPP_TEMPLATE_DECL
-void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunks(bool (*isIn)(Aabb test, void *testData),
-								   void *testData,
-								   std::vector<int32_t> chunksData)
+void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::GetChunks(
+	bool (*isIn)(Aabb test, void *testData), void *testData,
+	std::vector<int32_t> chunksData)
 {
 	assert(false);
 }
@@ -420,14 +438,16 @@ void ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::ForEachChunkData(
 }
 
 SPP_TEMPLATE_DECL
-BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::RestartIterator()
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
 }
 
 SPP_TEMPLATE_DECL
-ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Iterator(ChunkedLooseOctree &bp)
+ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Iterator(
+	ChunkedLooseOctree &bp)
 {
 	data = &bp.data._Data()._Data();
 	it = 0;
@@ -459,7 +479,10 @@ bool ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::FetchData()
 }
 
 SPP_TEMPLATE_DECL
-bool ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Valid() { return it < data->size(); }
+bool ChunkedLooseOctree<SPP_TEMPLATE_ARGS>::Iterator::Valid()
+{
+	return it < data->size();
+}
 
 SPP_DEFINE_VARIANTS(ChunkedLooseOctree)
 

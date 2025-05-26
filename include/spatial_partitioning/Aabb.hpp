@@ -14,6 +14,8 @@ namespace spp
 inline const float EPSILON = 0.000001f;
 inline const float BIG_EPSILON = 0.02f;
 
+inline const glm::vec3 VEC_INF = {INFINITY, INFINITY, INFINITY};
+
 struct AabbCentered;
 
 struct Aabb {
@@ -21,6 +23,8 @@ struct Aabb {
 	glm::vec3 max;
 
 public:
+	inline bool IsValid() const { return min.x > max.x; }
+	
 	inline float GetVolume() const
 	{
 		const glm::vec3 v = max - min;
@@ -157,6 +161,8 @@ public:
 		return min != r.min || max != r.max;
 	}
 };
+
+inline const Aabb AABB_INVALID = {VEC_INF, -VEC_INF};
 
 struct AabbCentered {
 	glm::vec3 center;

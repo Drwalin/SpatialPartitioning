@@ -10,6 +10,10 @@
 #include <chrono>
 #include <map>
 
+#include "../glm/glm/common.hpp"
+#include "../glm/glm/geometric.hpp"
+#include "../glm/glm/vector_relational.hpp"
+
 #include "../include/spatial_partitioning/BroadPhaseBase.hpp"
 #include "../include/spatial_partitioning/BruteForce.hpp"
 #include "../include/spatial_partitioning/BvhMedianSplitHeap.hpp"
@@ -1084,6 +1088,7 @@ int main(int argc, char **argv)
 	EnqueueRebuildThreaded(nullptr, nullptr, nullptr);
 
 	bool enablePrepass = true;
+	bool enable_memory_shrink_to_fit = false;
 
 	bool customizeStructures = false;
 
@@ -1114,10 +1119,13 @@ int main(int argc, char **argv)
 			MAX_MOVING_ENTITIES = atoll(argv[i] + strlen("-moving-entities="));
 		} else if (argv[i][0] != '-') {
 			customizeStructures = true;
+		} else if (std::string(argv[i]).starts_with("-shrink-to-fit")) {
+			enable_memory_shrink_to_fit = true;
 		} else if (std::string(argv[i]).starts_with("-help")) {
 			printf("Available options:\n"
 				   "\t-disable-prepass\n"
 				   "\t-disable-verification\n"
+				   "\t-shrink-to-fit\n"
 				   "\t-total-entities=\n"
 				   "\t-additional-entities=\n"
 				   "\t-aabb-tests=\n"
@@ -1612,6 +1620,23 @@ int main(int argc, char **argv)
 					   (double)bp->GetMemoryUsage() / (double)bp->GetCount(), bp->GetName());
 			}
 			printf("\n");
+			
+			if (enable_memory_shrink_to_fit) {
+				for (auto bp : broadphases) {
+					auto beg = std::chrono::steady_clock::now();
+					bp->ShrinkToFit();
+					auto end = std::chrono::steady_clock::now();
+					auto diff = end - beg;
+					int64_t ns =
+						std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(
+								diff)
+						.count();
+					double us = double(ns) / 1000.0;
+					printf("shrink to fit: %10.3f us      %s\n", us, bp->GetName());
+				}
+				printf("\n");
+			}
+			
 			fflush(stdout);
 		}
 

@@ -21,6 +21,8 @@ misrepresented as being the original software.
 
 #include <cstdio>
 
+#include "../glm/glm/common.hpp"
+
 #include "../include/spatial_partitioning/Dbvt.hpp"
 
 #include "../include/spatial_partitioning/InternalDbvt.hpp"
@@ -513,18 +515,6 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateEntityOffset(uint32_t entityOffset,
 	insertleaf(root, leaf, aabb);
 	assert(!isLeaf(getLeafParent(leaf)));
 	IsTreeValid();
-}
-
-SPP_TEMPLATE_DECL_OFFSET
-bool btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateEntityOffset(uint32_t entityOffset,
-														  const Aabb &aabb,
-														  float margin)
-{
-	uint32_t leaf = getLeafId(entityOffset);
-	if (Contain(getLeafAabb(leaf), aabb))
-		return (false);
-	updateEntityOffset(leaf, aabb.Expanded(margin));
-	return (true);
 }
 
 SPP_TEMPLATE_DECL_OFFSET

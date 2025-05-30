@@ -8,6 +8,7 @@
 #include <bit>
 
 #include "../glm/glm/ext/vector_int3.hpp"
+#include "../glm/glm/common.hpp"
 
 #include "../include/spatial_partitioning/HashLooseOctree.hpp"
 
@@ -121,7 +122,7 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::Add(EntityType entity, Aabb aabb,
 	}
 
 	int32_t level = CalcHashMinLevel(aabb);
-	const glm::ivec3 pos = aabb.GetCenter() * invResolution;
+	const glm::ivec3 pos = ((glm::vec3)aabb.GetCenter()) * invResolution;
 
 	{
 		NodeData &nd = nodes[Key(this, pos, level)];
@@ -162,8 +163,8 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::Update(EntityType entity, Aabb aabb)
 		return;
 	}
 
-	const glm::ivec3 oldPos = oldAabb.GetCenter() * invResolution;
-	const glm::ivec3 pos = aabb.GetCenter() * invResolution;
+	const glm::ivec3 oldPos = ((glm::vec3)oldAabb.GetCenter()) * invResolution;
+	const glm::ivec3 pos = ((glm::vec3)aabb.GetCenter()) * invResolution;
 
 	if (oldPos == pos) {
 		return;
@@ -222,7 +223,7 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::Remove(EntityType entity)
 	data[offset] = {};
 	int32_t level = CalcHashMinLevel(aabb);
 
-	const glm::ivec3 pos = aabb.GetCenter() * invResolution;
+	const glm::ivec3 pos = ((glm::vec3)aabb.GetCenter()) * invResolution;
 
 	{
 		NodeData &nd = nodes[Key(this, pos, level)];
@@ -266,7 +267,7 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::SetMask(EntityType entity,
 	data[offset] = {};
 	int32_t level = CalcHashMinLevel(aabb);
 
-	const glm::ivec3 pos = aabb.GetCenter() * invResolution;
+	const glm::ivec3 pos = ((glm::vec3)aabb.GetCenter()) * invResolution;
 
 	NodeData &nd = nodes[Key(this, pos, level)];
 	nd.mask |= mask;
@@ -345,8 +346,8 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::IntersectAabb(AabbCallback &cb)
 	 */
 	const float topLevelBorder =
 		((1 << (levels - 1)) * (loosenessFactor - 1.0));
-	glm::ivec3 a = CalcLocalAabbOfNode(cbaabb.min - topLevelBorder, levels).min;
-	glm::ivec3 b = CalcLocalAabbOfNode(cbaabb.max + topLevelBorder, levels).max;
+	glm::ivec3 a = CalcLocalAabbOfNode(cbaabb.min - decltype(Aabb::min)(topLevelBorder), levels).min;
+	glm::ivec3 b = CalcLocalAabbOfNode(cbaabb.max + decltype(Aabb::min)(topLevelBorder), levels).max;
 	const int32_t stride = 1 << levels;
 	for (glm::vec3 p = a; p.x <= b.x; p.x += stride) {
 		for (p.y = a.y; p.y <= b.y; p.y += stride) {
@@ -507,7 +508,7 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::IntersectRay(RayCallback &cb)
 					   margin * dirs[ai[2]];
 			FOR(ai[2])
 			{
-				Aabb aabb = CalcLocalAabbOfNode(p, levels);
+				spp::Aabb aabb = CalcLocalAabbOfNode(p, levels);
 				float __n, __f;
 				if (aabb.FastRayTestCenter(
 						cb.start * invResolution, cb.dirNormalized, cb.invDir,
@@ -554,7 +555,7 @@ void HashLooseOctree<SPP_TEMPLATE_ARGS>::_Internal_IntersectRay(RayCallback &cb,
 		const glm::ivec3 is = {i & 1, (i << 1) & 1, (i << 2) & 1};
 
 		glm::ivec3 p = pos + is * ihalfSize;
-		Aabb aabb = {p, p + ihalfSize};
+		spp::Aabb aabb = {p, p + ihalfSize};
 		float __n, __f;
 		if (aabb.FastRayTestCenter(cb.start * invResolution, cb.dirNormalized,
 								   cb.invDir, cb.length * invResolution, __n,

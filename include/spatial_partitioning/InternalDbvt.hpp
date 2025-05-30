@@ -47,8 +47,6 @@ public:
 
 	void updateLeaf(uint32_t leaf, int lookahead = -1);
 	void updateEntityOffset(uint32_t entityOffset, const Aabb &aabb);
-	bool updateEntityOffset(uint32_t entityOffset, const Aabb &aabb,
-							float margin);
 	void remove(uint32_t entityOffset);
 
 	void updateOffsetOfEntity(uint32_t oldEntityOffset,

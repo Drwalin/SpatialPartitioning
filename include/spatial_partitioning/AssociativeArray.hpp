@@ -55,7 +55,8 @@ public:
 		data.Clear();
 	}
 
-	inline void ShrinkToFit()
+	__attribute__((noinline))
+	void ShrinkToFit()
 	{
 		offsets.ShrinkToFit();
 		data.ShrinkToFit();

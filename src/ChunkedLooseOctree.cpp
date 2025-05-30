@@ -4,6 +4,7 @@
 
 #include <cassert>
 
+#include "../glm/glm/common.hpp"
 #include "../glm/glm/ext/vector_uint3.hpp"
 
 #include "../include/spatial_partitioning/ChunkedLooseOctree.hpp"

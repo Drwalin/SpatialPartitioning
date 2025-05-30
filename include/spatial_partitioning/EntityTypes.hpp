@@ -21,25 +21,49 @@
 #define SPP_TEMPLATE_DECL_OFFSET SPP_TEMPLATE_DECL_MORE(typename OffsetType)
 #define SPP_TEMPLATE_ARGS_OFFSET SPP_TEMPLATE_ARGS_MORE(OffsetType)
 
-#define SPP_EXTERN_VARIANTS(CLASS)                                             \
-	__EXT_TEMPL_CLS CLASS<spp::Aabb, uint32_t, uint32_t, 0>;                   \
-	__EXT_TEMPL_CLS CLASS<spp::Aabb, uint64_t, uint32_t, 0>;
+#define _SPP_EXTERN_VARIANTS_AABBS(CLASS, ...)                                 \
+	__EXT_TEMPL_CLS CLASS<spp::Aabb, __VA_ARGS__>;                                     \
+	__EXT_TEMPL_CLS CLASS<spp::Aabb_i16, __VA_ARGS__>;
+
+#define _SPP_EXTERN_VARIANTS_ENTITY_TYPES(CLASS, ...)                          \
+	_SPP_EXTERN_VARIANTS_AABBS(CLASS, uint16_t, __VA_ARGS__)                   \
+	_SPP_EXTERN_VARIANTS_AABBS(CLASS, uint32_t, __VA_ARGS__)                   \
+	_SPP_EXTERN_VARIANTS_AABBS(CLASS, uint64_t, __VA_ARGS__)
+
+#define _SPP_EXTERN_VARIANTS_MASK_TYPES(CLASS, ...)                            \
+	_SPP_EXTERN_VARIANTS_ENTITY_TYPES(CLASS, uint8_t, __VA_ARGS__)             \
+	_SPP_EXTERN_VARIANTS_ENTITY_TYPES(CLASS, uint16_t, __VA_ARGS__)            \
+	_SPP_EXTERN_VARIANTS_ENTITY_TYPES(CLASS, uint32_t, __VA_ARGS__)            \
+	_SPP_EXTERN_VARIANTS_ENTITY_TYPES(CLASS, uint64_t, __VA_ARGS__)
+
+#define SPP_EXTERN_VARIANTS(CLASS) _SPP_EXTERN_VARIANTS_MASK_TYPES(CLASS, 0)
 
 #define SPP_EXTERN_VARIANTS_MORE(CLASS, ...)                                   \
-	__EXT_TEMPL_CLS CLASS<spp::Aabb, uint32_t, uint32_t, 0, __VA_ARGS__>;      \
-	__EXT_TEMPL_CLS CLASS<spp::Aabb, uint64_t, uint32_t, 0, __VA_ARGS__>;
+	_SPP_EXTERN_VARIANTS_MASK_TYPES(CLASS, 0, __VA_ARGS__)
 
 #define SPP_EXTERN_VARIANTS_OFFSET(CLASS)                                      \
 	SPP_EXTERN_VARIANTS_MORE(CLASS, uint32_t);                                 \
 	SPP_EXTERN_VARIANTS_MORE(CLASS, uint16_t);
 
-#define SPP_DEFINE_VARIANTS(CLASS)                                             \
-	__TEMPL_CLS CLASS<spp::Aabb, uint32_t, uint32_t, 0>;                       \
-	__TEMPL_CLS CLASS<spp::Aabb, uint64_t, uint32_t, 0>;
+#define _SPP_DEFINE_VARIANTS_AABBS(CLASS, ...)                                 \
+	__TEMPL_CLS CLASS<spp::Aabb, __VA_ARGS__>;                                 \
+	__TEMPL_CLS CLASS<spp::Aabb_i16, __VA_ARGS__>;
+
+#define _SPP_DEFINE_VARIANTS_ENTITY_TYPES(CLASS, ...)                          \
+	_SPP_DEFINE_VARIANTS_AABBS(CLASS, uint16_t, __VA_ARGS__)                   \
+	_SPP_DEFINE_VARIANTS_AABBS(CLASS, uint32_t, __VA_ARGS__)                   \
+	_SPP_DEFINE_VARIANTS_AABBS(CLASS, uint64_t, __VA_ARGS__)
+
+#define _SPP_DEFINE_VARIANTS_MASK_TYPES(CLASS, ...)                            \
+	_SPP_DEFINE_VARIANTS_ENTITY_TYPES(CLASS, uint8_t, __VA_ARGS__)             \
+	_SPP_DEFINE_VARIANTS_ENTITY_TYPES(CLASS, uint16_t, __VA_ARGS__)            \
+	_SPP_DEFINE_VARIANTS_ENTITY_TYPES(CLASS, uint32_t, __VA_ARGS__)            \
+	_SPP_DEFINE_VARIANTS_ENTITY_TYPES(CLASS, uint64_t, __VA_ARGS__)
+
+#define SPP_DEFINE_VARIANTS(CLASS) _SPP_DEFINE_VARIANTS_MASK_TYPES(CLASS, 0)
 
 #define SPP_DEFINE_VARIANTS_MORE(CLASS, ...)                                   \
-	__TEMPL_CLS CLASS<spp::Aabb, uint32_t, uint32_t, 0, __VA_ARGS__>;          \
-	__TEMPL_CLS CLASS<spp::Aabb, uint64_t, uint32_t, 0, __VA_ARGS__>;
+	_SPP_DEFINE_VARIANTS_MASK_TYPES(CLASS, 0, __VA_ARGS__)
 
 #define SPP_DEFINE_VARIANTS_OFFSET(CLASS)                                      \
 	SPP_DEFINE_VARIANTS_MORE(CLASS, uint32_t)                                  \

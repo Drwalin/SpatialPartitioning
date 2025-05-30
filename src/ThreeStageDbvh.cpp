@@ -4,6 +4,8 @@
 
 #include <cstring>
 
+#include "../glm/glm/common.hpp"
+
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 
 void BreakPoint() {}

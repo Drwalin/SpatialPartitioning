@@ -5,6 +5,8 @@
 #include <cassert>
 #include <cstring>
 
+#include "../glm/glm/common.hpp"
+
 /*
 #include "../../thirdparty/glm/glm/ext/vector_uint3.hpp"
 #include "../../thirdparty/glm/glm/vector_relational.hpp"
@@ -122,9 +124,9 @@ LooseOctree<SPP_TEMPLATE_ARGS>::IPosLevel
 LooseOctree<SPP_TEMPLATE_ARGS>::CalcIPosLevel(Aabb aabb) const
 {
 #define max_comp(V) glm::max(V.x, glm::max(V.y, V.z))
-	const glm::vec3 sizes = (aabb.max - aabb.min) * 0.5f;
+	const glm::vec3 sizes = (aabb.max - aabb.min) / decltype(Aabb::min){2};
 	const float size = max_comp(sizes);
-	const glm::vec3 center = ((aabb.max + aabb.min) * 0.5f);
+	const glm::vec3 center = ((aabb.max + aabb.min) / decltype(Aabb::min){2});
 
 	const int32_t level = std::bit_width<uint32_t>(
 		std::bit_ceil<uint32_t>(glm::ceil(size / (loosnessFactor - 1.0f))));

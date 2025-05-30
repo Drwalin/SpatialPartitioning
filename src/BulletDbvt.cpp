@@ -5,7 +5,12 @@
 #include "../include/spatial_partitioning/BulletDbvt.hpp"
 
 static bullet::btVector3 bt(glm::vec3 v) { return {v.x, v.y, v.z}; }
+static bullet::btVector3 bt(glm::i16vec3 v) { return {(float)v.x, (float)v.y, (float)v.z}; }
 static bullet::btDbvtAabbMm bt(spp::Aabb v)
+{
+	return bullet::btDbvtVolume::FromMM(bt(v.min), bt(v.max));
+}
+static bullet::btDbvtAabbMm bt(spp::Aabb_i16 v)
 {
 	return bullet::btDbvtVolume::FromMM(bt(v.min), bt(v.max));
 }

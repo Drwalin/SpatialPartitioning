@@ -51,7 +51,8 @@ public:
 		data.resize(1);
 	}
 
-	inline void ShrinkToFit()
+	__attribute__((noinline))
+	void ShrinkToFit()
 	{
 		data.shrink_to_fit();
 		freeOffsets.shrink_to_fit();

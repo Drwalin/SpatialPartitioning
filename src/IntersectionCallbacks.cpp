@@ -19,7 +19,7 @@ void RayCallback<SPP_TEMPLATE_ARGS>::InitVariables()
 SPP_TEMPLATE_DECL
 bool AabbCallback<SPP_TEMPLATE_ARGS>::IsRelevant(AabbCentered aabb) const
 {
-	return this->aabb && aabb;
+	return ((AabbCentered)this->aabb) && aabb;
 }
 
 SPP_TEMPLATE_DECL

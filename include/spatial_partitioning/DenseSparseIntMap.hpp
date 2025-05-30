@@ -155,7 +155,8 @@ public:
 
 	inline ValueType operator[](KeyUIntType key) const { return Get(key); }
 
-	inline void ShrinkToFit() { sparse.rehash(0); }
+	__attribute__((noinline))
+	void ShrinkToFit() { sparse.rehash(0); }
 
 	inline KeyUIntType Size() const { return size; }
 

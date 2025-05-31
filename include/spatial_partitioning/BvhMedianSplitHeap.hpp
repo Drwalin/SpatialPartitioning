@@ -13,6 +13,108 @@
 
 namespace spp
 {
+template <typename EntityType, typename SegmentType, typename OffsetType,
+		  bool enableDense>
+struct DenseSparseSegmentOffsetMapReference {
+public:
+	struct SegmentOffset {
+		SegmentType segment;
+		OffsetType offset;
+
+		bool operator==(SegmentOffset o) const
+		{
+			return o.offset == offset && o.segment == segment;
+		}
+		bool operator!=(SegmentOffset o) const
+		{
+			return o.offset != offset || o.segment != segment;
+		}
+	};
+
+public:
+	DenseSparseSegmentOffsetMapReference(EntityType denseEntityRange)
+	{
+		owning = true;
+		map = new DenseSparseIntMap<EntityType, SegmentOffset, enableDense,
+									SegmentOffset{-1, -1}>(denseEntityRange);
+		segment = -1;
+	}
+
+	DenseSparseSegmentOffsetMapReference(
+		DenseSparseSegmentOffsetMapReference *map, SegmentType segment)
+		: map(std::move(map->map)), owning(false), segment(segment)
+	{
+	}
+
+	DenseSparseSegmentOffsetMapReference(
+		DenseSparseSegmentOffsetMapReference &&other)
+		: map(other.map), owning(other.owning), segment(other.segment)
+	{
+		other.map = nullptr;
+		other.owning = false;
+		other.segment = -1;
+	}
+
+	~DenseSparseSegmentOffsetMapReference()
+	{
+		if (owning) {
+			if (map) {
+				delete map;
+			}
+			owning = false;
+		}
+		map = nullptr;
+	}
+
+	void Clear() { map->Clear(); }
+	uint64_t GetMemoryUsage() const { return map->GetMemoryUsage(); }
+
+	auto find(EntityType key) { return map->find(key); }
+	auto find(EntityType key) const { return map->find(key); }
+
+	auto Set(EntityType entity, OffsetType offset)
+	{
+		return map->Set(entity, {segment, offset});
+	}
+
+	OffsetType operator[](EntityType entity) const
+	{
+		return map->operator[](entity).offset;
+	}
+
+	void Remove(EntityType entity) { map->Set(entity, {-1, 0}); }
+
+	bool Has(EntityType entity) const { return map->Has(entity); }
+
+	void Reserve(EntityType entitiesCount) { map->Reserve(entitiesCount); }
+
+	static OffsetType &get_offset_from_it(SegmentOffset *it)
+	{
+		return it->offset;
+	}
+
+	static OffsetType get_offset_from_it(const SegmentOffset *it)
+	{
+		return it->offset;
+	}
+
+public:
+	DenseSparseIntMap<EntityType, SegmentOffset, enableDense,
+					  SegmentOffset{-1, -1}> *map;
+	bool owning;
+	SegmentType segment;
+};
+
+template <typename EntityType, typename OffsetType, bool enableDense>
+struct DenseSparseSegmentOffsetMapReference<EntityType, void, OffsetType,
+											enableDense>
+	: public DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> {
+public:
+	static OffsetType &get_offset_from_it(OffsetType *it) { return *it; }
+
+	static OffsetType get_offset_from_it(const OffsetType *it) { return *it; }
+};
+
 /*
  * Split policy:
  * 	Split between power-of-two median points
@@ -24,16 +126,21 @@ namespace spp
  *
  * Tree is perfectly balanced due to heap use as nodes storage
  */
-SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS = 0)
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS = 0, typename SegmentType = void)
 class BvhMedianSplitHeap final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 {
 public:
+	using EntitiesOffsetsMapType =
+		DenseSparseSegmentOffsetMapReference<EntityType, SegmentType, int32_t,
+											 true>;
+
 	using AabbCallback = spp::AabbCallback<SPP_TEMPLATE_ARGS>;
 	using RayCallback = spp::RayCallback<SPP_TEMPLATE_ARGS>;
 	using BroadphaseBaseIterator =
 		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
 
 	BvhMedianSplitHeap(EntityType denseEntityRange);
+	BvhMedianSplitHeap(EntitiesOffsetsMapType &&entityIdsMap);
 	virtual ~BvhMedianSplitHeap();
 
 	virtual const char *GetName() const override;
@@ -99,7 +206,7 @@ private:
 		MaskType mask;
 	};
 
-	DenseSparseIntMap<EntityType, int32_t, true, -1> entitiesOffsets;
+	EntitiesOffsetsMapType entitiesOffsets;
 	// [0] - ignored, because heap works faster starting from 1
 	std::vector<NodeData> nodesHeapAabb;
 	std::vector<Data> entitiesData;
@@ -126,7 +233,10 @@ private:
 	} iterator;
 };
 
-SPP_EXTERN_VARIANTS_MORE(BvhMedianSplitHeap, 0)
-SPP_EXTERN_VARIANTS_MORE(BvhMedianSplitHeap, 1)
+SPP_EXTERN_VARIANTS_MORE(BvhMedianSplitHeap, 0, void)
+SPP_EXTERN_VARIANTS_MORE(BvhMedianSplitHeap, 1, void)
+
+SPP_EXTERN_VARIANTS_MORE(BvhMedianSplitHeap, 0, int32_t)
+SPP_EXTERN_VARIANTS_MORE(BvhMedianSplitHeap, 1, int32_t)
 
 } // namespace spp

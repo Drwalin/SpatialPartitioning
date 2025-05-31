@@ -14,7 +14,7 @@ namespace spp
 {
 template <typename KeyUIntType, typename ValueType, bool enableDense = false,
 		  ValueType NULL_VALUE = 0>
-class DenseSparseIntMap final
+class DenseSparseIntMap
 {
 public:
 	inline const static bool IS_INTEGRAL = std::is_integral_v<ValueType>;

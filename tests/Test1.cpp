@@ -52,7 +52,7 @@ enum TestType {
 const char *testTypeNames[] = {"[NULL-NONE]", "TEST_AABB", "TEST_RAY_FIRST",
 							   "TEST_ALL_RAYS", "MIXED"};
 
-using EntityType = uint64_t;
+using EntityType = uint32_t;
 
 
 struct EntityData {

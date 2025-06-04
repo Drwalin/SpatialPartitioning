@@ -30,6 +30,10 @@ public:
 			return o.offset != offset || o.segment != segment;
 		}
 	};
+	
+	using MapType = DenseSparseIntMap<EntityType, SegmentOffset, enableDense,
+					  SegmentOffset{-1, -1}>;
+	
 
 public:
 	DenseSparseSegmentOffsetMapReference(EntityType denseEntityRange)
@@ -99,8 +103,7 @@ public:
 	}
 
 public:
-	DenseSparseIntMap<EntityType, SegmentOffset, enableDense,
-					  SegmentOffset{-1, -1}> *map;
+	MapType *map;
 	bool owning;
 	SegmentType segment;
 };
@@ -110,6 +113,9 @@ struct DenseSparseSegmentOffsetMapReference<EntityType, void, OffsetType,
 											enableDense>
 	: public DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> {
 public:
+	
+	using MapType = DenseSparseIntMap<EntityType, OffsetType, enableDense, -1>;
+	
 	static OffsetType &get_offset_from_it(OffsetType *it) { return *it; }
 
 	static OffsetType get_offset_from_it(const OffsetType *it) { return *it; }

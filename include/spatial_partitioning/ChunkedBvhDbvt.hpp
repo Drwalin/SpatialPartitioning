@@ -6,25 +6,37 @@
 
 #include <cstdint>
 
-#include <vector>
+#include "../../glm/glm/ext/vector_uint3_sized.hpp"
 
-#include "DenseSparseIntMap.hpp"
 #include "./BvhMedianSplitHeap.hpp"
 #include "BroadPhaseBase.hpp"
 
+template <> struct std::hash<glm::u16vec3> {
+	inline size_t operator()(const glm::i16vec3 &k) const
+	{
+		if constexpr (sizeof(size_t) > 4) {
+			union {
+				glm::u16vec3 u;
+				size_t h;
+			};
+			h = 0;
+			u = k;
+			return h;
+		} else {
+			assert(!"sizeof(size_t) needs to be 8 bytes");
+		}
+	}
+};
+
+template <> struct std::hash<glm::i16vec3> {
+	inline size_t operator()(const glm::i16vec3 &k) const
+	{
+		return std::hash<glm::u16vec3>()(k);
+	}
+};
+
 namespace spp
 {
-/*
- * Split policy:
- * 	Split between power-of-two median points
- * 	Sort against longest axis
- * Adding new object requires full rebuild
- * Removing object does not need to rebuild whole tree but shuld be needed
- *
- * Limit of entities count is 268435456 (2^28-1)
- *
- * Tree is perfectly balanced due to heap use as nodes storage
- */
 SPP_TEMPLATE_DECL_NO_AABB
 class ChunkedBvhDbvt final : public BroadphaseBase<SPP_TEMPLATE_ARGS>
 
@@ -35,6 +47,11 @@ public:
 	using BroadphaseBaseIterator =
 		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
 
+	using EntitiesOffsetsMapType_Reference =
+		DenseSparseSegmentOffsetMapReference<EntityType, int32_t, int32_t,
+											 true>;
+	using MapType = EntitiesOffsetsMapType_Reference::MapType;
+
 	ChunkedBvhDbvt(EntityType denseEntityRange);
 	virtual ~ChunkedBvhDbvt();
 
@@ -43,6 +60,7 @@ public:
 	virtual void Clear() override;
 	virtual size_t GetMemoryUsage() const override;
 	virtual void ShrinkToFit() override;
+	void ShrinkToFitIncremental();
 
 	virtual void Add(EntityType entity, Aabb aabb, MaskType mask) override;
 	virtual void Update(EntityType entity, Aabb aabb) override;
@@ -58,14 +76,6 @@ public:
 	virtual void IntersectAabb(AabbCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
 
-	enum AabbUpdatePolicy : uint8_t {
-		ON_UPDATE_EXTEND_AABB,
-		ON_UPDATE_QUEUE_FULL_REBUILD_ON_NEXT_READ,
-	};
-
-	void SetAabbUpdatePolicy(AabbUpdatePolicy policy);
-	AabbUpdatePolicy GetAabbUpdatePolicy() const;
-
 	virtual void Rebuild() override;
 
 	virtual BroadphaseBaseIterator *RestartIterator() override;
@@ -74,15 +84,59 @@ public:
 	void RebuildIncremental();
 
 private:
-	
-	struct Chunk {
-		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1> bvh;
+	struct ChunkAabbId {
+		glm::ivec3 chunkOffsets;
+		glm::vec3 size;
 	};
-	
+
+	ChunkAabbId GetChunkIdFromAabb(Aabb aabb) const;
+
 private:
-	
-	std::vector<Chunk> chunks;
-	
-	BvhMedianSplitHeap<Aabb, int32_t, int8_t, 0, 0> chunksBvh;
+	struct Chunk {
+		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t>
+			bvh[2];
+		glm::vec3 offset;
+		glm::vec3 scale;
+		glm::vec3 invScale;
+		Aabb aabb;
+
+		void Rebuild();
+		void ShrinkToFit();
+		size_t GetMemoryUsage();
+	};
+
+private:
+	float chunkSize = 64.0f;
+	float chunkSizeMultiplier = 256.0f;
+	float chunkSizeFactor = 4.0f;
+	float maxChunkedEntitySize = 32.0f;
+
+	uint32_t entitiesCount = 0;
+
+	HashMap<glm::i16vec3, Chunk> chunks;
+
+	BvhMedianSplitHeap<Aabb, int32_t, int32_t, 0, 0> chunksBvh;
+	BvhMedianSplitHeap<Aabb, int32_t, int32_t, 0, 0> outerObjects;
+
+	MapType entitiesOffsets;
+
+	class Iterator final : public BroadphaseBaseIterator
+	{
+	public:
+		Iterator(ChunkedBvhDbvt &bp);
+		virtual ~Iterator();
+
+		Iterator &operator=(Iterator &&other) = default;
+
+		virtual bool Next() override;
+		virtual bool Valid() override;
+		bool FetchData();
+
+		MapType::Iterator it;
+		MapType::Iterator end;
+	} iterator;
 };
+
+SPP_EXTERN_VARIANTS_NO_AABB(ChunkedBvhDbvt)
+
 } // namespace spp

@@ -159,6 +159,8 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
+	
+	EntityType GetEntityByOffset(int32_t offset) const;
 
 	virtual int32_t GetCount() const override;
 	virtual bool Exists(EntityType entity) const override;

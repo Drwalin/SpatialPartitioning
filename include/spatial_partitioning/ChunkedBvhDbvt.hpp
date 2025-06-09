@@ -14,7 +14,7 @@
 template <> struct std::hash<glm::u16vec3> {
 	inline size_t operator()(const glm::i16vec3 &k) const
 	{
-		if constexpr (sizeof(size_t) > 4) {
+		if constexpr (sizeof(size_t) == 8) {
 			union {
 				glm::u16vec3 u;
 				size_t h;
@@ -84,41 +84,61 @@ public:
 	void RebuildIncremental();
 
 private:
-	struct ChunkAabbId {
-		glm::ivec3 chunkOffsets;
-		glm::vec3 size;
-	};
-
-	ChunkAabbId GetChunkIdFromAabb(Aabb aabb) const;
-
-private:
 	struct Chunk {
+		void Init(float chunkSize, Aabb aabb);
+		
 		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t>
 			bvh[2];
 		glm::vec3 offset;
 		glm::vec3 scale;
 		glm::vec3 invScale;
 		Aabb aabb;
+		
+		bool inited = false;
+		
+		void Add(EntityType entity, Aabb aabb, MaskType mask);
+		void Update(EntityType entity, Aabb aabb, int32_t oldSegment);
+		void Remove(EntityType entity, int32_t segment);
 
+		void RebuildIfNeeded();
 		void Rebuild();
 		void ShrinkToFit();
-		size_t GetMemoryUsage();
+		size_t GetMemoryUsage() const;
+		Aabb GetAabb(EntityType entity, int32_t segment, int32_t offset) const;
+		MaskType GetMask(EntityType entity, int32_t segment, int32_t offset) const;
+		
+		int32_t GetCount() const;
 	};
+	
+	Chunk *GetChunkOfEntity(EntityType entity, int32_t &segment, int32_t &offset);
+	int32_t GetChunkIdOfEntity(EntityType entity, int32_t &offset);
+
+	int32_t GetChunkIdFromAabb(Aabb aabb) const;
 
 private:
 	float chunkSize = 64.0f;
 	float chunkSizeMultiplier = 256.0f;
 	float chunkSizeFactor = 4.0f;
 	float maxChunkedEntitySize = 32.0f;
+	
+	int limitChunkOffset = 512-2;
 
 	uint32_t entitiesCount = 0;
 
-	HashMap<glm::i16vec3, Chunk> chunks;
+	/*
+	 * Segment:
+	 *    lsb >> 1   -   chunk id (glm::i16vec3 serialized by 10 lower bits each
+	 *                       component)
+	 *    lsb & 1    -   which bvh inside chunk
+	 * Segment = -1  -   outer objects
+	 * 
+	 */
+	MapType entitiesOffsets;
+	
+	HashMap<int32_t, Chunk> chunks;
 
 	BvhMedianSplitHeap<Aabb, int32_t, int32_t, 0, 0> chunksBvh;
-	BvhMedianSplitHeap<Aabb, int32_t, int32_t, 0, 0> outerObjects;
-
-	MapType entitiesOffsets;
+	BvhMedianSplitHeap<Aabb, EntityType, MaskType, 0, 0, int32_t> outerObjects;
 
 	class Iterator final : public BroadphaseBaseIterator
 	{

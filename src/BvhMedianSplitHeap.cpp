@@ -189,6 +189,16 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+EntityType BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
+	SKIP_LOW_LAYERS, SegmentType)>::GetEntityByOffset(int32_t offset) const
+{
+	if (entitiesData.size() <= offset) {
+		return EMPTY_ENTITY;
+	}
+	return entitiesData[offset].entity;
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 int32_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	SKIP_LOW_LAYERS, SegmentType)>::GetCount() const
 {

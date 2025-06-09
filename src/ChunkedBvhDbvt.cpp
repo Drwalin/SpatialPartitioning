@@ -4,6 +4,9 @@
 
 #include <cstdio>
 
+#include "../glm/glm/vector_relational.hpp"
+#include "../glm/glm/common.hpp"
+
 #include "../include/spatial_partitioning/ChunkedBvhDbvt.hpp"
 
 namespace spp
@@ -11,7 +14,9 @@ namespace spp
 SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ChunkedBvhDbvt(
 	EntityType denseEntityRange)
-	: entitiesOffsets(denseEntityRange), iterator(*this)
+	:
+	entitiesOffsets(denseEntityRange), iterator(*this),
+		outerObjects(MapType(&entitiesOffsets, -1))
 {
 }
 
@@ -36,8 +41,8 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Clear()
 SPP_TEMPLATE_DECL_NO_AABB
 size_t ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetMemoryUsage() const
 {
-	size_t size = chunksBvh.GetMemoryUsage() +
-				  chunks.GetMemoryUsage() + entitiesOffsets;
+	size_t size =
+		chunksBvh.GetMemoryUsage() + chunks.GetMemoryUsage() + entitiesOffsets;
 	for (const auto &c : chunks) {
 		size += c.GetMemoryUsage();
 	}
@@ -50,9 +55,15 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ShrinkToFit()
 	chunks.shrink_to_fit();
 	chunksBvh.ShrinkToFit();
 	entitiesOffsets.ShrinkToFit();
+	std::vector<int32_t> toRemove;
 	for (auto &c : chunks) {
-		c.ShrinkToFit();
+		if (c.second.GetCount() == 0) {
+			toRemove.push_back(c.first);
+		} else {
+			c.ShrinkToFit();
+		}
 	}
+	chunks.erase(toRemove.begin(), toRemove.end());
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -63,9 +74,20 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Add(EntityType entity,
 		assert(!"Entity already exists");
 		return;
 	}
-	entitiesOffsets.Set(entity, entitiesData.size());
-	entitiesData.push_back({aabb, entity, mask});
-	rebuildTree = true;
+	
+	int32_t chunkId = GetChunkIdFromAabb(aabb);
+	
+	assert(chunkId == 0);
+	
+	if (chunkId == -1) {
+		outerObjects.Add(entity, aabb, mask);
+	} else {
+		Chunk &chunk = chunks[chunkId];
+		if (chunk.inited == false) {
+			chunk.Init(chunkSize, aabb);
+		}
+		chunk.Add(entity, aabb, mask);
+	}
 	++entitiesCount;
 }
 
@@ -73,90 +95,144 @@ SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 													   Aabb aabb)
 {
-	uint32_t offset = entitiesOffsets[entity];
-	entitiesData[offset].aabb = aabb;
-	if (updatePolicy == ON_UPDATE_EXTEND_AABB && rebuildTree == false) {
-		UpdateAabb(offset);
+	if (entitiesOffsets.find(entity) != nullptr) {
+		assert(!"Entity already exists");
+		return;
+	}
+	
+	int32_t offset = 0;
+	int32_t oldChunkId = GetChunkIdOfEntity(entity, offset);
+	int32_t newChunkId = GetChunkIdFromAabb(aabb);
+	
+	if (oldChunkId>>1 == newChunkId>>1) {
+		if (oldChunkId == -1) {
+			outerObjects.Update(entity, aabb);
+		} else {
+			chunks[oldChunkId].Update(entity, aabb, oldChunkId);
+		}
 	} else {
-		rebuildTree = true;
+		MaskType mask = 0;
+		
+		if (oldChunkId == -1) {
+			mask = outerObjects.GetMask(entity);
+			outerObjects.Remove(entity);
+		} else {
+			Chunk &oldChunk = chunks[oldChunkId];
+			mask = oldChunk.GetMask(entity);
+			oldChunk.Remove(entity, oldChunkId);
+		}
+		
+		if (newChunkId == -1) {
+			outerObjects.Add(entity);
+		} else {
+			chunks[newChunkId].Add(entity, aabb, mask);
+		}
 	}
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Remove(EntityType entity)
 {
-	auto it = entitiesOffsets.find(entity);
-	if (it == nullptr) {
-		return;
+	int32_t segment, offset;
+	Chunk *chunk = GetChunkOfEntity(entity, segment, offset);
+	
+	if (chunk) {
+		chunk->Remove(entity, segment);
+	} else {
+		outerObjects.Remove(entity);
 	}
-
-	uint32_t offset = EntitiesOffsetsMapType::get_offset_from_it(it);
-
-	assert(offset != -1);
-
-	entitiesOffsets.Remove(entity);
-	entitiesData[offset].entity = EMPTY_ENTITY;
-	entitiesData[offset].mask = 0;
-
+	
 	--entitiesCount;
-
-	if (entitiesCount == 0) {
-		Clear();
-		return;
-	}
-
-	PruneEmptyEntitiesAtEnd();
-
-	if (rebuildTree == false) {
-		UpdateAabb(offset);
-	}
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
-ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ChunkAabbId
-ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkIdFromAabb(Aabb aabb)
+int32_t
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkIdFromAabb(Aabb aabb) const
 {
 	glm::vec3 center = aabb.GetCenter() / chunkSize;
-	glm::vec3 size = aabb.GetSizes();
+	glm::vec3 halfSize = aabb.GetSizes() * 0.5f;
+
+	float maxHalfSize = glm::max(halfSize.x, glm::max(halfSize.y, halfSize.z));
+
+	if (maxHalfSize > maxChunkedEntitySize) {
+		return -1;
+	}
+
+	if (glm::any(glm::lessThanEqual(center, glm::vec3(-limitChunkOffset)))) {
+		return -1;
+	}
+
+	if (glm::any(glm::greaterThanEqual(center, glm::vec3(limitChunkOffset)))) {
+		return -1;
+	}
+
+	glm::ivec3 hs = center + 512.f;
+	int32_t id =
+		((hs.x & 0x3FF) << 1) | ((hs.y & 0x3FF) << 11) | ((hs.z & 0x3FF) << 21);
+
+	return id;
+}
+
+
+SPP_TEMPLATE_DECL_NO_AABB
+int32_t
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkIdOfEntity(
+	EntityType entity, int32_t &offset)
+{
+	offset = 0;
 	
+	auto it = entitiesOffsets.find(entity);
+	if (it == entitiesOffsets.end()) {
+		return 0;
+	} else {
+		offset = it->second.offset;
+		return it->second.segment;
+	}
+}
 	
-	if (size 
+
+SPP_TEMPLATE_DECL_NO_AABB
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk *
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkOfEntity(
+	EntityType entity, int32_t &segment, int32_t &offset)
+{
+	segment = offset = 0;
 	
-	
-	
-	
-	
+	auto it = entitiesOffsets.find(entity);
+	if (it == entitiesOffsets.end()) {
+		return nullptr;
+	} else {
+		segment = it->second.segment;
+		offset = it->second.offset;
+		if (segment == -1 || segment == 0) {
+			return nullptr;
+		}
+		int32_t s = segment & ~(int32_t)1;
+		auto it2 = chunks.find(s);
+		if (it2 == chunks.end()) {
+			assert(!"Should not happen: entity exists and is assigned to a chunk that does not exist.");
+			return nullptr;
+		}
+		return &(it2->second);
+	}
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::SetMask(EntityType entity,
 														MaskType mask)
 {
-	auto it = entitiesOffsets.find(entity);
-	if (it == nullptr) {
+	int32_t seg, off;
+	Chunk *chunk = GetChunkOfEntity(entity, seg, off);
+	if (seg == 0) {
+		assert(seg != 0);
 		return;
 	}
-
-	uint32_t offset = EntitiesOffsetsMapType::get_offset_from_it(it);
-
-	if (entitiesData[offset].mask == mask) {
+	if (chunk == nullptr) {
+		outerObjects.SetMask(entity, mask);
 		return;
-	}
-
-	entitiesData[offset].mask = mask;
-	if ((offset ^ 1) < entitiesData.size()) {
-		if (entitiesData[offset ^ 1].entity != EMPTY_ENTITY) {
-			mask |= entitiesData[offset ^ 1].mask;
-		}
-	}
-
-	uint32_t n = (offset + entitiesPowerOfTwoCount) >> (1 + SKIP_LOW_LAYERS);
-
-	for (; n > 0; n >>= 1) {
-		nodesHeapAabb[n].mask = mask;
-		if ((n ^ 1) < nodesHeapAabb.size() && (n ^ 1) > 0) {
-			mask |= nodesHeapAabb[n ^ 1].mask;
-		}
+	} else {
+		chunk->bvh[seg&1].SetMask(entity, mask);
+		return;
 	}
 }
 
@@ -175,24 +251,34 @@ bool ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Exists(EntityType entity) const
 SPP_TEMPLATE_DECL_NO_AABB
 Aabb ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetAabb(EntityType entity) const
 {
-	auto it = entitiesOffsets.find(entity);
-	if (it != nullptr) {
-		uint32_t offset = EntitiesOffsetsMapType::get_offset_from_it(it);
-		return entitiesData[offset].aabb;
+	int32_t seg, off;
+	Chunk *chunk = GetChunkOfEntity(entity, seg, off);
+	if (seg == 0) {
+		assert(seg != 0);
+		return {};
 	}
-	return {};
+	if (chunk == nullptr) {
+		return outerObjects.GetAabb(entity);
+	} else {
+		return chunk->GetAabb(entity);
+	}
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
 MaskType
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetMask(EntityType entity) const
 {
-	auto it = entitiesOffsets.find(entity);
-	if (it != nullptr) {
-		uint32_t offset = EntitiesOffsetsMapType::get_offset_from_it(it);
-		return entitiesData[offset].mask;
+	int32_t seg, off;
+	Chunk *chunk = GetChunkOfEntity(entity, seg, off);
+	if (seg == 0) {
+		assert(seg != 0);
+		return {};
 	}
-	return 0;
+	if (chunk == nullptr) {
+		return outerObjects.GetMask(entity);
+	} else {
+		return chunk->bvh[seg&1].GetMask(entity);
+	}
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -201,12 +287,32 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectAabb(AabbCallback &cb)
 	if (cb.callback == nullptr) {
 		return;
 	}
-
-	if (rebuildTree) {
-		Rebuild();
-	}
-
+	
 	cb.broadphase = this;
+	
+	outerObjects.IntersectAabb(cb);
+	
+	const AabbCallback orgCb = cb;
+	
+	class CB2 : public AabbCallback
+	{
+	public:
+		AabbCallback *orgCb;
+		ChunkedBvhDbvt *dbvt;
+	} cb2(cb);
+	
+	cb2.callback = +[](AabbCallback *_cb2, int32_t chunkId)
+	{
+		CB2 *cb2 = (CB2)_cb2;
+		
+		
+		
+		cb2->orgCb->
+	};
+	cb2.broadphase = this;
+	cb2.dbvt = this;
+	
+	
 
 	_Internal_IntersectAabb(cb, 1);
 }
@@ -509,97 +615,6 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::UpdateAabb(int32_t offset)
 			}
 		}
 	}
-}
-
-SPP_TEMPLATE_DECL_NO_AABB
-bool ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::RebuildStep(
-	RebuildProgress &progress)
-{
-	if (progress.done) {
-		return true;
-	}
-
-	switch (progress.stage) {
-	case 0:
-		rebuildTree = false;
-		entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)entitiesCount);
-		if (SKIP_LOW_LAYERS) {
-			nodesHeapAabb.resize(entitiesPowerOfTwoCount >> SKIP_LOW_LAYERS);
-		} else {
-			nodesHeapAabb.resize(entitiesPowerOfTwoCount / 2 +
-								 (entitiesCount + 1) / 2 + 7);
-		}
-		progress.stage = 1;
-		progress.it = 0;
-		break;
-
-	case 1:
-		for (int32_t i = 0; i < 1024 && progress.it < nodesHeapAabb.size();
-			 ++i, ++progress.it) {
-			nodesHeapAabb[progress.it].mask = 0;
-		}
-		if (progress.it >= nodesHeapAabb.size()) {
-			progress.stage = 2;
-		}
-		break;
-
-	case 2:
-		entitiesOffsets.Reserve(entitiesCount);
-		progress.stage = 3;
-		break;
-
-	case 3:
-		PruneEmptyEntitiesAtEnd();
-		progress.it = 0;
-		progress.stage = 4;
-		break;
-
-	case 4:
-		for (int32_t i = 0; i < 4096 && progress.it < entitiesData.size();
-			 ++i, ++progress.it) {
-			if (entitiesData[i].entity == EMPTY_ENTITY) {
-				std::swap(entitiesData[i], entitiesData.back());
-				PruneEmptyEntitiesAtEnd();
-			}
-		}
-
-		if (progress.it >= entitiesData.size()) {
-			progress.size = 1;
-			progress.stack[0] = 1;
-			progress.stage = 5;
-		}
-		break;
-
-	case 5: {
-		int32_t sum = 0;
-		while (sum < 300 && progress.size > 0) {
-			++sum;
-			int32_t tcount = 0;
-			progress.size--;
-			int32_t id = progress.stack[progress.size];
-			int32_t more = RebuildNodePartial(id, &tcount);
-			if (more > 0) {
-				progress.stack[progress.size] = more + 1;
-				progress.stack[progress.size + 1] = more;
-				progress.size += 2;
-			} else if (progress.size == 0) {
-				progress.stage = 6;
-				progress.it = 0;
-			}
-			sum += tcount;
-		}
-		if (progress.size <= 0) {
-			progress.stage = 6;
-		}
-		break;
-	}
-
-	case 6:
-		progress.done = true;
-		progress.stage = 8;
-		break;
-	}
-	return progress.done;
 }
 
 SPP_TEMPLATE_DECL_NO_AABB

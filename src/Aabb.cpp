@@ -376,9 +376,11 @@ bool Aabb_i16::operator!=(const Aabb_i16 &r) const
 
 Aabb::operator Aabb_i16() const
 {
+	constexpr glm::ivec3 MIN(std::numeric_limits<short>::min());
+	constexpr glm::ivec3 MAX(std::numeric_limits<short>::max());
 	glm::ivec3 a = min, b = max;
-	a = glm::max(a, glm::ivec3(std::numeric_limits<short>::min()));
-	b = glm::min(b, glm::ivec3(std::numeric_limits<short>::max()));
+	a = glm::min(glm::max(a, MIN), MAX);
+	b = glm::max(glm::min(b, MAX), MIN);
 	return {a, b};
 }
 

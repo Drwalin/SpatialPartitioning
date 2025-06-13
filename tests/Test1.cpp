@@ -24,6 +24,7 @@
 #include "../include/spatial_partitioning/BulletDbvt.hpp"
 #include "../include/spatial_partitioning/Dbvt.hpp"
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
+#include "../include/spatial_partitioning/ChunkedBvhDbvt.hpp"
 
 int32_t TOTAL_ENTITIES = 1000000;
 int32_t ADDITIONAL_ENTITIES = 10000;
@@ -1146,6 +1147,7 @@ int main(int argc, char **argv)
 				   "\tDBVH            - Dbvh (DynamicBoundingVolumeHierarchy)\n"
 				   "\tBTDBVH          - BulletDbvh (Bullet dbvh - two stages)\n"
 				   "\tBTDBVT          - BulletDbvt (Bullet dbvt one stage)\n"
+				   "\tCHUNKBVHDBVT    - BVH of chunks and two stage Bvh within chunk\n" // ChunkedBvhDbvt
 				   "\tTSH_BF          - ThreeStageDbvh BvhMedian + BruteForce\n"
 				   "\tTSH_BTDBVT      - ThreeStageDbvh BvhMedian + BulletDbvt\n"
 				   "\tTSH_BTDBVT3     - ThreeStageDbvh BulletDbvt + BulletDbvt\n"
@@ -1224,6 +1226,10 @@ int main(int argc, char **argv)
 				broadphases.push_back(new spp::BulletDbvh<spp::Aabb, EntityType, uint32_t, 0>);
 			} else if (strcmp(str, "BTDBVT") == false) {
 				broadphases.push_back(new spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>);
+				
+			} else if (strcmp(str, "CHUNKBVHDBVT") == false) {
+				broadphases.push_back(new spp::ChunkedBvhDbvt<EntityType, uint32_t, 0>(TOTAL_ENTITIES));
+				
 			} else if (strcmp(str, "TSH_BF") == false) {
 				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
 					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),

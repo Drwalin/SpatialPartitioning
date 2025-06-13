@@ -45,8 +45,8 @@ public:
 	}
 
 	DenseSparseSegmentOffsetMapReference(
-		DenseSparseSegmentOffsetMapReference *map, SegmentType segment)
-		: map(std::move(map->map)), owning(false), segment(segment)
+		MapType *map, SegmentType segment)
+		: map(map), owning(false), segment(segment)
 	{
 	}
 

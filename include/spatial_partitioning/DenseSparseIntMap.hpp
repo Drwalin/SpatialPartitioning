@@ -167,6 +167,14 @@ public:
 
 public:
 	struct Iterator {
+		Iterator(Iterator &&it) = default;
+		Iterator(Iterator &it) = default;
+		Iterator(const Iterator &it) = default;
+		
+		Iterator &operator=(Iterator &&it) = default;
+		Iterator &operator=(Iterator &it) = default;
+		Iterator &operator=(const Iterator &it) = default;
+		
 		Iterator(DenseSparseIntMap *map) : map(map)
 		{
 			if (map) {

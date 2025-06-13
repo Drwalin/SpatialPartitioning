@@ -28,7 +28,6 @@
 	__EXT_TEMPL_CLS CLASS<spp::Aabb_i16, __VA_ARGS__>;
 
 #define _SPP_EXTERN_VARIANTS_ENTITY_TYPES(CLASS, ...)                          \
-	_SPP_EXTERN_VARIANTS_AABBS(CLASS, uint16_t, __VA_ARGS__)                   \
 	_SPP_EXTERN_VARIANTS_AABBS(CLASS, uint32_t, __VA_ARGS__)                   \
 	_SPP_EXTERN_VARIANTS_AABBS(CLASS, uint64_t, __VA_ARGS__)
 
@@ -53,7 +52,6 @@
 	__TEMPL_CLS CLASS<spp::Aabb_i16, __VA_ARGS__>;
 
 #define _SPP_DEFINE_VARIANTS_ENTITY_TYPES(CLASS, ...)                          \
-	_SPP_DEFINE_VARIANTS_AABBS(CLASS, uint16_t, __VA_ARGS__)                   \
 	_SPP_DEFINE_VARIANTS_AABBS(CLASS, uint32_t, __VA_ARGS__)                   \
 	_SPP_DEFINE_VARIANTS_AABBS(CLASS, uint64_t, __VA_ARGS__)
 
@@ -95,7 +93,6 @@
 	SPP_TEMPLATE_ARGS_NO_AABB_MORE(OffsetType)
 
 #define _SPP_EXTERN_VARIANTS_NO_AABB_ENTITY_TYPES(CLASS, ...)                  \
-	__EXT_TEMPL_CLS CLASS<uint16_t, __VA_ARGS__>;                              \
 	__EXT_TEMPL_CLS CLASS<uint32_t, __VA_ARGS__>;                              \
 	__EXT_TEMPL_CLS CLASS<uint64_t, __VA_ARGS__>;
 
@@ -117,7 +114,6 @@
 ;
 
 #define _SPP_DEFINE_VARIANTS_NO_AABB_ENTITY_TYPES(CLASS, ...)                  \
-	__TEMPL_CLS CLASS<uint16_t, __VA_ARGS__>;                                  \
 	__TEMPL_CLS CLASS<uint32_t, __VA_ARGS__>;                                  \
 	__TEMPL_CLS CLASS<uint64_t, __VA_ARGS__>;
 

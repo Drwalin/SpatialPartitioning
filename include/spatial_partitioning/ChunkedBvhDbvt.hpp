@@ -85,17 +85,19 @@ public:
 
 private:
 	struct Chunk {
-		void Init(float chunkSize, Aabb aabb);
-		
+		Chunk(ChunkedBvhDbvt *bp, int32_t chunkId, float chunkSize, Aabb aabb);
+		Chunk(Chunk &&chunk) = default;
+		Chunk &operator=(Chunk &&chunk) = default;
+
 		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t>
 			bvh[2];
 		glm::vec3 offset;
 		glm::vec3 scale;
 		glm::vec3 invScale;
 		Aabb aabb;
-		
+
 		bool inited = false;
-		
+
 		void Add(EntityType entity, Aabb aabb, MaskType mask);
 		void Update(EntityType entity, Aabb aabb, int32_t oldSegment);
 		void Remove(EntityType entity, int32_t segment);
@@ -105,23 +107,82 @@ private:
 		void ShrinkToFit();
 		size_t GetMemoryUsage() const;
 		Aabb GetAabb(EntityType entity, int32_t segment, int32_t offset) const;
-		MaskType GetMask(EntityType entity, int32_t segment, int32_t offset) const;
-		
+		MaskType GetMask(EntityType entity, int32_t segment,
+						 int32_t offset) const;
+
+		Aabb_i16 ToLocalAabb(Aabb aabb) const;
+
 		int32_t GetCount() const;
 	};
-	
-	Chunk *GetChunkOfEntity(EntityType entity, int32_t &segment, int32_t &offset);
+
+	Chunk *GetChunkOfEntity(EntityType entity, int32_t &segment,
+							int32_t &offset);
+	const Chunk *GetChunkOfEntity(EntityType entity, int32_t &segment,
+								  int32_t &offset) const;
 	int32_t GetChunkIdOfEntity(EntityType entity, int32_t &offset);
 
 	int32_t GetChunkIdFromAabb(Aabb aabb) const;
+
+	Chunk *GetOrInitChunk(int32_t chunkId, Aabb aabb);
+
+private: // callbacks
+	class AabbCallbacks
+	{
+	public:
+		class InterChunkCb : public spp::AabbCallback<Aabb, uint32_t, uint32_t, 0>
+		{
+		public:
+			ChunkedBvhDbvt::AabbCallback *orgCb;
+			ChunkedBvhDbvt *dbvt;
+
+			static void CallbackImpl(AabbCallback *, uint32_t chunkId);
+		};
+
+		class IntraChunkCb : public spp::AabbCallback<Aabb_i16, EntityType,
+													  MaskType, EMPTY_ENTITY>
+		{
+		public:
+			ChunkedBvhDbvt::AabbCallback *orgCb;
+			ChunkedBvhDbvt *dbvt;
+			Chunk *chunk;
+
+			static void CallbackImpl(AabbCallback *, EntityType entity);
+		};
+	};
+
+	class RayCallbacks
+	{
+	public:
+		class InterChunkCb : public spp::RayCallback<Aabb, uint32_t, uint32_t, 0>
+		{
+		public:
+			ChunkedBvhDbvt::RayCallback *orgCb;
+			ChunkedBvhDbvt *dbvt;
+
+			static RayPartialResult CallbackImpl(RayCallback *,
+												 uint32_t chunkId);
+		};
+
+		class IntraChunkCb : public spp::RayCallback<Aabb_i16, EntityType,
+													 MaskType, EMPTY_ENTITY>
+		{
+		public:
+			ChunkedBvhDbvt::RayCallback *orgCb;
+			ChunkedBvhDbvt *dbvt;
+			Chunk *chunk;
+
+			static RayPartialResult CallbackImpl(RayCallback *,
+												 EntityType entity);
+		};
+	};
 
 private:
 	float chunkSize = 64.0f;
 	float chunkSizeMultiplier = 256.0f;
 	float chunkSizeFactor = 4.0f;
 	float maxChunkedEntitySize = 32.0f;
-	
-	int limitChunkOffset = 512-2;
+
+	int limitChunkOffset = 512 - 2;
 
 	uint32_t entitiesCount = 0;
 
@@ -131,13 +192,13 @@ private:
 	 *                       component)
 	 *    lsb & 1    -   which bvh inside chunk
 	 * Segment = -1  -   outer objects
-	 * 
+	 *
 	 */
 	MapType entitiesOffsets;
-	
+
 	HashMap<int32_t, Chunk> chunks;
 
-	BvhMedianSplitHeap<Aabb, int32_t, int32_t, 0, 0> chunksBvh;
+	BvhMedianSplitHeap<Aabb, uint32_t, uint32_t, 0, 0> chunksBvh;
 	BvhMedianSplitHeap<Aabb, EntityType, MaskType, 0, 0, int32_t> outerObjects;
 
 	class Iterator final : public BroadphaseBaseIterator
@@ -152,6 +213,7 @@ private:
 		virtual bool Valid() override;
 		bool FetchData();
 
+		ChunkedBvhDbvt *bp;
 		MapType::Iterator it;
 		MapType::Iterator end;
 	} iterator;

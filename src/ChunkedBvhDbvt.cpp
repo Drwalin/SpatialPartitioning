@@ -204,6 +204,16 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkOfEntity(EntityType entity,
 															int32_t &segment,
 															int32_t &offset)
 {
+	const Chunk *chunk = ((const ChunkedBvhDbvt *)this)
+							 ->GetChunkOfEntity(entity, segment, offset);
+	return (Chunk *)chunk;
+}
+
+SPP_TEMPLATE_DECL_NO_AABB
+const ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk *
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkOfEntity(
+	EntityType entity, int32_t &segment, int32_t &offset) const
+{
 	segment = offset = 0;
 
 	auto it = entitiesOffsets.find(entity);
@@ -233,9 +243,12 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetOrInitChunk(int32_t chunkId,
 {
 	auto it = chunks.find(chunkId);
 	if (it == chunks.end()) {
-// 		auto e = chunks.insert_or_assign(chunkId, std::move(Chunk(this, chunkId, chunkSize, aabb)));
-		auto e = chunks.emplace(chunkId, Chunk(this, chunkId, chunkSize, aabb));
-		return &(e.first->second);
+		// 		auto e = chunks.insert_or_assign(chunkId, std::move(Chunk(this,
+		// chunkId, chunkSize, aabb))); 		auto e = chunks.emplace(chunkId,
+		// Chunk(this, chunkId, chunkSize, aabb));
+		Chunk *chunk = &(chunks[chunkId]);
+		chunk->Init(this, chunkId, chunkSize, aabb);
+		return chunk;
 	}
 	return &(it->second);
 }
@@ -397,8 +410,9 @@ bool ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Iterator::Valid()
 #include "ChunkedBvhDbvtChunk.cpp"
 #include "ChunkedBvhDbvtCallbacks.cpp"
 
-namespace spp {
-	
+namespace spp
+{
+
 SPP_DEFINE_VARIANTS_NO_AABB(ChunkedBvhDbvt)
 
 } // namespace spp

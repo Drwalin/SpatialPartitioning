@@ -9,7 +9,7 @@
 #include "../../glm/glm/ext/vector_uint3_sized.hpp"
 
 #include "./BvhMedianSplitHeap.hpp"
-#include "BroadPhaseBase.hpp"
+#include "./BroadPhaseBase.hpp"
 
 template <> struct std::hash<glm::u16vec3> {
 	inline size_t operator()(const glm::i16vec3 &k) const
@@ -85,18 +85,22 @@ public:
 
 private:
 	struct Chunk {
-		Chunk(ChunkedBvhDbvt *bp, int32_t chunkId, float chunkSize, Aabb aabb);
-		Chunk(Chunk &&chunk) = default;
-		Chunk &operator=(Chunk &&chunk) = default;
+		Chunk();
+		Chunk(Chunk &&chunk);
+		Chunk &operator=(Chunk &&chunk);
+		~Chunk();
 
-		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t>
-			bvh[2];
+		void Init(ChunkedBvhDbvt *bp, int32_t chunkId, float chunkSize,
+				  Aabb aabb);
+
+		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t> *bvh =
+			nullptr;
 		glm::vec3 offset;
 		glm::vec3 scale;
 		glm::vec3 invScale;
-		Aabb aabb;
+		Aabb chunkAabb;
 
-		bool inited = false;
+		int changes = 0;
 
 		void Add(EntityType entity, Aabb aabb, MaskType mask);
 		void Update(EntityType entity, Aabb aabb, int32_t oldSegment);
@@ -111,6 +115,7 @@ private:
 						 int32_t offset) const;
 
 		Aabb_i16 ToLocalAabb(Aabb aabb) const;
+		Aabb ToGlobalAabb(Aabb_i16 aabb) const;
 
 		int32_t GetCount() const;
 	};
@@ -129,7 +134,8 @@ private: // callbacks
 	class AabbCallbacks
 	{
 	public:
-		class InterChunkCb : public spp::AabbCallback<Aabb, uint32_t, uint32_t, 0>
+		class InterChunkCb
+			: public spp::AabbCallback<Aabb, uint32_t, uint32_t, 0>
 		{
 		public:
 			ChunkedBvhDbvt::AabbCallback *orgCb;
@@ -153,7 +159,8 @@ private: // callbacks
 	class RayCallbacks
 	{
 	public:
-		class InterChunkCb : public spp::RayCallback<Aabb, uint32_t, uint32_t, 0>
+		class InterChunkCb
+			: public spp::RayCallback<Aabb, uint32_t, uint32_t, 0>
 		{
 		public:
 			ChunkedBvhDbvt::RayCallback *orgCb;

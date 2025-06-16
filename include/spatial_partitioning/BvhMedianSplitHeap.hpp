@@ -145,6 +145,8 @@ public:
 	using BroadphaseBaseIterator =
 		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
 
+	BvhMedianSplitHeap(BvhMedianSplitHeap &&o) = default;
+	BvhMedianSplitHeap &operator=(BvhMedianSplitHeap &&o) = default;
 	BvhMedianSplitHeap(EntityType denseEntityRange);
 	BvhMedianSplitHeap(EntitiesOffsetsMapType &&entityIdsMap);
 	virtual ~BvhMedianSplitHeap();
@@ -152,6 +154,7 @@ public:
 	virtual const char *GetName() const override;
 
 	virtual void Clear() override;
+	void ClearWithoutOffsets();
 	virtual size_t GetMemoryUsage() const override;
 	virtual void ShrinkToFit() override;
 

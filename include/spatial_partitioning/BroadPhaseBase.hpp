@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "IntersectionCallbacks.hpp"
+#include "./IntersectionCallbacks.hpp"
 #include "EntityTypes.hpp"
 
 namespace spp

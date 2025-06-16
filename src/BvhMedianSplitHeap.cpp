@@ -70,9 +70,16 @@ SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
 											   SegmentType)>::Clear()
 {
+	ClearWithoutOffsets();
+	entitiesOffsets.Clear();
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
+											   SegmentType)>::ClearWithoutOffsets()
+{
 	entitiesData.clear();
 	nodesHeapAabb.clear();
-	entitiesOffsets.Clear();
 	rebuildTree = false;
 	entitiesCount = 0;
 	entitiesPowerOfTwoCount = 0;

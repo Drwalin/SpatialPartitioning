@@ -50,6 +50,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Init(ChunkedBvhDbvt *bp,
 															float chunkSize,
 															Aabb aabb)
 {
+	this->bp = bp;
 	bvh = new BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1,
 								 int32_t>[2]{
 		EntitiesOffsetsMapType_Reference(&(bp->entitiesOffsets),
@@ -72,6 +73,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Add(EntityType entity,
 {
 	Aabb_i16 b2 = ToLocalAabb(aabb);
 	bvh[1].Add(entity, b2, mask);
+	RebuildIfNeeded();
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -88,6 +90,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Update(
 	} else {
 		bvh[1].Update(entity, aabb);
 	}
+	RebuildIfNeeded();
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -114,6 +117,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Rebuild()
 {
 	bvh[0].StartFastAdding();
 	for (auto it = bvh[1].RestartIterator(); it->Valid(); it->Next()) {
+		bp->entitiesOffsets.Set(it->entity, {-1, -1});
 		bvh[0].Add(it->entity, it->aabb, it->mask);
 	}
 	bvh[1].ClearWithoutOffsets();

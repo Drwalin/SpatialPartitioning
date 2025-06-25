@@ -39,8 +39,7 @@ public:
 	DenseSparseSegmentOffsetMapReference(EntityType denseEntityRange)
 	{
 		owning = true;
-		map = new DenseSparseIntMap<EntityType, SegmentOffset, enableDense,
-									SegmentOffset{-1, -1}>(denseEntityRange);
+		map = new MapType(denseEntityRange);
 		segment = -1;
 	}
 
@@ -86,7 +85,7 @@ public:
 		return map->operator[](entity).offset;
 	}
 
-	void Remove(EntityType entity) { map->Set(entity, {-1, 0}); }
+	void Remove(EntityType entity) { map->Set(entity, {-1, -1}); }
 
 	bool Has(EntityType entity) const { return map->Has(entity); }
 
@@ -122,6 +121,9 @@ public:
 
 	static OffsetType get_offset_from_it(const OffsetType *it) { return *it; }
 };
+
+SPP_TEMPLATE_DECL_NO_AABB
+class ChunkedBvhDbvt;
 
 /*
  * Split policy:
@@ -206,7 +208,7 @@ private:
 
 	void _Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
-
+	
 private:
 	struct Data {
 		Aabb aabb;

@@ -165,6 +165,8 @@ private:
 
 		void Init(ChunkedBvhDbvt *bp, int32_t chunkId, float chunkSize,
 				  Aabb aabb);
+		
+		ChunkedBvhDbvt *bp = nullptr;
 
 		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t> *bvh =
 			nullptr;

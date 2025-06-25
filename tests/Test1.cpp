@@ -12,7 +12,6 @@
 
 #include "../glm/glm/common.hpp"
 #include "../glm/glm/geometric.hpp"
-#include "../glm/glm/vector_relational.hpp"
 
 #include "../include/spatial_partitioning/BroadPhaseBase.hpp"
 #include "../include/spatial_partitioning/BruteForce.hpp"
@@ -600,7 +599,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 					++cardinalErrors;
 					if (I < 10) {
 						printf(
-							"1. CARDINAL ERROR: ENTITY DOES NOT EXIST: %lu\n",
+							"1. CARDINAL ERROR: ENTITY DOES NOT EXIST: %u\n",
 							it0->entity);
 					}
 					++I;
@@ -614,7 +613,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 						++cardinalErrors;
 						if (I < 10) {
 							printf("2. CARDINAL ERROR: ENTITY AABBS DOES NOT "
-								   "MATCH: %lu (sum diff dist corners: %.1f)\n",
+								   "MATCH: %u (sum diff dist corners: %.1f)\n",
 								   it0->entity, sum);
 						}
 						++I;
@@ -628,7 +627,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 					++cardinalErrors;
 					if (I < 10) {
 						printf("3. CARDINAL ERROR: ENTITY SHOULD NOT EXIST BUT "
-							   "DOES: %lu\n",
+							   "DOES: %u\n",
 							   iti->entity);
 					}
 					++I;
@@ -642,7 +641,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 						++cardinalErrors;
 						if (I < 10) {
 							printf("4. CARDINAL ERROR: ENTITY AABBS DOES NOT "
-								   "MATCH: %lu (sum diff dist corners: %.1f)\n",
+								   "MATCH: %u (sum diff dist corners: %.1f)\n",
 								   iti->entity, sum);
 						}
 						++I;
@@ -671,7 +670,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 						a = hp.aabb.min;
 						b = hp.aabb.max;
 
-						printf("  %7i: %7lu    :     ", j, hp.e);
+						printf("  %7i: %7u    :     ", j, hp.e);
 						printf(
 							"{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}",
 							a.x, a.y, a.z, b.x, b.y, b.z);
@@ -707,7 +706,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 						a = hp.aabb.min;
 						b = hp.aabb.max;
 
-						printf("  %7i: %7lu    :     ", j, hp.e);
+						printf("  %7i: %7u    :     ", j, hp.e);
 						printf(
 							"{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}",
 							a.x, a.y, a.z, b.x, b.y, b.z);
@@ -796,10 +795,9 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 							b = aabb0.max;
 							c = aabbi.min;
 							d = aabbi.max;
-							printf("ray (%li<>%li)   %7ld: %7lu == %7lu  ", 
+							printf("ray (%li<>%li)   %7ld: %7u == %7u  ", 
 									patchEndi-patchStarti, patchEnd0-patchStart0,
-									ji, p0.e,
-								   pi.e);
+									ji, p0.e, pi.e);
 							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
 								   "%7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , "
 								   "{%7.2f, "
@@ -855,7 +853,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 						c = aabbi.min;
 						d = aabbi.max;
 						if (JJ < 10) {
-							printf("aabb  %7ld: %7lu == %7lu  ", ji, p0.e,
+							printf("aabb  %7ld: %7u == %7u  ", ji, p0.e,
 								   pi.e);
 							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
 								   "%7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , "
@@ -902,7 +900,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 							b = hp.aabb.max;
 							printf("aabb missing       ji %7ld[%lu] (j0 "
 								   "%7ld[%lu]): "
-								   "%7lu  ",
+								   "%7u  ",
 								   patchStart0, patchEnd0 - patchStart0,
 								   it.second, patchEndi - patchStarti, hp.e);
 							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
@@ -922,7 +920,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 							b = hp.aabb.max;
 							printf("ray missing        ji %7ld[%lu] (j0 "
 								   "%7ld[%lu]): "
-								   "%7lu  ",
+								   "%7u  ",
 								   patchStart0, patchEnd0 - patchStart0,
 								   it.second, patchEndi - patchStarti, hp.e);
 							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
@@ -961,7 +959,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 							b = hp.aabb.max;
 							printf("aabb shouldn't be  ji %7ld[%lu] (j0 "
 								   "%7ld[%lu]): "
-								   "%7lu  ",
+								   "%7u  ",
 								   patchStart0, patchEnd0 - patchStart0,
 								   it.second, patchEndi - patchStarti, hp.e);
 							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
@@ -981,7 +979,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 							b = hp.aabb.max;
 							printf("ray shouldn't be   ji %7ld[%lu] (j0 "
 								   "%7ld[%lu]): "
-								   "%7lu  ",
+								   "%7u  ",
 								   patchStart0, patchEnd0 - patchStart0,
 								   it.second, patchEndi - patchStarti, hp.e);
 							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
@@ -1491,7 +1489,7 @@ int main(int argc, char **argv)
 												   int64_t>(diff)
 							.count();
 					us = double(ns) / 1000.0;
-					timestage.insert({us, s});
+					timestage.insert(std::pair{us, s});
 				}
 				int i = 0;
 				double sum = 0;

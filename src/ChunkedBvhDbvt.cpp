@@ -82,7 +82,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Add(EntityType entity,
 
 	int32_t chunkId = GetChunkIdFromAabb(aabb);
 
-	assert(chunkId == 0);
+	assert(chunkId != 0);
 
 	if (chunkId == -1) {
 		outerObjects.Add(entity, aabb, mask);
@@ -254,6 +254,17 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetOrInitChunk(int32_t chunkId,
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk *
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkById(uint32_t chunkId)
+{
+	auto it = chunks.find(chunkId);
+	if (it != chunks.end()) {
+		return &(it->second);
+	}
+	return &(it->second);
+}
+
+SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::SetMask(EntityType entity,
 														MaskType mask)
 {
@@ -329,11 +340,15 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectAabb(AabbCallback &cb)
 	outerObjects.IntersectAabb(cb);
 
 	typename AabbCallbacks::InterChunkCb interChunkCb;
-	interChunkCb.callback = AabbCallbacks::InterChunkCb::CallbackImpl;
-	interChunkCb.dbvt = this;
-	interChunkCb.orgCb = &cb;
+	interChunkCb.InitFrom(cb, this);
 
 	chunksBvh.IntersectAabb(interChunkCb);
+	
+	cb.testedCount += interChunkCb.testedCount;
+	cb.testedCount += interChunkCb.intraCb.testedCount;
+	
+	cb.nodesTestedCount += interChunkCb.nodesTestedCount;
+	cb.nodesTestedCount += interChunkCb.intraCb.nodesTestedCount;
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -348,6 +363,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 	outerObjects.IntersectRay(cb);
 
 	typename RayCallbacks::InterChunkCb interChunkCb;
+	interChunkCb.InitFrom(cb, this);
 	interChunkCb.callback = RayCallbacks::InterChunkCb::CallbackImpl;
 	interChunkCb.dbvt = this;
 	interChunkCb.orgCb = &cb;
@@ -358,7 +374,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Rebuild()
 {
-	assert(!"Not implemented");
+	// TODO: Implement round robin rebuild
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -405,13 +421,6 @@ bool ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Iterator::Valid()
 {
 	return it != end;
 }
-} // namespace spp
-
-#include "ChunkedBvhDbvtChunk.cpp"
-#include "ChunkedBvhDbvtCallbacks.cpp"
-
-namespace spp
-{
 
 SPP_DEFINE_VARIANTS_NO_AABB(ChunkedBvhDbvt)
 

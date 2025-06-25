@@ -83,6 +83,79 @@ public:
 public:
 	void RebuildIncremental();
 
+private: // callbacks
+	struct Chunk;
+
+	class AabbCallbacks
+	{
+	public:
+		class IntraChunkCb : public spp::AabbCallback<Aabb_i16, EntityType,
+													  MaskType, EMPTY_ENTITY>
+		{
+		public:
+			using BaseCb =
+				spp::AabbCallback<Aabb_i16, EntityType, MaskType, EMPTY_ENTITY>;
+
+			ChunkedBvhDbvt::AabbCallback *orgCb;
+			ChunkedBvhDbvt *dbvt;
+			Chunk *chunk;
+
+			static void CallbackImpl(BaseCb *, EntityType entity);
+		};
+
+		class InterChunkCb
+			: public spp::AabbCallback<Aabb, uint32_t, uint32_t, 0>
+		{
+		public:
+			ChunkedBvhDbvt::AabbCallback *orgCb;
+			ChunkedBvhDbvt *dbvt;
+			AabbCallbacks::IntraChunkCb intraCb;
+
+			void InitFrom(ChunkedBvhDbvt::AabbCallback &cb,
+						  ChunkedBvhDbvt *dbvt);
+
+			static void CallbackImpl(AabbCallback *, uint32_t chunkId);
+		};
+	};
+
+	class RayCallbacks
+	{
+	public:
+		class IntraChunkCb : public spp::RayCallback<Aabb_i16, EntityType,
+													 MaskType, EMPTY_ENTITY>
+		{
+		public:
+			using BaseCb =
+				spp::RayCallback<Aabb_i16, EntityType, MaskType, EMPTY_ENTITY>;
+
+			ChunkedBvhDbvt::RayCallback *orgCb;
+			ChunkedBvhDbvt *dbvt;
+			Chunk *chunk;
+
+			static RayPartialResult CallbackImpl(BaseCb *, EntityType entity);
+		};
+
+		class InterChunkCb
+			: public spp::RayCallback<Aabb, uint32_t, uint32_t, 0>
+		{
+		public:
+			ChunkedBvhDbvt::RayCallback *orgCb;
+			ChunkedBvhDbvt *dbvt;
+			RayCallbacks::IntraChunkCb intraCb;
+
+			void InitFrom(ChunkedBvhDbvt::RayCallback &cb,
+						  ChunkedBvhDbvt *dbvt);
+
+			static RayPartialResult CallbackImpl(RayCallback *,
+												 uint32_t chunkId);
+		};
+	};
+
+	friend class AabbCallbacks::InterChunkCb;
+	friend class AabbCallbacks::IntraChunkCb;
+	friend class RayCallbacks::InterChunkCb;
+	friend class RayCallbacks::IntraChunkCb;
+
 private:
 	struct Chunk {
 		Chunk();
@@ -98,13 +171,17 @@ private:
 		glm::vec3 offset;
 		glm::vec3 scale;
 		glm::vec3 invScale;
-		Aabb chunkAabb;
+		
+		Aabb globalAabb;
+		Aabb_i16 localAabb;
 
 		int changes = 0;
 
 		void Add(EntityType entity, Aabb aabb, MaskType mask);
 		void Update(EntityType entity, Aabb aabb, int32_t oldSegment);
 		void Remove(EntityType entity, int32_t segment);
+		
+		int32_t GetCount() const;
 
 		void RebuildIfNeeded();
 		void Rebuild();
@@ -116,8 +193,11 @@ private:
 
 		Aabb_i16 ToLocalAabb(Aabb aabb) const;
 		Aabb ToGlobalAabb(Aabb_i16 aabb) const;
+		
+		glm::vec3 ToLocalVec(glm::vec3 p) const;
 
-		int32_t GetCount() const;
+		void IntersectAabb(AabbCallbacks::InterChunkCb *cb);
+		void IntersectRay(RayCallbacks::InterChunkCb *cb);
 	};
 
 	Chunk *GetChunkOfEntity(EntityType entity, int32_t &segment,
@@ -130,58 +210,7 @@ private:
 
 	Chunk *GetOrInitChunk(int32_t chunkId, Aabb aabb);
 
-private: // callbacks
-	class AabbCallbacks
-	{
-	public:
-		class InterChunkCb
-			: public spp::AabbCallback<Aabb, uint32_t, uint32_t, 0>
-		{
-		public:
-			ChunkedBvhDbvt::AabbCallback *orgCb;
-			ChunkedBvhDbvt *dbvt;
-
-			static void CallbackImpl(AabbCallback *, uint32_t chunkId);
-		};
-
-		class IntraChunkCb : public spp::AabbCallback<Aabb_i16, EntityType,
-													  MaskType, EMPTY_ENTITY>
-		{
-		public:
-			ChunkedBvhDbvt::AabbCallback *orgCb;
-			ChunkedBvhDbvt *dbvt;
-			Chunk *chunk;
-
-			static void CallbackImpl(AabbCallback *, EntityType entity);
-		};
-	};
-
-	class RayCallbacks
-	{
-	public:
-		class InterChunkCb
-			: public spp::RayCallback<Aabb, uint32_t, uint32_t, 0>
-		{
-		public:
-			ChunkedBvhDbvt::RayCallback *orgCb;
-			ChunkedBvhDbvt *dbvt;
-
-			static RayPartialResult CallbackImpl(RayCallback *,
-												 uint32_t chunkId);
-		};
-
-		class IntraChunkCb : public spp::RayCallback<Aabb_i16, EntityType,
-													 MaskType, EMPTY_ENTITY>
-		{
-		public:
-			ChunkedBvhDbvt::RayCallback *orgCb;
-			ChunkedBvhDbvt *dbvt;
-			Chunk *chunk;
-
-			static RayPartialResult CallbackImpl(RayCallback *,
-												 EntityType entity);
-		};
-	};
+	Chunk *GetChunkById(uint32_t chunkId);
 
 private:
 	float chunkSize = 64.0f;

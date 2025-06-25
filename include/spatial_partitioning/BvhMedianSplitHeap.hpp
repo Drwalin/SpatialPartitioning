@@ -114,6 +114,8 @@ struct DenseSparseSegmentOffsetMapReference<EntityType, void, OffsetType,
 	: public DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> {
 public:
 	
+	const bool owning = true;
+	
 	using MapType = DenseSparseIntMap<EntityType, OffsetType, enableDense, -1>;
 	
 	static OffsetType &get_offset_from_it(OffsetType *it) { return *it; }

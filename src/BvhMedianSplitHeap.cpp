@@ -12,30 +12,28 @@
 namespace spp
 {
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS,
-	SegmentType)>::BvhMedianSplitHeap(EntityType denseEntityRange)
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
+	BvhMedianSplitHeap(EntityType denseEntityRange)
 	: entitiesOffsets(denseEntityRange), iterator(*this)
 {
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
-										  SegmentType)>::
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 	BvhMedianSplitHeap(EntitiesOffsetsMapType &&entityIdsMap)
 	: entitiesOffsets(std::move(entityIdsMap)), iterator(*this)
 {
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::~BvhMedianSplitHeap()
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
+										  SegmentType)>::~BvhMedianSplitHeap()
 {
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-const char *BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::GetName() const
+const char *BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::GetName() const
 {
 	switch (SKIP_LOW_LAYERS) {
 	case 0:
@@ -51,15 +49,14 @@ const char *BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS,
-	SegmentType)>::SetAabbUpdatePolicy(AabbUpdatePolicy policy)
+	SKIP_LOW_LAYERS, SegmentType)>::SetAabbUpdatePolicy(AabbUpdatePolicy policy)
 {
 	updatePolicy = policy;
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::AabbUpdatePolicy
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
+										  SegmentType)>::AabbUpdatePolicy
 BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	SKIP_LOW_LAYERS, SegmentType)>::GetAabbUpdatePolicy() const
 {
@@ -75,8 +72,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
-											   SegmentType)>::ClearWithoutOffsets()
+void BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::ClearWithoutOffsets()
 {
 	entitiesData.clear();
 	nodesHeapAabb.clear();
@@ -86,17 +83,19 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-size_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::GetMemoryUsage() const
+size_t
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
+										  SegmentType)>::GetMemoryUsage() const
 {
-	return entitiesOffsets.GetMemoryUsage() +
+	return (entitiesOffsets.owning ? entitiesOffsets.GetMemoryUsage()
+								   : (size_t)0) +
 		   nodesHeapAabb.capacity() * sizeof(NodeData) +
 		   entitiesData.capacity() * sizeof(Data);
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::ShrinkToFit()
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
+											   SegmentType)>::ShrinkToFit()
 {
 	nodesHeapAabb.shrink_to_fit();
 	entitiesData.shrink_to_fit();
@@ -105,7 +104,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	SKIP_LOW_LAYERS, SegmentType)>::Add(EntityType entity, Aabb aabb,
-												   MaskType mask)
+										MaskType mask)
 {
 	if (entitiesOffsets.find(entity) != nullptr) {
 		assert(!"Entity already exists");
@@ -119,8 +118,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::Update(EntityType entity,
-													  Aabb aabb)
+	SKIP_LOW_LAYERS, SegmentType)>::Update(EntityType entity, Aabb aabb)
 {
 	uint32_t offset = entitiesOffsets[entity];
 	entitiesData[offset].aabb = aabb;
@@ -139,9 +137,9 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	if (it == nullptr) {
 		return;
 	}
-	
+
 	uint32_t offset = EntitiesOffsetsMapType::get_offset_from_it(it);
-	
+
 	assert(offset != -1);
 
 	entitiesOffsets.Remove(entity);
@@ -164,8 +162,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::SetMask(EntityType entity,
-													   MaskType mask)
+	SKIP_LOW_LAYERS, SegmentType)>::SetMask(EntityType entity, MaskType mask)
 {
 	auto it = entitiesOffsets.find(entity);
 	if (it == nullptr) {
@@ -206,8 +203,8 @@ EntityType BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-int32_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::GetCount() const
+int32_t BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::GetCount() const
 {
 	return entitiesCount;
 }
@@ -261,10 +258,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS,
-	SegmentType)>::_Internal_IntersectAabb(AabbCallback &cb,
-													  const int32_t nodeId)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
+	_Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId)
 {
 	const int32_t n = nodeId << 1;
 
@@ -322,9 +317,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS,
-	SegmentType)>::_Internal_IntersectRay(RayCallback &cb,
-													 const int32_t nodeId)
+	SKIP_LOW_LAYERS, SegmentType)>::_Internal_IntersectRay(RayCallback &cb,
+														   const int32_t nodeId)
 {
 	const int32_t n = nodeId << 1;
 	if (n >= entitiesPowerOfTwoCount) {
@@ -387,8 +381,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-void BvhMedianSplitHeap<
-	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::Rebuild()
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
+											   SegmentType)>::Rebuild()
 {
 	rebuildTree = false;
 	entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)entitiesCount);
@@ -434,9 +428,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 int32_t BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS,
-	SegmentType)>::RebuildNodePartial(int32_t nodeId,
-												 int32_t *tcount)
+	SKIP_LOW_LAYERS, SegmentType)>::RebuildNodePartial(int32_t nodeId,
+													   int32_t *tcount)
 {
 	*tcount = 0;
 	int32_t offset = nodeId;
@@ -572,8 +565,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::RebuildStep(RebuildProgress
-															   &progress)
+	SKIP_LOW_LAYERS, SegmentType)>::RebuildStep(RebuildProgress &progress)
 {
 	if (progress.done) {
 		return true;
@@ -663,9 +655,8 @@ bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::RestartIterator()
+BroadphaseBaseIterator<SPP_TEMPLATE_ARGS> *BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::RestartIterator()
 {
 	iterator = {*this};
 	return &iterator;
@@ -673,8 +664,7 @@ BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS,
-	SegmentType)>::Iterator::Iterator(BvhMedianSplitHeap &bp)
+	SKIP_LOW_LAYERS, SegmentType)>::Iterator::Iterator(BvhMedianSplitHeap &bp)
 {
 	data = &bp.entitiesData;
 	it = -1;
@@ -682,14 +672,14 @@ BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::Iterator::~Iterator()
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
+										  SegmentType)>::Iterator::~Iterator()
 {
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::Iterator::Next()
+bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
+											   SegmentType)>::Iterator::Next()
 {
 	do {
 		++it;
@@ -699,8 +689,8 @@ bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::Iterator::FetchData()
+bool BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::Iterator::FetchData()
 {
 	if (Valid()) {
 		this->entity = (*data)[it].entity;
@@ -712,8 +702,8 @@ bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::Iterator::Valid()
+bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
+											   SegmentType)>::Iterator::Valid()
 {
 	return it < data->size();
 }

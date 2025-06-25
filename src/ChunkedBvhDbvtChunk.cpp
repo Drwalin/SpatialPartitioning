@@ -15,7 +15,8 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Chunk(Chunk &&c)
 	offset = c.offset;
 	scale = c.scale;
 	invScale = c.invScale;
-	chunkAabb = c.chunkAabb;
+	localAabb = c.localAabb;
+	globalAabb = c.globalAabb;
 	bvh = c.bvh;
 	c.bvh = nullptr;
 }
@@ -27,7 +28,8 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::operator=(Chunk &&c)
 	offset = c.offset;
 	scale = c.scale;
 	invScale = c.invScale;
-	chunkAabb = c.chunkAabb;
+	localAabb = c.localAabb;
+	globalAabb = c.globalAabb;
 	bvh = c.bvh;
 	c.bvh = nullptr;
 	return *this;
@@ -53,6 +55,14 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Init(ChunkedBvhDbvt *bp,
 		EntitiesOffsetsMapType_Reference(&(bp->entitiesOffsets),
 										 chunkId & (-2)),
 		EntitiesOffsetsMapType_Reference(&(bp->entitiesOffsets), chunkId | 1)};
+	
+	offset = (glm::ivec3)(aabb.GetCenter() / chunkSize);
+	localAabb = {{-256*64, -256*64, -256*64}, {256*64, 256*64, 256*64}};
+	globalAabb.max = globalAabb.min = offset * chunkSize;
+	globalAabb.min -= chunkSize / 2.0f;
+	globalAabb.max += chunkSize / 2.0f;
+	invScale = glm::vec3(256.0f);
+	scale = glm::vec3(1.0f) / invScale;
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -60,11 +70,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Add(EntityType entity,
 														   Aabb aabb,
 														   MaskType mask)
 {
-	aabb.min -= offset;
-	aabb.max -= offset;
-	aabb.min *= scale;
-	aabb.max *= scale;
-	Aabb_i16 b2 = aabb;
+	Aabb_i16 b2 = ToLocalAabb(aabb);
 	bvh[1].Add(entity, b2, mask);
 }
 
@@ -125,6 +131,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ShrinkToFit()
 SPP_TEMPLATE_DECL_NO_AABB
 size_t ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::GetMemoryUsage() const
 {
+	assert(bvh != nullptr);
 	return bvh[0].GetMemoryUsage() + bvh[1].GetMemoryUsage();
 }
 
@@ -146,11 +153,9 @@ SPP_TEMPLATE_DECL_NO_AABB
 Aabb_i16
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalAabb(Aabb aabb) const
 {
-	aabb.min -= offset;
-	aabb.max -= offset;
-	aabb.min *= scale;
-	aabb.max *= scale;
-	assert(chunkAabb.ContainsAll(aabb));
+	aabb.min = ToLocalVec(aabb.min);
+	aabb.max = ToLocalVec(aabb.max);
+	assert(localAabb.ContainsAll(aabb));
 	return aabb;
 }
 
@@ -167,9 +172,46 @@ Aabb ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToGlobalAabb(
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
+glm::vec3 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalVec(glm::vec3 p) const
+{
+	return (p - offset) * scale;
+}
+
+SPP_TEMPLATE_DECL_NO_AABB
 int32_t ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::GetCount() const
 {
 	return bvh[0].GetCount() | bvh[1].GetCount();
 }
 
+SPP_TEMPLATE_DECL_NO_AABB
+void
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::
+IntersectAabb(AabbCallbacks::InterChunkCb *cb)
+{
+	cb->intraCb.chunk = this;
+	cb->intraCb.aabb = ToLocalAabb(cb->aabb);
+	
+	for (int i=0; i<2; ++i) {
+		bvh[i].IntersectAabb(cb->intraCb);
+	}
+}
+
+SPP_TEMPLATE_DECL_NO_AABB
+void
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::
+IntersectRay(RayCallbacks::InterChunkCb *cb)
+{
+	cb->intraCb.chunk = this;
+	
+	cb->intraCb.start = ToLocalVec(cb->start);
+	cb->intraCb.end = ToLocalVec(cb->end);
+	
+	for (int i=0; i<2; ++i) {
+		bvh[i].IntersectRay(cb->intraCb);
+	}
+}
+
+
+SPP_DEFINE_VARIANTS_NO_AABB(ChunkedBvhDbvt)
+	
 } // namespace spp

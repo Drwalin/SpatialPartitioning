@@ -147,6 +147,11 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Remove(EntityType entity)
 
 	if (chunk) {
 		chunk->Remove(entity, segment);
+		if (chunk->GetCount() == 0) {
+			uint32_t id = segment & (-2);
+			chunksBvh.Remove(id);
+			chunks.erase(id);
+		}
 	} else {
 		outerObjects.Remove(entity);
 	}
@@ -248,6 +253,7 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetOrInitChunk(int32_t chunkId,
 		// Chunk(this, chunkId, chunkSize, aabb));
 		Chunk *chunk = &(chunks[chunkId]);
 		chunk->Init(this, chunkId, chunkSize, aabb);
+		chunksBvh.Add(chunkId, chunk->globalAabb, ~0);
 		return chunk;
 	}
 	return &(it->second);
@@ -357,11 +363,11 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 	if (cb.callback == nullptr) {
 		return;
 	}
-
+	
 	cb.broadphase = this;
 
 	outerObjects.IntersectRay(cb);
-
+	
 	typename RayCallbacks::InterChunkCb interChunkCb;
 	interChunkCb.InitFrom(cb, this);
 	interChunkCb.callback = RayCallbacks::InterChunkCb::CallbackImpl;
@@ -369,6 +375,15 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 	interChunkCb.orgCb = &cb;
 
 	chunksBvh.IntersectRay(interChunkCb);
+	
+	cb.testedCount += interChunkCb.testedCount;
+	cb.testedCount += interChunkCb.intraCb.testedCount;
+	
+	cb.nodesTestedCount += interChunkCb.nodesTestedCount;
+	cb.nodesTestedCount += interChunkCb.intraCb.nodesTestedCount;
+	
+	cb.hitCount += interChunkCb.hitCount;
+	cb.hitCount += interChunkCb.intraCb.hitCount;
 }
 
 SPP_TEMPLATE_DECL_NO_AABB

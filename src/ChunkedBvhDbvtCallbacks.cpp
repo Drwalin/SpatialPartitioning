@@ -2,8 +2,6 @@
 // Copyright (c) 2024-2025 Marek Zalewski aka Drwalin
 // You should have received a copy of the MIT License along with this program.
 
-#include <cstdio>
-
 #include "../include/spatial_partitioning/ChunkedBvhDbvt.hpp"
 
 namespace spp
@@ -73,7 +71,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::RayCallbacks::InterChunkCb::
 	intraCb.dirNormalized = cb.dirNormalized;
 	intraCb.invDir = cb.invDir;
 	intraCb.length = cb.length * dbvt->chunkSizeMultiplier;
-	
+
 	intraCb.start = cb.start;
 	intraCb.end = cb.end;
 }
@@ -82,7 +80,6 @@ SPP_TEMPLATE_DECL_NO_AABB
 RayPartialResult ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::RayCallbacks::
 	InterChunkCb::CallbackImpl(RayCallback *cb, uint32_t chunkId)
 {
-	printf("D\n");
 	InterChunkCb *self = (InterChunkCb *)cb;
 	Chunk *chunk = self->dbvt->GetChunkById(chunkId);
 	chunk->IntersectRay(self);
@@ -94,7 +91,6 @@ SPP_TEMPLATE_DECL_NO_AABB
 RayPartialResult ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::RayCallbacks::
 	IntraChunkCb::CallbackImpl(BaseCb *cb, EntityType entity)
 {
-	printf("E\n");
 	IntraChunkCb *self = (IntraChunkCb *)cb;
 	RayPartialResult ret = self->orgCb->ExecuteCallback(entity);
 	self->cutFactor = self->orgCb->cutFactor;

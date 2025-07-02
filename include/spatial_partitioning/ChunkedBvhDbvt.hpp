@@ -165,15 +165,16 @@ private:
 
 		void Init(ChunkedBvhDbvt *bp, int32_t chunkId, float chunkSize,
 				  Aabb aabb);
-		
+
 		ChunkedBvhDbvt *bp = nullptr;
 
 		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t> *bvh =
 			nullptr;
-		glm::vec3 offset;
+		glm::i16vec3 chunkOffset;
+		glm::vec3 centerGlobalOffset;
 		glm::vec3 scale;
 		glm::vec3 invScale;
-		
+
 		Aabb globalAabb;
 		Aabb_i16 localAabb;
 
@@ -182,7 +183,7 @@ private:
 		void Add(EntityType entity, Aabb aabb, MaskType mask);
 		void Update(EntityType entity, Aabb aabb, int32_t oldSegment);
 		void Remove(EntityType entity, int32_t segment);
-		
+
 		int32_t GetCount() const;
 
 		void RebuildIfNeeded();
@@ -195,7 +196,7 @@ private:
 
 		Aabb_i16 ToLocalAabb(Aabb aabb) const;
 		Aabb ToGlobalAabb(Aabb_i16 aabb) const;
-		
+
 		glm::vec3 ToLocalVec(glm::vec3 p) const;
 
 		void IntersectAabb(AabbCallbacks::InterChunkCb *cb);

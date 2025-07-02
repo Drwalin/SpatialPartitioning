@@ -93,12 +93,22 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Add(EntityType entity,
 	++entitiesCount;
 }
 
+void static BREAKPOINT() {}
+
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 													   Aabb aabb)
 {
-	if (entitiesOffsets.find(entity) != nullptr) {
-		assert(!"Entity already exists");
+	static int dupa = 0;
+	if (entity == 4) {
+		++dupa;
+		if (dupa == 2) {
+			BREAKPOINT();
+		}
+	}
+	
+	if (entitiesOffsets.find(entity) == nullptr) {
+		assert(!"Entity does not exists");
 		return;
 	}
 
@@ -163,7 +173,7 @@ SPP_TEMPLATE_DECL_NO_AABB
 int32_t
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkIdFromAabb(Aabb aabb) const
 {
-	glm::vec3 center = aabb.GetCenter() / chunkSize;
+	glm::vec3 center = (aabb.GetCenter() / chunkSize);
 	glm::vec3 halfSize = aabb.GetSizes() * 0.5f;
 
 	float maxHalfSize = glm::max(halfSize.x, glm::max(halfSize.y, halfSize.z));
@@ -180,7 +190,7 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkIdFromAabb(Aabb aabb) const
 		return -1;
 	}
 
-	glm::ivec3 hs = center + 512.f;
+	glm::ivec3 hs = center + 512.5f;
 	int32_t id =
 		((hs.x & 0x3FF) << 1) | ((hs.y & 0x3FF) << 11) | ((hs.z & 0x3FF) << 21);
 
@@ -344,15 +354,17 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectAabb(AabbCallback &cb)
 	cb.broadphase = this;
 
 	outerObjects.IntersectAabb(cb);
+	
+	cb.broadphase = this;
 
 	typename AabbCallbacks::InterChunkCb interChunkCb;
 	interChunkCb.InitFrom(cb, this);
 
 	chunksBvh.IntersectAabb(interChunkCb);
-	
+
 	cb.testedCount += interChunkCb.testedCount;
 	cb.testedCount += interChunkCb.intraCb.testedCount;
-	
+
 	cb.nodesTestedCount += interChunkCb.nodesTestedCount;
 	cb.nodesTestedCount += interChunkCb.intraCb.nodesTestedCount;
 }
@@ -363,11 +375,13 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 	if (cb.callback == nullptr) {
 		return;
 	}
-	
+
 	cb.broadphase = this;
 
 	outerObjects.IntersectRay(cb);
 	
+	cb.broadphase = this;
+
 	typename RayCallbacks::InterChunkCb interChunkCb;
 	interChunkCb.InitFrom(cb, this);
 	interChunkCb.callback = RayCallbacks::InterChunkCb::CallbackImpl;
@@ -375,13 +389,13 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 	interChunkCb.orgCb = &cb;
 
 	chunksBvh.IntersectRay(interChunkCb);
-	
+
 	cb.testedCount += interChunkCb.testedCount;
 	cb.testedCount += interChunkCb.intraCb.testedCount;
-	
+
 	cb.nodesTestedCount += interChunkCb.nodesTestedCount;
 	cb.nodesTestedCount += interChunkCb.intraCb.nodesTestedCount;
-	
+
 	cb.hitCount += interChunkCb.hitCount;
 	cb.hitCount += interChunkCb.intraCb.hitCount;
 }

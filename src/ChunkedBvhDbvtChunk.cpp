@@ -2,6 +2,8 @@
 // Copyright (c) 2024-2025 Marek Zalewski aka Drwalin
 // You should have received a copy of the MIT License along with this program.
 
+#include <cmath>
+
 #include "../include/spatial_partitioning/ChunkedBvhDbvt.hpp"
 
 namespace spp
@@ -12,7 +14,8 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Chunk() {}
 SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Chunk(Chunk &&c)
 {
-	offset = c.offset;
+	chunkOffset = c.chunkOffset;
+	centerGlobalOffset = c.centerGlobalOffset;
 	scale = c.scale;
 	invScale = c.invScale;
 	localAabb = c.localAabb;
@@ -25,7 +28,8 @@ SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk &
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::operator=(Chunk &&c)
 {
-	offset = c.offset;
+	chunkOffset = c.chunkOffset;
+	centerGlobalOffset = c.centerGlobalOffset;
 	scale = c.scale;
 	invScale = c.invScale;
 	localAabb = c.localAabb;
@@ -56,12 +60,13 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Init(ChunkedBvhDbvt *bp,
 		EntitiesOffsetsMapType_Reference(&(bp->entitiesOffsets),
 										 chunkId & (-2)),
 		EntitiesOffsetsMapType_Reference(&(bp->entitiesOffsets), chunkId | 1)};
-	
-	offset = (glm::ivec3)(aabb.GetCenter() / chunkSize);
-	localAabb = {{-256*64, -256*64, -256*64}, {256*64, 256*64, 256*64}};
-	globalAabb.max = globalAabb.min = offset * chunkSize;
-	globalAabb.min -= chunkSize / 2.0f;
-	globalAabb.max += chunkSize / 2.0f;
+
+	chunkOffset = (aabb.GetCenter() / chunkSize) + 0.5f;
+	centerGlobalOffset = ((glm::vec3)chunkOffset) * chunkSize;
+	localAabb = {-glm::ivec3(chunkSize * bp->chunkSizeMultiplier), 
+		glm::ivec3(chunkSize * bp->chunkSizeMultiplier)};
+	globalAabb.min = centerGlobalOffset - (chunkSize / 2.0f);
+	globalAabb.max = centerGlobalOffset + (chunkSize / 2.0f);
 	invScale = glm::vec3(256.0f);
 	scale = glm::vec3(1.0f) / invScale;
 }
@@ -157,9 +162,18 @@ SPP_TEMPLATE_DECL_NO_AABB
 Aabb_i16
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalAabb(Aabb aabb) const
 {
+	Aabb org = aabb;
 	aabb.min = ToLocalVec(aabb.min);
+	for (int i=0; i<3; ++i) {
+		aabb.min[i] = floorf(aabb.min[i]);
+	}
 	aabb.max = ToLocalVec(aabb.max);
+	for (int i=0; i<3; ++i) {
+		aabb.max[i] = ceilf(aabb.max[i]);
+	}
 	assert(localAabb.ContainsAll(aabb));
+	Aabb glob = ToGlobalAabb(aabb);
+	assert(glob.ContainsAll(org));
 	return aabb;
 }
 
@@ -168,17 +182,18 @@ Aabb ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToGlobalAabb(
 	Aabb_i16 _aabb) const
 {
 	Aabb aabb = _aabb;
-	aabb.min *= invScale;
-	aabb.max *= invScale;
-	aabb.min += offset;
-	aabb.max += offset;
+	aabb.min *= scale;
+	aabb.max *= scale;
+	aabb.min += centerGlobalOffset;
+	aabb.max += centerGlobalOffset;
 	return aabb;
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
-glm::vec3 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalVec(glm::vec3 p) const
+glm::vec3
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalVec(glm::vec3 p) const
 {
-	return (p - offset) * scale;
+	return (p - centerGlobalOffset) * invScale;
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -188,34 +203,31 @@ int32_t ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::GetCount() const
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
-void
-ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::
-IntersectAabb(AabbCallbacks::InterChunkCb *cb)
+void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::IntersectAabb(
+	AabbCallbacks::InterChunkCb *cb)
 {
 	cb->intraCb.chunk = this;
 	cb->intraCb.aabb = ToLocalAabb(cb->aabb);
-	
-	for (int i=0; i<2; ++i) {
+
+	for (int i = 0; i < 2; ++i) {
 		bvh[i].IntersectAabb(cb->intraCb);
 	}
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
-void
-ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::
-IntersectRay(RayCallbacks::InterChunkCb *cb)
+void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::IntersectRay(
+	RayCallbacks::InterChunkCb *cb)
 {
 	cb->intraCb.chunk = this;
-	
+
 	cb->intraCb.start = ToLocalVec(cb->start);
 	cb->intraCb.end = ToLocalVec(cb->end);
-	
-	for (int i=0; i<2; ++i) {
+
+	for (int i = 0; i < 2; ++i) {
 		bvh[i].IntersectRay(cb->intraCb);
 	}
 }
 
-
 SPP_DEFINE_VARIANTS_NO_AABB(ChunkedBvhDbvt)
-	
+
 } // namespace spp

@@ -115,17 +115,19 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 
 		struct _Cb : public spp::AabbCallback<spp::Aabb, EntityType, uint32_t, 0> {
 			std::vector<StartEndPoint> *hitPoints = nullptr;
+			std::vector<spp::Aabb> *aabbs = nullptr;
 		} cb;
 		cb.hitPoints = &hitPoints;
+		cb.aabbs = &currentEntitiesAabbs;
 		cb.mask = ~(uint32_t)0;
 		typedef void (*CbT)(spp::AabbCallback<spp::Aabb, EntityType, uint32_t, 0> *, EntityType);
 		cb.callback = (CbT) + [](_Cb *cb, EntityType entity) {
-			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
+			spp::Aabb aabb = cb->aabbs->at(entity);
 			if (cb->IsRelevant(aabb)) {
 				ret.hitCount++;
 				if (ENABLE_VERIFICATION) {
 					cb->hitPoints->push_back(
-						StartEndPoint{cb->broadphase->GetAabb(entity),
+						StartEndPoint{aabb,
 									  cb->aabb,
 									  {},
 									  {},
@@ -159,8 +161,10 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 
 		struct _Cb : public spp::RayCallback<spp::Aabb, EntityType, uint32_t, 0> {
 			std::vector<StartEndPoint> *hitPoints = nullptr;
+			std::vector<spp::Aabb> *aabbs = nullptr;
 		} cb;
 		cb.hitPoints = &hitPoints;
+		cb.aabbs = &currentEntitiesAabbs;
 		cb.mask = ~(uint32_t)0;
 		typedef spp::RayPartialResult (*CbT)(spp::RayCallback<spp::Aabb, EntityType, uint32_t, 0> *,
 											 EntityType);
@@ -169,7 +173,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 			[](_Cb *cb, EntityType entity) -> spp::RayPartialResult {
 			assert(entity > 0);
 			float n, f;
-			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
+			spp::Aabb aabb = cb->aabbs->at(entity);
 			if (cb->IsRelevant(aabb, n, f)) {
 				ret.hitCount++;
 				assert(n >= 0);
@@ -209,7 +213,9 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 	} break;
 	case TEST_RAY_FIRST: {
 		struct _Cb : public spp::RayCallbackFirstHit<spp::Aabb, EntityType, uint32_t, 0> {
+			std::vector<spp::Aabb> *aabbs = nullptr;
 		} cb;
+		cb.aabbs = &currentEntitiesAabbs;
 		cb.mask = ~(uint32_t)0;
 		typedef spp::RayPartialResult (*CbT)(spp::RayCallback<spp::Aabb, EntityType, uint32_t, 0> *,
 											 EntityType);
@@ -217,7 +223,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 			(CbT) +
 			[](_Cb *cb, EntityType entity) -> spp::RayPartialResult {
 			float n, f;
-			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
+			spp::Aabb aabb = cb->aabbs->at(entity);
 			if (cb->IsRelevant(aabb, n, f)) {
 				if (n < 0.0f) {
 					n = 0.0f;
@@ -255,7 +261,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 				if (cb.hasHit) {
 					ret.hitCount++;
 					hitPoints.push_back(
-						StartEndPoint{broadphase->GetAabb(cb.hitEntity),
+						StartEndPoint{currentEntitiesAabbs[cb.hitEntity],
 									  {},
 									  cb.start,
 									  end,
@@ -285,17 +291,19 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 
 		struct _CbAabb : public spp::AabbCallback<spp::Aabb, EntityType, uint32_t, 0> {
 			std::vector<StartEndPoint> *hitPoints = nullptr;
+			std::vector<spp::Aabb> *aabbs = nullptr;
 		} cbAabb;
 		cbAabb.hitPoints = &hitPoints;
+		cbAabb.aabbs = &currentEntitiesAabbs;
 		cbAabb.mask = ~(uint32_t)0;
 		typedef void (*CbTAabb)(spp::AabbCallback<spp::Aabb, EntityType, uint32_t, 0> *, EntityType);
 		cbAabb.callback = (CbTAabb) + [](_CbAabb *cb, EntityType entity) {
-			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
+			spp::Aabb aabb = cb->aabbs->at(entity);
 			if (cb->IsRelevant(aabb)) {
 				ret.hitCount++;
 				if (ENABLE_VERIFICATION) {
 					cb->hitPoints->push_back(
-						StartEndPoint{cb->broadphase->GetAabb(entity),
+						StartEndPoint{aabb,
 									  cb->aabb,
 									  {},
 									  {},
@@ -311,7 +319,9 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 		};
 
 		struct _CbRay : public spp::RayCallbackFirstHit<spp::Aabb, EntityType, uint32_t, 0> {
+			std::vector<spp::Aabb> *aabbs = nullptr;
 		} cbRay;
+		cbRay.aabbs = &currentEntitiesAabbs;
 		cbRay.mask = ~(uint32_t)0;
 		typedef spp::RayPartialResult (*CbTRay)(spp::RayCallback<spp::Aabb, EntityType, uint32_t, 0> *,
 												EntityType);
@@ -319,7 +329,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 			(CbTRay) +
 			[](_CbRay *cb, EntityType entity) -> spp::RayPartialResult {
 			float n, f;
-			spp::Aabb aabb = cb->broadphase->GetAabb(entity);
+			spp::Aabb aabb = cb->aabbs->at(entity);
 			if (cb->IsRelevant(aabb, n, f)) {
 				if (n < 0.0f) {
 					n = 0.0f;
@@ -444,7 +454,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 						_SetEntityAabb(currentEntitiesAabbs, e, aabb);
 					}
 				} else {
-					spp::Aabb aabb = broadphase->GetAabb(e);
+					spp::Aabb aabb = currentEntitiesAabbs[e];
 					aabb.min += vv[i];
 					aabb.max += vv[i];
 					broadphase->Update(e, aabb);
@@ -465,7 +475,7 @@ SingleTestResult SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t,
 					if (cbRay.hasHit) {
 						ret.hitCount++;
 						hitPoints.push_back(
-							StartEndPoint{broadphase->GetAabb(cbRay.hitEntity),
+							StartEndPoint{currentEntitiesAabbs[cbRay.hitEntity],
 										  {},
 										  cbRay.start,
 										  cbRay.end,
@@ -605,7 +615,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 					++I;
 				} else {
 					spp::Aabb aabb0 = it0->aabb;
-					spp::Aabb aabbi = bpi.GetAabb(it0->entity);
+					spp::Aabb aabbi = currentEntitiesAabbs[i][it0->entity];
 					glm::vec3 a = aabb0.min - aabbi.min;
 					glm::vec3 b = aabb0.max - aabbi.max;
 					float sum = glm::length(a) + glm::length(b);
@@ -632,7 +642,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 					}
 					++I;
 				} else {
-					spp::Aabb aabb0 = bp0.GetAabb(iti->entity);
+					spp::Aabb aabb0 = currentEntitiesAabbs[0][iti->entity];
 					spp::Aabb aabbi = iti->aabb;
 					glm::vec3 a = aabb0.min - aabbi.min;
 					glm::vec3 b = aabb0.max - aabbi.max;

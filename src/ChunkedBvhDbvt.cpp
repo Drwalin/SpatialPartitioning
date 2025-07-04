@@ -100,9 +100,9 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 													   Aabb aabb)
 {
 	static int dupa = 0;
-	if (entity == 4) {
+	if (entity == 13) {
 		++dupa;
-		if (dupa == 2) {
+		if (dupa == 14) {
 			BREAKPOINT();
 		}
 	}
@@ -262,7 +262,7 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetOrInitChunk(int32_t chunkId,
 		// chunkId, chunkSize, aabb))); 		auto e = chunks.emplace(chunkId,
 		// Chunk(this, chunkId, chunkSize, aabb));
 		Chunk *chunk = &(chunks[chunkId]);
-		chunk->Init(this, chunkId, chunkSize, aabb);
+		chunk->Init(this, chunkId&(-2), chunkSize, aabb);
 		chunksBvh.Add(chunkId, chunk->globalAabb, ~0);
 		return chunk;
 	}

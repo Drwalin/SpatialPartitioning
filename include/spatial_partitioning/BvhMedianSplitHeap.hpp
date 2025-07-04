@@ -69,7 +69,7 @@ public:
 		map = nullptr;
 	}
 
-	void Clear() { map->Clear(); }
+	void Clear() { if (owning) { map->Clear(); } }
 	uint64_t GetMemoryUsage() const { return map->GetMemoryUsage(); }
 
 	auto find(EntityType key) { return map->find(key); }

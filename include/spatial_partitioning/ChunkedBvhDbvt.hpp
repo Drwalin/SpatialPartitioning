@@ -195,6 +195,7 @@ private:
 						 int32_t offset) const;
 
 		Aabb_i16 ToLocalAabb(Aabb aabb) const;
+		Aabb_i16 ToLocalAabbUnbound(Aabb aabb) const;
 		Aabb ToGlobalAabb(Aabb_i16 aabb) const;
 
 		glm::vec3 ToLocalVec(glm::vec3 p) const;

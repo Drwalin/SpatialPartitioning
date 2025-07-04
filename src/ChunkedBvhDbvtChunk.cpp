@@ -65,8 +65,8 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Init(ChunkedBvhDbvt *bp,
 	centerGlobalOffset = ((glm::vec3)chunkOffset) * chunkSize;
 	localAabb = {-glm::ivec3(chunkSize * bp->chunkSizeMultiplier), 
 		glm::ivec3(chunkSize * bp->chunkSizeMultiplier)};
-	globalAabb.min = centerGlobalOffset - (chunkSize / 2.0f);
-	globalAabb.max = centerGlobalOffset + (chunkSize / 2.0f);
+	globalAabb.min = centerGlobalOffset - chunkSize;
+	globalAabb.max = centerGlobalOffset + chunkSize;
 	invScale = glm::vec3(256.0f);
 	scale = glm::vec3(1.0f) / invScale;
 }
@@ -178,6 +178,21 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalAabb(Aabb aabb) const
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
+Aabb_i16
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalAabbUnbound(Aabb aabb) const
+{
+	aabb.min = ToLocalVec(aabb.min);
+	for (int i=0; i<3; ++i) {
+		aabb.min[i] = floorf(aabb.min[i]);
+	}
+	aabb.max = ToLocalVec(aabb.max);
+	for (int i=0; i<3; ++i) {
+		aabb.max[i] = ceilf(aabb.max[i]);
+	}
+	return aabb;
+}
+
+SPP_TEMPLATE_DECL_NO_AABB
 Aabb ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToGlobalAabb(
 	Aabb_i16 _aabb) const
 {
@@ -207,7 +222,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::IntersectAabb(
 	AabbCallbacks::InterChunkCb *cb)
 {
 	cb->intraCb.chunk = this;
-	cb->intraCb.aabb = ToLocalAabb(cb->aabb);
+	cb->intraCb.aabb = ToLocalAabbUnbound(cb->aabb);
 
 	for (int i = 0; i < 2; ++i) {
 		bvh[i].IntersectAabb(cb->intraCb);

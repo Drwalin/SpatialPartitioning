@@ -173,12 +173,10 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalAabb(Aabb aabb) const
 	assert(glob.IsIn(org.min));
 	assert(glob.IsIn(org.max));
 	assert(glob.ContainsAll(org));
-	/*
 	assert(localAabb.ContainsAll(aabb));
 	assert(localAabbInner.IsIn(aabb.GetCenter()));
 	assert(globalAabbInner.IsIn(glob.GetCenter()));
 	assert(globalAabbInner.IsIn(org.GetCenter()));
-	*/
 	return aabb;
 }
 

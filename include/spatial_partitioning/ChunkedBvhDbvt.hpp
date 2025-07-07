@@ -170,13 +170,15 @@ private:
 
 		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t> *bvh =
 			nullptr;
-		glm::i16vec3 chunkOffset;
-		glm::vec3 centerGlobalOffset;
 		glm::vec3 scale;
 		glm::vec3 invScale;
 
 		Aabb globalAabb;
-		Aabb_i16 localAabb;
+		Aabb globalAabbInner;
+		Aabb_i32 localAabb;
+		Aabb_i32 localAabbInner;
+
+		int32_t chunkId;
 
 		int changes = 0;
 

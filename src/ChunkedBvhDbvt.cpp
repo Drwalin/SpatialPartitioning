@@ -106,7 +106,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 			BREAKPOINT();
 		}
 	}
-	
+
 	if (entitiesOffsets.find(entity) == nullptr) {
 		assert(!"Entity does not exists");
 		return;
@@ -173,7 +173,7 @@ SPP_TEMPLATE_DECL_NO_AABB
 int32_t
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkIdFromAabb(Aabb aabb) const
 {
-	glm::vec3 center = (aabb.GetCenter() / chunkSize);
+	glm::vec3 center = glm::floor(aabb.GetCenter() / chunkSize);
 	glm::vec3 halfSize = aabb.GetSizes() * 0.5f;
 
 	float maxHalfSize = glm::max(halfSize.x, glm::max(halfSize.y, halfSize.z));
@@ -190,7 +190,7 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkIdFromAabb(Aabb aabb) const
 		return -1;
 	}
 
-	glm::ivec3 hs = center + 512.5f;
+	glm::ivec3 hs = center + 512.0f;
 	int32_t id =
 		((hs.x & 0x3FF) << 1) | ((hs.y & 0x3FF) << 11) | ((hs.z & 0x3FF) << 21);
 
@@ -262,7 +262,7 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetOrInitChunk(int32_t chunkId,
 		// chunkId, chunkSize, aabb))); 		auto e = chunks.emplace(chunkId,
 		// Chunk(this, chunkId, chunkSize, aabb));
 		Chunk *chunk = &(chunks[chunkId]);
-		chunk->Init(this, chunkId&(-2), chunkSize, aabb);
+		chunk->Init(this, chunkId & (-2), chunkSize, aabb);
 		chunksBvh.Add(chunkId, chunk->globalAabb, ~0);
 		return chunk;
 	}
@@ -354,7 +354,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectAabb(AabbCallback &cb)
 	cb.broadphase = this;
 
 	outerObjects.IntersectAabb(cb);
-	
+
 	cb.broadphase = this;
 
 	typename AabbCallbacks::InterChunkCb interChunkCb;
@@ -379,7 +379,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 	cb.broadphase = this;
 
 	outerObjects.IntersectRay(cb);
-	
+
 	cb.broadphase = this;
 
 	typename RayCallbacks::InterChunkCb interChunkCb;
@@ -403,7 +403,8 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Rebuild()
 {
-	// TODO: Implement round robin rebuild
+	// TODO: Implement round robin rebuild / optimize / shrink to fit / delete
+	//         empty
 }
 
 SPP_TEMPLATE_DECL_NO_AABB

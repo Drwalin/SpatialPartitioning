@@ -20,6 +20,7 @@ inline const glm::vec3 VEC_INF = {std::numeric_limits<float>::infinity(),
 
 struct AabbCentered;
 struct Aabb_i16;
+struct Aabb_i32;
 
 struct Aabb {
 	glm::vec3 min;
@@ -64,6 +65,7 @@ public:
 
 	operator AabbCentered() const;
 	operator Aabb_i16() const;
+	operator Aabb_i32() const;
 
 public:
 	bool operator&&(const Aabb &r) const;
@@ -111,6 +113,7 @@ public:
 						   float &near, float &far) const;
 
 	operator Aabb_i16() const;
+	operator Aabb_i32() const;
 
 public:
 	bool operator&&(const AabbCentered &r) const;
@@ -157,8 +160,8 @@ public:
 					  float &far) const;
 
 	operator AabbCentered() const;
-
 	operator Aabb() const;
+	operator Aabb_i32() const;
 
 public:
 	bool operator&&(const Aabb_i16 &r) const;
@@ -168,5 +171,54 @@ public:
 	Aabb_i16 operator+(const glm::i16vec3 &r) const;
 	bool operator==(const Aabb_i16 &r) const;
 	bool operator!=(const Aabb_i16 &r) const;
+};
+
+struct Aabb_i32 {
+	glm::ivec3 min;
+	glm::ivec3 max;
+
+public:
+	bool IsValid() const;
+
+	float GetVolume() const;
+	float GetSurface() const;
+
+	glm::ivec3 GetCenter() const;
+	glm::ivec3 GetSizes() const;
+	glm::ivec3 GetMin() const;
+	glm::ivec3 GetMax() const;
+
+	Aabb_i32 Expanded(float _by) const;
+
+	bool HasIntersection(const Aabb_i32 &r) const;
+
+	bool IsIn(const glm::ivec3 &r) const;
+	Aabb_i32 Intersection(const Aabb_i32 &r) const;
+	Aabb_i32 Sum(const Aabb_i32 &r) const;
+	Aabb_i32 Sum(const glm::ivec3 &r) const;
+
+	bool ContainsAll(const Aabb_i32 &r) const;
+
+	bool FastRayTest2(const glm::vec3 &ro, const glm::vec3 &invDir,
+					  const int raySign[3], float &near, float &far) const;
+
+	bool FastRayTest2(const glm::vec3 &ro, const glm::vec3 &invDir, float &near,
+					  float &far) const;
+
+	bool SlowRayTest2(const glm::vec3 &start, const glm::vec3 &end, float &near,
+					  float &far) const;
+
+	operator AabbCentered() const;
+	operator Aabb() const;
+	operator Aabb_i16() const;
+
+public:
+	bool operator&&(const Aabb_i32 &r) const;
+	bool operator&&(const glm::ivec3 &r) const;
+	Aabb_i32 operator*(const Aabb_i32 &r) const;
+	Aabb_i32 operator+(const Aabb_i32 &r) const;
+	Aabb_i32 operator+(const glm::ivec3 &r) const;
+	bool operator==(const Aabb_i32 &r) const;
+	bool operator!=(const Aabb_i32 &r) const;
 };
 } // namespace spp

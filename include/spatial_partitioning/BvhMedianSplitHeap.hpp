@@ -225,6 +225,9 @@ private:
 	// [0] - ignored, because heap works faster starting from 1
 	std::vector<NodeData> nodesHeapAabb;
 	std::vector<Data> entitiesData;
+	
+	int32_t maxNumberOfBruteforceEntities = 16;
+	int32_t bruteForceEntitiesAtEndCount = 0;
 
 	int32_t entitiesCount = 0;
 	int32_t entitiesPowerOfTwoCount = 0;

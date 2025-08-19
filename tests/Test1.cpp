@@ -1158,6 +1158,8 @@ int main(int argc, char **argv)
 				   "\tCHUNKBVHDBVT    - BVH of chunks and two stage Bvh within chunk\n" // ChunkedBvhDbvt
 				   "\tTSH_BF          - ThreeStageDbvh BvhMedian + BruteForce\n"
 				   "\tTSH_BTDBVT      - ThreeStageDbvh BvhMedian + BulletDbvt\n"
+				   "\tTSH_BTDBVT1     - ThreeStageDbvh BvhMedian1 + BulletDbvt\n"
+				   "\tTSH_BTDBVT1_NOR - ThreeStageDbvh (no rebuild) BvhMedian1 + BulletDbvt\n"
 				   "\tTSH_BTDBVT3     - ThreeStageDbvh BulletDbvt + BulletDbvt\n"
 				   "\tTSH_DBVH        - ThreeStageDbvh BvhMedian + Dbvh\n"
 				   "\tTSH_DBVT        - ThreeStageDbvh BvhMedian + Dbvt\n"
@@ -1249,6 +1251,20 @@ int main(int argc, char **argv)
 				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
 					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
 					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_unique<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>());
+				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_BTDBVT1") == false) {
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
+					std::make_unique<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>());
+				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_BTDBVT1_NOR") == false) {
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
+					nullptr, // std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
 					std::make_unique<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);

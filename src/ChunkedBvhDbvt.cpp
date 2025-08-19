@@ -452,6 +452,14 @@ bool ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Iterator::Valid()
 	return it != end;
 }
 
+}
+
+#include "ChunkedBvhDbvtCallbacks.cpp"
+#include "ChunkedBvhDbvtChunk.cpp"
+
+namespace spp
+{
+
 SPP_DEFINE_VARIANTS_NO_AABB(ChunkedBvhDbvt)
 
 } // namespace spp

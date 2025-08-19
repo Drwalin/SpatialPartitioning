@@ -112,8 +112,11 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	}
 	entitiesOffsets.Set(entity, entitiesData.size());
 	entitiesData.push_back({aabb, entity, mask});
-	rebuildTree = true;
+	bruteForceEntitiesAtEndCount++;
 	++entitiesCount;
+	if (bruteForceEntitiesAtEndCount > maxNumberOfBruteforceEntities) {
+		rebuildTree = true;
+	}
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
@@ -122,6 +125,9 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 {
 	uint32_t offset = entitiesOffsets[entity];
 	entitiesData[offset].aabb = aabb;
+	if (offset >= (entitiesData.size() - bruteForceEntitiesAtEndCount)) {
+		return;
+	}
 	if (updatePolicy == ON_UPDATE_EXTEND_AABB && rebuildTree == false) {
 		UpdateAabb(offset);
 	} else {
@@ -145,11 +151,22 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	entitiesOffsets.Remove(entity);
 	entitiesData[offset].entity = EMPTY_ENTITY;
 	entitiesData[offset].mask = 0;
-
+	
 	--entitiesCount;
 
 	if (entitiesCount == 0) {
-		Clear();
+		ClearWithoutOffsets();
+		return;
+	}
+	
+	if (offset >= (entitiesData.size() - bruteForceEntitiesAtEndCount)) {
+		if (offset+1 < entitiesData.size()) {
+			std::swap(entitiesData[offset], entitiesData[entitiesData.size()-1]);
+			entitiesOffsets.Set(entitiesData[offset].entity, offset);
+		}
+		entitiesData.resize(entitiesData.size() - 1);
+		bruteForceEntitiesAtEndCount--;
+		PruneEmptyEntitiesAtEnd();
 		return;
 	}
 
@@ -176,7 +193,10 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	}
 
 	entitiesData[offset].mask = mask;
-	if ((offset ^ 1) < entitiesData.size()) {
+	if (offset >= (entitiesData.size() - bruteForceEntitiesAtEndCount)) {
+		return;
+	}
+	if ((offset ^ 1) < (entitiesData.size() - bruteForceEntitiesAtEndCount)) {
 		if (entitiesData[offset ^ 1].entity != EMPTY_ENTITY) {
 			mask |= entitiesData[offset ^ 1].mask;
 		}
@@ -255,6 +275,9 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	cb.broadphase = this;
 
 	_Internal_IntersectAabb(cb, 1);
+	for (int32_t i=	entitiesData.size() - bruteForceEntitiesAtEndCount; i < entitiesData.size(); ++i) {
+		cb.ExecuteIfRelevant(entitiesData[i].aabb, entitiesData[i].entity);
+	}
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
@@ -313,6 +336,9 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	cb.InitVariables();
 
 	_Internal_IntersectRay(cb, 1);
+	for (int32_t i=	entitiesData.size() - bruteForceEntitiesAtEndCount; i < entitiesData.size(); ++i) {
+		cb.ExecuteIfRelevant(entitiesData[i].aabb, entitiesData[i].entity);
+	}
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
@@ -386,6 +412,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
 {
 	rebuildTree = false;
 	entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)entitiesCount);
+	bruteForceEntitiesAtEndCount = 0;
 
 	if (SKIP_LOW_LAYERS) {
 		nodesHeapAabb.resize(entitiesPowerOfTwoCount >> SKIP_LOW_LAYERS);
@@ -512,12 +539,19 @@ SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	SKIP_LOW_LAYERS, SegmentType)>::PruneEmptyEntitiesAtEnd()
 {
+	int32_t normalEntities = entitiesData.size() - bruteForceEntitiesAtEndCount;
 	for (int32_t i = entitiesData.size() - 1; i >= 0; --i) {
 		if (entitiesData[i].entity != EMPTY_ENTITY) {
 			entitiesData.resize(i + 1);
+			if (entitiesData.size() <= normalEntities) {
+				bruteForceEntitiesAtEndCount = 0;
+			} else {
+				bruteForceEntitiesAtEndCount = entitiesData.size() - normalEntities;
+			}
 			return;
 		}
 	}
+	bruteForceEntitiesAtEndCount = 0;
 	entitiesData.clear();
 }
 
@@ -529,7 +563,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	Aabb aabb = {{0, 0, 0}, {0, 0, 0}};
 	for (int32_t i = 0; i < (2 << SKIP_LOW_LAYERS); ++i) {
 		const int32_t o = offset ^ i;
-		if (o < entitiesData.size()) {
+		if (o < (entitiesData.size() - bruteForceEntitiesAtEndCount)) {
 			const auto &ed = entitiesData[o];
 			if ((ed.entity != EMPTY_ENTITY) && (ed.mask != 0)) {
 				if (mask != 0) {
@@ -573,6 +607,7 @@ bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 	switch (progress.stage) {
 	case 0:
+		bruteForceEntitiesAtEndCount = 0;
 		rebuildTree = false;
 		entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)entitiesCount);
 		if (SKIP_LOW_LAYERS) {

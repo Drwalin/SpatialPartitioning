@@ -58,7 +58,7 @@ private:
 private:
 	using Data = spp::btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::Data;
 
-	AssociativeArray<EntityType, uint32_t,
+	AssociativeArray<EntityType, OffsetType,
 					 typename btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::Data, false>
 		ents;
 	btDbvt<SPP_TEMPLATE_ARGS_OFFSET> dbvt;

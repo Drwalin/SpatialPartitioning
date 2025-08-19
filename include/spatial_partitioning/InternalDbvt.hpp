@@ -43,78 +43,78 @@ public:
 	bool empty() const { return (0 == rootId); }
 	void optimizeIncremental(int passes);
 
-	void insert(const Aabb &aabb, uint32_t entityOffset);
+	void insert(const Aabb &aabb, OffsetType entityOffset);
 
-	void updateLeaf(uint32_t leaf, int lookahead = -1);
-	void updateEntityOffset(uint32_t entityOffset, const Aabb &aabb);
-	void remove(uint32_t entityOffset);
+	void updateLeaf(OffsetType leaf, int lookahead = -1);
+	void updateEntityOffset(OffsetType entityOffset, const Aabb &aabb);
+	void remove(OffsetType entityOffset);
 
-	void updateOffsetOfEntity(uint32_t oldEntityOffset,
-							  uint32_t newEntityOffset);
+	void updateOffsetOfEntity(OffsetType oldEntityOffset,
+							  OffsetType newEntityOffset);
 
 	void collideTV(AabbCallback &cb);
 	void rayTestInternal(RayCallback &cb);
 
 	size_t GetMemoryUsage() const;
 
-	void IsTreeValid(uint32_t node = 0) const;
-	bool ContainsRecurence(uint32_t node, uint32_t rel = 0) const;
+	void IsTreeValid(OffsetType node = 0) const;
+	bool ContainsRecurence(OffsetType node, OffsetType rel = 0) const;
 
 public:
 	struct Data {
 		Aabb aabb;
-		uint32_t parent = 0;
+		OffsetType parent = 0;
 		EntityType entity = 0;
 		MaskType mask = 0;
 	};
 
 protected:
-	inline const static uint32_t OFFSET = 0x80000000;
+	inline const static OffsetType OFFSET = 1 << (8 * sizeof(OffsetType) - 1);
 
 	struct NodeData {
 		Aabb aabb;
-		uint32_t parent = 0;
-		uint32_t childs[2] = {0, 0};
+		OffsetType parent = 0;
+		OffsetType childs[2] = {0, 0};
 	};
 
 protected:
-	static bool isLeaf(uint32_t node);
-	static bool isInternal(uint32_t node);
-	static uint32_t getLeafId(uint32_t entityOffset);
+	static bool isLeaf(OffsetType node);
+	static bool isInternal(OffsetType node);
+	static OffsetType getLeafId(OffsetType entityOffset);
 
-	int indexof(uint32_t node) const;
-	int indexofLeaf(uint32_t leaf) const;
-	int indexofNode(uint32_t node) const;
-	Aabb getAabb(uint32_t node) const;
-	uint32_t getParent(uint32_t node) const;
-	Aabb getLeafAabb(uint32_t leaf) const;
-	uint32_t getLeafParent(uint32_t leaf) const;
-	Aabb getNodeAabb(uint32_t node) const;
-	uint32_t getNodeParent(uint32_t node) const;
-	void setParent(uint32_t node, uint32_t parent);
-	void setNodeParent(uint32_t node, uint32_t parent);
-	void setLeafParent(uint32_t leaf, uint32_t parent);
+	int indexof(OffsetType node) const;
+	int indexofLeaf(OffsetType leaf) const;
+	int indexofNode(OffsetType node) const;
+	Aabb getAabb(OffsetType node) const;
+	OffsetType getParent(OffsetType node) const;
+	Aabb getLeafAabb(OffsetType leaf) const;
+	OffsetType getLeafParent(OffsetType leaf) const;
+	Aabb getNodeAabb(OffsetType node) const;
+	OffsetType getNodeParent(OffsetType node) const;
+	void setParent(OffsetType node, OffsetType parent);
+	void setNodeParent(OffsetType node, OffsetType parent);
+	void setLeafParent(OffsetType leaf, OffsetType parent);
 
-	EntityType getLeafEntity(uint32_t leaf) const;
-	MaskType getLeafMask(uint32_t leaf) const;
+	EntityType getLeafEntity(OffsetType leaf) const;
+	MaskType getLeafMask(OffsetType leaf) const;
 
-	void deletenode(uint32_t node);
-	uint32_t createnode(uint32_t parent);
-	uint32_t createnode(uint32_t parent, const Aabb &aabb);
-	uint32_t createnode(uint32_t parent, const Aabb &aabb0, const Aabb &aabb1);
-	void insertleaf(uint32_t root, uint32_t leaf, const Aabb &aabb);
-	uint32_t removeleaf(uint32_t leaf);
-	uint32_t sort(uint32_t n, uint32_t &r);
+	void deletenode(OffsetType node);
+	OffsetType createnode(OffsetType parent);
+	OffsetType createnode(OffsetType parent, const Aabb &aabb);
+	OffsetType createnode(OffsetType parent, const Aabb &aabb0, const Aabb &aabb1);
+	void insertleaf(OffsetType root, OffsetType leaf, const Aabb &aabb);
+	OffsetType removeleaf(OffsetType leaf);
+	OffsetType sort(OffsetType n, OffsetType &r);
 
 protected:
-	uint32_t rootId = 0;
+	OffsetType rootId = 0;
 	unsigned m_opath = 0;
 
-	AssociativeArray<EntityType, uint32_t,
+	AssociativeArray<EntityType, OffsetType,
 					 spp::btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::Data, false> *ents;
 	std::vector<NodeData> nodes;
 
-	std::vector<uint32_t> stack;
+	std::vector<OffsetType> stack;
 
 	/*
 	 * nodes[0] - first emtpty node id holder

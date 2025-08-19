@@ -12,7 +12,17 @@ SPP_TEMPLATE_DECL_OFFSET
 Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::~Dbvt() { Clear(); }
 
 SPP_TEMPLATE_DECL_OFFSET
-const char *Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::GetName() const { return "Dbvt"; }
+const char *Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::GetName() const {
+	if constexpr (sizeof(OffsetType) == 1) {
+		return "Dbvt8";
+	} else if constexpr (sizeof(OffsetType) == 2) {
+		return "Dbvt16";
+	} else if constexpr (sizeof(OffsetType) == 4) {
+		return "Dbvt32";
+	} else if constexpr (sizeof(OffsetType) == 8) {
+		return "Dbvt64";
+	}
+}
 
 SPP_TEMPLATE_DECL_OFFSET
 void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Clear()
@@ -51,7 +61,7 @@ void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Add(EntityType entity, Aabb aabb,
 {
 	assert(Exists(entity) == false);
 
-	uint32_t offset = ents.Add(entity, Data{aabb, 0, entity, mask});
+	OffsetType offset = ents.Add(entity, Data{aabb, 0, entity, mask});
 	dbvt.insert(aabb, offset);
 	requiresRebuild++;
 }
@@ -59,7 +69,7 @@ void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Add(EntityType entity, Aabb aabb,
 SPP_TEMPLATE_DECL_OFFSET
 void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Update(EntityType entity, Aabb aabb)
 {
-	uint32_t offset = ents.GetOffset(entity);
+	OffsetType offset = ents.GetOffset(entity);
 	if (offset > 0) {
 		ents[offset].aabb = aabb;
 		dbvt.updateEntityOffset(offset, aabb);
@@ -72,7 +82,7 @@ void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Update(EntityType entity, Aabb aabb)
 SPP_TEMPLATE_DECL_OFFSET
 void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Remove(EntityType entity)
 {
-	uint32_t offset = ents.GetOffset(entity);
+	OffsetType offset = ents.GetOffset(entity);
 	if (offset > 0) {
 		dbvt.remove(offset);
 		ents.RemoveByKey(entity);
@@ -85,7 +95,7 @@ void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Remove(EntityType entity)
 SPP_TEMPLATE_DECL_OFFSET
 void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::SetMask(EntityType entity, MaskType mask)
 {
-	uint32_t offset = ents.GetOffset(entity);
+	OffsetType offset = ents.GetOffset(entity);
 	if (offset > 0) {
 		ents[offset].mask = mask;
 	} else {
@@ -105,7 +115,7 @@ bool Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Exists(EntityType entity) const
 SPP_TEMPLATE_DECL_OFFSET
 Aabb Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::GetAabb(EntityType entity) const
 {
-	uint32_t offset = ents.GetOffset(entity);
+	OffsetType offset = ents.GetOffset(entity);
 	if (offset > 0) {
 		return ents[offset].aabb;
 	}
@@ -117,7 +127,7 @@ SPP_TEMPLATE_DECL_OFFSET
 MaskType Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::GetMask(EntityType entity) const
 {
 	assert(Exists(entity) == true);
-	uint32_t offset = ents.GetOffset(entity);
+	OffsetType offset = ents.GetOffset(entity);
 	if (offset > 0) {
 		return ents[offset].mask;
 	}

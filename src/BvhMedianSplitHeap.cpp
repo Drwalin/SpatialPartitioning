@@ -151,17 +151,18 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	entitiesOffsets.Remove(entity);
 	entitiesData[offset].entity = EMPTY_ENTITY;
 	entitiesData[offset].mask = 0;
-	
+
 	--entitiesCount;
 
 	if (entitiesCount == 0) {
 		ClearWithoutOffsets();
 		return;
 	}
-	
+
 	if (offset >= (entitiesData.size() - bruteForceEntitiesAtEndCount)) {
-		if (offset+1 < entitiesData.size()) {
-			std::swap(entitiesData[offset], entitiesData[entitiesData.size()-1]);
+		if (offset + 1 < entitiesData.size()) {
+			std::swap(entitiesData[offset],
+					  entitiesData[entitiesData.size() - 1]);
 			entitiesOffsets.Set(entitiesData[offset].entity, offset);
 		}
 		entitiesData.resize(entitiesData.size() - 1);
@@ -275,7 +276,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	cb.broadphase = this;
 
 	_Internal_IntersectAabb(cb, 1);
-	for (int32_t i=	entitiesData.size() - bruteForceEntitiesAtEndCount; i < entitiesData.size(); ++i) {
+	for (int32_t i = entitiesData.size() - bruteForceEntitiesAtEndCount;
+		 i < entitiesData.size(); ++i) {
 		cb.ExecuteIfRelevant(entitiesData[i].aabb, entitiesData[i].entity);
 	}
 }
@@ -336,7 +338,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	cb.InitVariables();
 
 	_Internal_IntersectRay(cb, 1);
-	for (int32_t i=	entitiesData.size() - bruteForceEntitiesAtEndCount; i < entitiesData.size(); ++i) {
+	for (int32_t i = entitiesData.size() - bruteForceEntitiesAtEndCount;
+		 i < entitiesData.size(); ++i) {
 		cb.ExecuteIfRelevant(entitiesData[i].aabb, entitiesData[i].entity);
 	}
 }
@@ -546,7 +549,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 			if (entitiesData.size() <= normalEntities) {
 				bruteForceEntitiesAtEndCount = 0;
 			} else {
-				bruteForceEntitiesAtEndCount = entitiesData.size() - normalEntities;
+				bruteForceEntitiesAtEndCount =
+					entitiesData.size() - normalEntities;
 			}
 			return;
 		}
@@ -687,6 +691,69 @@ bool BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 		break;
 	}
 	return progress.done;
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
+	SplitLatterHalfToEmpty(BvhMedianSplitHeap &other)
+{
+	const int32_t startIndex = entitiesPowerOfTwoCount / 2;
+	const int32_t endIndex = entitiesData.size();
+	
+	other.entitiesData.resize(endIndex - startIndex);
+	other.bruteForceEntitiesAtEndCount = bruteForceEntitiesAtEndCount;
+	for (int32_t i = 0; i < endIndex - startIndex; ++i) {
+		other.entitiesData[i] = entitiesData[i+startIndex];
+		entitiesOffsets.Remove(other.entitiesData[i].entity);
+		other.entitiesOffsets.Set(other.entitiesData[i].entity, i);
+	}
+	other.RecalcTreeStructureForValidEnttiesData();
+	
+	bruteForceEntitiesAtEndCount = 0;
+	entitiesCount = startIndex;
+	entitiesData.resize(entitiesCount);
+	RecalcTreeStructureForValidEnttiesData();
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
+	RecalcTreeStructureForValidEnttiesData()
+{
+	const int32_t linearCount = entitiesData.size() - bruteForceEntitiesAtEndCount;
+	entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)linearCount);
+	
+	int32_t start = entitiesPowerOfTwoCount >> (1 + SKIP_LOW_LAYERS);
+	int32_t n = start;
+	for (int32_t i = 0; i < linearCount; ++n) {
+		MaskType mask = entitiesData[i].mask;
+		Aabb aabb = entitiesData[i].aabb;
+		int32_t end = std::min(i + (2 << SKIP_LOW_LAYERS), linearCount);
+		for (++i; i < end; ++i) {
+			mask |= entitiesData[i].mask;
+			aabb = aabb + entitiesData[i].aabb;
+		}
+		aabb = aabb.Expanded(BIG_EPSILON);
+		nodesHeapAabb[n].aabb = aabb;
+		nodesHeapAabb[n].mask = mask;
+	}
+	
+	int32_t count = (linearCount + (1<<(1 + SKIP_LOW_LAYERS)) - 1) >> (1 + SKIP_LOW_LAYERS);
+	for (;count > 1; n /= 2, count = (count | 1) / 2) {
+		n = start;
+		int32_t end = n + count;
+		for (; n < end; n++) {
+			MaskType mask = nodesHeapAabb[n].mask;
+			Aabb aabb = nodesHeapAabb[n].aabb;
+			if (n+1 < end) {
+				++n;
+				mask |= nodesHeapAabb[n].mask;
+				aabb = aabb + nodesHeapAabb[n].aabb;
+			}
+			aabb = aabb.Expanded(BIG_EPSILON);
+			nodesHeapAabb[n>>1].aabb = aabb;
+			nodesHeapAabb[n>>1].mask = mask;
+		}
+	}
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)

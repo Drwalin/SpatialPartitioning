@@ -96,8 +96,6 @@ void _SetEntityAabb(std::vector<spp::Aabb> &aabbs, EntityType entity,
 std::vector<EntityType> ee;
 std::vector<glm::vec3> vv;
 
-uint64_t TEST_RANDOM_SEED = 0;
-
 std::vector<spp::Aabb> aabbsToTest;
 size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broadphase,
 							const std::vector<spp::Aabb> &aabbsToTest,
@@ -114,23 +112,19 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 	if (startOffset >= testsCount) {
 		return testsCount;
 	}
-	/*
-		auto beg = std::chrono::steady_clock::now();
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		result.totalTime += us;
-		if (i > startOffset) {
-			timings.push_back(us / (double)(i - startOffset));
-		}
-	*/
 	
-	
-	
-	
+	#define TEST_TIMING(CODE) {\
+		auto beg = std::chrono::steady_clock::now();\
+		CODE;\
+		auto end = std::chrono::steady_clock::now();\
+		auto diff = end - beg;\
+		int64_t ns =\
+			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)\
+				.count();\
+		double us = double(ns) / 1000.0;\
+		result.totalTime += us;\
+		timings.push_back(us);\
+	}
 	
 	size_t i = startOffset;
 	static SingleTestResult *ret = &result;
@@ -169,7 +163,6 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 		testsCount = std::min(testsCount, aabbsToTest.size());
 		limitIterations = std::min(limitIterations + startOffset, testsCount);
 		
-		auto beg = std::chrono::steady_clock::now();
 		for (; i < limitIterations; ++i) {
 			if (ENABLE_VERIFICATION) {
 				offsetOfPatch.push_back(hitPoints.size());
@@ -177,17 +170,7 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 			cb.aabb = aabbsToTest[i];
 			cb.aabb = {glm::min(cb.aabb.min, cb.aabb.max),
 					   glm::max(cb.aabb.min, cb.aabb.max)};
-			broadphase->IntersectAabb(cb);
-		}
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		result.totalTime += us;
-		if (i > startOffset) {
-			timings.push_back(us / (double)(i - startOffset));
+			TEST_TIMING(broadphase->IntersectAabb(cb));
 		}
 
 		ret->nodesTestedCount += cb.nodesTestedCount;
@@ -236,7 +219,6 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 		testsCount = std::min(testsCount, aabbsToTest.size());
 		limitIterations = std::min(limitIterations + startOffset, testsCount);
 		
-		auto beg = std::chrono::steady_clock::now();
 		for (; i < limitIterations; ++i) {
 			if (ENABLE_VERIFICATION) {
 				offsetOfPatch.push_back(hitPoints.size());
@@ -244,17 +226,7 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 			cb.start = aabbsToTest[i].GetCenter();
 			cb.end = aabbsToTest[(i + 17) % testsCount].GetCenter();
 			cb.initedVars = false;
-			broadphase->IntersectRay(cb);
-		}
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		result.totalTime += us;
-		if (i > startOffset) {
-			timings.push_back(us / (double)(i - startOffset));
+			TEST_TIMING(broadphase->IntersectRay(cb));
 		}
 
 		ret->nodesTestedCount += cb.nodesTestedCount;
@@ -300,7 +272,6 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 		testsCount = std::min(testsCount, aabbsToTest.size());
 		limitIterations = std::min(limitIterations + startOffset, testsCount);
 		
-		auto beg = std::chrono::steady_clock::now();
 		for (; i < limitIterations; ++i) {
 			cb.hasHit = false;
 			if (ENABLE_VERIFICATION) {
@@ -310,7 +281,7 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 			glm::vec3 end = cb.end =
 				aabbsToTest[(i + 1) % testsCount].GetCenter();
 			cb.initedVars = false;
-			broadphase->IntersectRay(cb);
+			TEST_TIMING(broadphase->IntersectRay(cb));
 			if (ENABLE_VERIFICATION) {
 				if (cb.hasHit) {
 					ret->hitCount++;
@@ -334,16 +305,6 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 					HOLDER_ENT += cb.hitEntity;
 				}
 			}
-		}
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		result.totalTime += us;
-		if (i > startOffset) {
-			timings.push_back(us / (double)(i - startOffset));
 		}
 
 		ret->nodesTestedCount += cb.nodesTestedCount;
@@ -430,24 +391,11 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 		removeEntities.reserve(10000);
 		removeEntities.clear();
 
-		/*
-		static std::mt19937_64 _mt;
-		_mt = std::mt19937_64(TEST_RANDOM_SEED);
-		*/
-
 		uint64_t s = 14695981039346656037lu;
 		static uint64_t (*Random)(uint64_t &s, size_t i) =
 			+[](uint64_t &s, size_t i) -> uint64_t {
-			/*
-			if ((i & 255) == 0) {
-				s = _mt();
-			} else {
-			*/
 			s ^= i;
 			s *= 1099511628211lu;
-			/*
-			}
-			*/
 			return s;
 		};
 
@@ -482,7 +430,6 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 		
 		limitIterations = std::min(limitIterations + startOffset + stride, testsCount);
 		
-		auto beg = std::chrono::steady_clock::now();
 		for (; i + stride < limitIterations;) {
 			for (int j = 0; j < MIXED_AABB_COUNT; ++j, ++i) {
 				if (ENABLE_VERIFICATION) {
@@ -491,7 +438,7 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 				cbAabb.aabb = aabbsToTest[i];
 				cbAabb.aabb = {glm::min(cbAabb.aabb.min, cbAabb.aabb.max),
 							   glm::max(cbAabb.aabb.min, cbAabb.aabb.max)};
-				broadphase->IntersectAabb(cbAabb);
+				TEST_TIMING(broadphase->IntersectAabb(cbAabb));
 			}
 
 			for (int j = 0; j < MIXED_UPDATE_COUNT; ++j, ++i) {
@@ -505,26 +452,27 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 						spp::Aabb aabb = aabbsToTest[i];
 						aabb.max = aabb.min + ((vv[i] + 1000.0f) / 400.0f);
 						assert(e > 0);
-						broadphase->Add(e, aabb, ~0);
+						TEST_TIMING(broadphase->Add(e, aabb, ~0));
 						_SetEntityAabb(currentEntitiesAabbs, e, aabb);
-					}
-					e = popRandom(s, i, removeEntities);
-
-					if (broadphase->Exists(e)) {
-						broadphase->Remove(e);
-						removeEntities.push_back(e);
 					} else {
-						spp::Aabb aabb = aabbsToTest[i];
-						aabb.max = aabb.min + ((vv[i] + 1000.0f) / 400.0f);
-						assert(e > 0);
-						broadphase->Add(e, aabb, ~0);
-						_SetEntityAabb(currentEntitiesAabbs, e, aabb);
+						e = popRandom(s, i, removeEntities);
+
+						if (broadphase->Exists(e)) {
+							TEST_TIMING(broadphase->Remove(e));
+							removeEntities.push_back(e);
+						} else {
+							spp::Aabb aabb = aabbsToTest[i];
+							aabb.max = aabb.min + ((vv[i] + 1000.0f) / 400.0f);
+							assert(e > 0);
+							TEST_TIMING(broadphase->Add(e, aabb, ~0));
+							_SetEntityAabb(currentEntitiesAabbs, e, aabb);
+						}
 					}
 				} else {
 					spp::Aabb aabb = currentEntitiesAabbs[e];
 					aabb.min += vv[i];
 					aabb.max += vv[i];
-					broadphase->Update(e, aabb);
+					TEST_TIMING(broadphase->Update(e, aabb));
 					_SetEntityAabb(currentEntitiesAabbs, e, aabb);
 				}
 			}
@@ -537,7 +485,7 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 				cbRay.start = aabbsToTest[i].GetCenter();
 				glm::vec3 end = cbRay.end = vv[i];
 				cbRay.initedVars = false;
-				broadphase->IntersectRay(cbRay);
+				TEST_TIMING(broadphase->IntersectRay(cbRay));
 				if (ENABLE_VERIFICATION) {
 					if (cbRay.hasHit) {
 						ret->hitCount++;
@@ -563,16 +511,6 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 				}
 			}
 		}
-		auto end = std::chrono::steady_clock::now();
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		result.totalTime += us;
-		if (i > startOffset) {
-			timings.push_back(us / (double)(i - startOffset));
-		}
 
 		ret->nodesTestedCount += cbRay.nodesTestedCount + cbAabb.nodesTestedCount;
 		ret->testedCount += cbRay.testedCount + cbAabb.testedCount;
@@ -589,7 +527,6 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 {
 	broadphasePerformances.clear();
 	broadphasePerformances.resize(broadphases.size(), {{}, 0});
-	TEST_RANDOM_SEED = mt();
 	totalErrorsInBroadphase.clear();
 	totalErrorsInBroadphase.resize(broadphases.size(), 0);
 
@@ -619,16 +556,6 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 	for (int i = 0; i < broadphases.size(); ++i) {
 		offsetOfPatch[i].clear();
 		hitPoints[i].clear();
-		/*
-		if (ENABLE_VERIFICATION) {
-			hitPoints[i].reserve(testsCount * 30);
-			offsetOfPatch[i].reserve(testsCount);
-			size_t S = (80000000 * 4) / broadphases.size();
-			for (int j = 0; j < S && j < hitPoints[i].capacity(); j += 50) {
-				hitPoints[i].data()[j] = {};
-			}
-		}
-		*/
 	}
 	
 	size_t stride = 5;
@@ -715,53 +642,6 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 		}
 	}
 	
-	/*
-	for (int i = 0; i < broadphases.size(); ++i) {
-		offsetOfPatch[i].clear();
-		hitPoints[i].clear();
-		if (ENABLE_VERIFICATION) {
-			hitPoints[i].reserve(testsCount * 30);
-			offsetOfPatch[i].reserve(testsCount);
-			size_t S = (80000000 * 4) / broadphases.size();
-			for (int j = 0; j < S && j < hitPoints[i].capacity(); j += 50) {
-				hitPoints[i].data()[j] = {};
-			}
-		}
-		auto &it = broadphases[i];
-		size_t tC = aabbs.size();
-		auto beg = std::chrono::steady_clock::now();
-		auto vec = SingleTest(it, aabbs, tC, offsetOfPatch[i], testType,
-							  hitPoints[i], currentEntitiesAabbs[i]);
-		auto end = std::chrono::steady_clock::now();
-		if (ENABLE_VERIFICATION) {
-			for (size_t j = 0; j < offsetOfPatch[i].size(); ++j) {
-				size_t of = offsetOfPatch[i][j];
-				size_t en = hitPoints[i].size();
-				if (j + 1 < offsetOfPatch[i].size()) {
-					en = offsetOfPatch[i][j + 1];
-				}
-				std::sort(hitPoints[i].begin() + of, hitPoints[i].begin() + en);
-			}
-		}
-		auto diff = end - beg;
-		int64_t ns =
-			std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
-				.count();
-		double us = double(ns) / 1000.0;
-		broadphasePerformances[i].first += us;
-		broadphasePerformances[i].second += tC;
-		if (BENCHMARK == false || disable_benchmark_report == false) {
-			printf("intersection test [count: %lu]: %8.3f us/op",
-				   tC, us / double(tC));
-			printf("    \t   nodesTested: %11lu,   testedCount: %10lu     "
-				   "[count = %lu]    %s \n",
-				   vec.nodesTestedCount, vec.testedCount, vec.hitCount,
-				   it->GetName());
-			fflush(stdout);
-		}
-	}
-	*/
-
 	if (BENCHMARK == false || disable_benchmark_report == false) {
 		printf("Number of entities %i\n", broadphases[0]->GetCount());
 	}

@@ -244,6 +244,6 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::IntersectRay(
 	}
 }
 
-SPP_DEFINE_VARIANTS_NO_AABB(ChunkedBvhDbvt)
+// SPP_DEFINE_VARIANTS_NO_AABB(ChunkedBvhDbvt)
 
 } // namespace spp

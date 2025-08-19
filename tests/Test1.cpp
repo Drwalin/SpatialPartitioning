@@ -1152,6 +1152,7 @@ int main(int argc, char **argv)
 				   "\tBVH             - BvhMedianSplitHeap\n"
 				   "\tBVH1            - BvhMedianSplitHeap1\n"
 				   "\tDBVT            - Rewritten btDbvt from Bullet\n"
+				   "\tDBVT16          - Rewritten btDbvt from Bullet (16 bit index)\n"
 				   "\tDBVH            - Dbvh (DynamicBoundingVolumeHierarchy)\n"
 				   "\tBTDBVH          - BulletDbvh (Bullet dbvh - two stages)\n"
 				   "\tBTDBVT          - BulletDbvt (Bullet dbvt one stage)\n"
@@ -1230,6 +1231,8 @@ int main(int argc, char **argv)
 				broadphases.push_back(bvh);
 			} else if (strcmp(str, "DBVT") == false) {
 				broadphases.push_back(new spp::Dbvt<spp::Aabb, EntityType, uint32_t, 0, uint32_t>);
+			} else if (strcmp(str, "DBVT16") == false) {
+				broadphases.push_back(new spp::Dbvt<spp::Aabb, EntityType, uint32_t, 0, uint16_t>);
 			} else if (strcmp(str, "DBVH") == false) {
 				broadphases.push_back(new spp::Dbvh<spp::Aabb, EntityType, uint32_t, 0>);
 			} else if (strcmp(str, "BTDBVH") == false) {

@@ -30,10 +30,9 @@ public:
 			return o.offset != offset || o.segment != segment;
 		}
 	};
-	
+
 	using MapType = DenseSparseIntMap<EntityType, SegmentOffset, enableDense,
-					  SegmentOffset{-1, -1}>;
-	
+									  SegmentOffset{-1, -1}>;
 
 public:
 	DenseSparseSegmentOffsetMapReference(EntityType denseEntityRange)
@@ -43,8 +42,7 @@ public:
 		segment = -1;
 	}
 
-	DenseSparseSegmentOffsetMapReference(
-		MapType *map, SegmentType segment)
+	DenseSparseSegmentOffsetMapReference(MapType *map, SegmentType segment)
 		: map(map), owning(false), segment(segment)
 	{
 	}
@@ -69,7 +67,12 @@ public:
 		map = nullptr;
 	}
 
-	void Clear() { if (owning) { map->Clear(); } }
+	void Clear()
+	{
+		if (owning) {
+			map->Clear();
+		}
+	}
 	uint64_t GetMemoryUsage() const { return map->GetMemoryUsage(); }
 
 	auto find(EntityType key) { return map->find(key); }
@@ -112,11 +115,10 @@ struct DenseSparseSegmentOffsetMapReference<EntityType, void, OffsetType,
 											enableDense>
 	: public DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> {
 public:
-	
 	const bool owning = true;
-	
+
 	using MapType = DenseSparseIntMap<EntityType, OffsetType, enableDense, -1>;
-	
+
 	static OffsetType &get_offset_from_it(OffsetType *it) { return *it; }
 
 	static OffsetType get_offset_from_it(const OffsetType *it) { return *it; }
@@ -166,7 +168,7 @@ public:
 	virtual void Update(EntityType entity, Aabb aabb) override;
 	virtual void Remove(EntityType entity) override;
 	virtual void SetMask(EntityType entity, MaskType mask) override;
-	
+
 	EntityType GetEntityByOffset(int32_t offset) const;
 
 	virtual int32_t GetCount() const override;
@@ -200,6 +202,8 @@ public:
 	};
 	bool RebuildStep(RebuildProgress &progress);
 
+	void SplitLatterHalfToEmpty(BvhMedianSplitHeap &other);
+
 private:
 	void PruneEmptyEntitiesAtEnd();
 	void UpdateAabb(int32_t entityOffset);
@@ -209,6 +213,8 @@ private:
 	void _Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
 	
+	void RecalcTreeStructureForValidEnttiesData();
+
 private:
 	struct Data {
 		Aabb aabb;
@@ -225,7 +231,7 @@ private:
 	// [0] - ignored, because heap works faster starting from 1
 	std::vector<NodeData> nodesHeapAabb;
 	std::vector<Data> entitiesData;
-	
+
 	int32_t maxNumberOfBruteforceEntities = 16;
 	int32_t bruteForceEntitiesAtEndCount = 0;
 

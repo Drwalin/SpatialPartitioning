@@ -137,7 +137,7 @@ MaskType Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::GetMask(EntityType entity) const
 SPP_TEMPLATE_DECL_OFFSET
 void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::Rebuild()
 {
-	requiresRebuild += 1001;
+	requiresRebuild += 3000;
 	SmallRebuildIfNeeded();
 }
 

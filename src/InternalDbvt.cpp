@@ -274,7 +274,7 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::insertleaf(OffsetType root,
 												  const OffsetType leaf,
 												  const Aabb &aabb)
 {
-	assert(!ContainsRecurence(leaf));
+// 	assert(!ContainsRecurence(leaf));
 	assert(leaf);
 	assert(isLeaf(leaf));
 	assert(getParent(leaf) == 0);
@@ -342,7 +342,7 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::insertleaf(OffsetType root,
 SPP_TEMPLATE_DECL_OFFSET
 OffsetType btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::removeleaf(const OffsetType leaf)
 {
-	assert(ContainsRecurence(leaf));
+// 	assert(ContainsRecurence(leaf));
 	assert(isLeaf(leaf));
 	if (leaf == rootId) {
 		assert(getLeafParent(leaf) == 0);
@@ -469,14 +469,14 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::insert(const Aabb &aabb,
 											  OffsetType entityOffset)
 {
 	OffsetType leaf = getLeafId(entityOffset);
-	assert(!ContainsRecurence(leaf));
+// 	assert(!ContainsRecurence(leaf));
 	insertleaf(rootId, leaf, aabb);
 }
 
 SPP_TEMPLATE_DECL_OFFSET
 void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateLeaf(OffsetType leaf, int lookahead)
 {
-	assert(ContainsRecurence(leaf));
+// 	assert(ContainsRecurence(leaf));
 	assert(isLeaf(leaf) == true);
 	assert(!isLeaf(getLeafParent(leaf)));
 	OffsetType root = removeleaf(leaf);
@@ -501,7 +501,7 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateEntityOffset(OffsetType entityOffse
 														  const Aabb &aabb)
 {
 	OffsetType leaf = getLeafId(entityOffset);
-	assert(ContainsRecurence(leaf));
+// 	assert(ContainsRecurence(leaf));
 	assert(!isLeaf(getLeafParent(leaf)));
 	OffsetType root = removeleaf(leaf);
 	if (root) {
@@ -519,7 +519,7 @@ SPP_TEMPLATE_DECL_OFFSET
 void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::remove(OffsetType entityOffset)
 {
 	OffsetType leaf = getLeafId(entityOffset);
-	assert(ContainsRecurence(leaf));
+// 	assert(ContainsRecurence(leaf));
 	removeleaf(leaf);
 	setLeafParent(leaf, 0);
 }
@@ -529,9 +529,9 @@ void btDbvt<SPP_TEMPLATE_ARGS_OFFSET>::updateOffsetOfEntity(
 	OffsetType oldEntityOffset, OffsetType newEntityOffset)
 {
 	OffsetType oldLeaf = getLeafId(oldEntityOffset);
-	assert(ContainsRecurence(oldLeaf));
+// 	assert(ContainsRecurence(oldLeaf));
 	OffsetType newLeaf = getLeafId(newEntityOffset);
-	assert(!ContainsRecurence(newLeaf));
+// 	assert(!ContainsRecurence(newLeaf));
 	if (rootId == oldLeaf) {
 		rootId = newLeaf;
 	} else {

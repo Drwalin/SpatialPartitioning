@@ -552,7 +552,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 	totalErrorsInBroadphase.clear();
 	totalErrorsInBroadphase.resize(broadphases.size(), 0);
 
-	std::uniform_real_distribution<float> distPos(-510, 510);
+	std::uniform_real_distribution<float> distPos(-sqrt(MAX_ENTITIES)/2, sqrt(MAX_ENTITIES)/2);
 	std::uniform_real_distribution<float> distSize(1.0, 25.0);
 	std::vector<spp::Aabb> &aabbs = globalAabbs;
 	{
@@ -628,7 +628,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 	
 	if (BENCHMARK == false || disable_benchmark_report == false) {
 		printf("intersection test [count: %lu]: \n", tC);
-		printf("    min      avg      p50      p75      p90      p99      p99.9       max  [us/op]"
+		printf("    min      avg      p50      p75      p90      p99      p99.9       p99.99       p99.999          max  [us/op]"
 			   "    nodesTested   testedCount   resultCount     maxHits     name\n");
 	}
 	
@@ -646,10 +646,12 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 		float _p90 = t[(t.size() * 900) / 1000];
 		float _p99 = t[(t.size() * 990) / 1000];
 		float _p999 = t[(t.size() * 999) / 1000];
+		float _p9999 = t[(t.size() * 9999) / 10000];
+		float _p99999 = t[(t.size() * 99999) / 100000];
 		
 		if (BENCHMARK == false || disable_benchmark_report == false) {
-			printf("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %10.3f %10.3f  ",
-				   _min, _avg, _p50, _p75, _p90, _p99, _p999, _max);
+			printf("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %10.3f %13.3f %13.3f %13.3f ",
+				   _min, _avg, _p50, _p75, _p90, _p99, _p999, _p9999, _p99999,_max);
 			printf("%20lu  %12lu %13lu %11lu     %s\n",
 				   vec.nodesTestedCount, vec.testedCount, vec.hitCount,
 				   vec.maxHitCount,
@@ -1287,7 +1289,7 @@ int main(int argc, char **argv)
 	std::vector<EntityData> entities;
 	globalEntityData = &entities;
 	entities.resize(TOTAL_ENTITIES);
-	std::uniform_real_distribution<float> distPos(-500, 500);
+	std::uniform_real_distribution<float> distPos(-sqrt(MAX_ENTITIES)/2, sqrt(MAX_ENTITIES)/2);
 	std::uniform_real_distribution<float> distSize(0.2, 1);
 	EntityType id = 1;
 	for (auto &e : entities) {

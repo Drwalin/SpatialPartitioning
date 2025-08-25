@@ -697,6 +697,8 @@ SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 	SplitLatterHalfToEmpty(BvhMedianSplitHeap &other)
 {
+	assert(!"Untested");
+	
 	const int32_t startIndex = entitiesPowerOfTwoCount / 2;
 	const int32_t endIndex = entitiesData.size();
 	
@@ -719,6 +721,8 @@ SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 	RecalcTreeStructureForValidEnttiesData()
 {
+	assert(!"Untested");
+	
 	const int32_t linearCount = entitiesData.size() - bruteForceEntitiesAtEndCount;
 	entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)linearCount);
 	

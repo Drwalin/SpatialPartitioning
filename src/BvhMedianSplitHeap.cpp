@@ -278,7 +278,10 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	_Internal_IntersectAabb(cb, 1);
 	for (int32_t i = entitiesData.size() - bruteForceEntitiesAtEndCount;
 		 i < entitiesData.size(); ++i) {
-		cb.ExecuteIfRelevant(entitiesData[i].aabb, entitiesData[i].entity);
+		auto &ed = entitiesData[i];
+		if (ed.mask & cb.mask) {
+			cb.ExecuteIfRelevant(ed.aabb, ed.entity);
+		}
 	}
 }
 
@@ -291,10 +294,9 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 	if (n >= entitiesPowerOfTwoCount) {
 		int32_t o = n - entitiesPowerOfTwoCount;
 		for (int i = 0; i <= 1 && o < entitiesData.size(); ++i, ++o) {
-			if ((entitiesData[o].mask & cb.mask) &&
-				entitiesData[o].entity != EMPTY_ENTITY) {
-				cb.ExecuteIfRelevant(entitiesData[o].aabb,
-									 entitiesData[o].entity);
+			auto &ed = entitiesData[o];
+			if ((ed.mask & cb.mask) && ed.entity != EMPTY_ENTITY) {
+				cb.ExecuteIfRelevant(ed.aabb, ed.entity);
 			}
 		}
 	} else if (SKIP_LOW_LAYERS && n >= nodesHeapAabb.size()) {
@@ -304,10 +306,10 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 		const int32_t end = std::min<int32_t>(end_, entitiesData.size());
 		assert(start >= 0);
 		for (int32_t i = start; i < end; ++i) {
-			if ((entitiesData[i].mask & cb.mask) &&
-				entitiesData[i].entity != EMPTY_ENTITY) {
-				cb.ExecuteIfRelevant(entitiesData[i].aabb,
-									 entitiesData[i].entity);
+			auto &ed = entitiesData[i];
+			if ((ed.mask & cb.mask) &&
+				ed.entity != EMPTY_ENTITY) {
+				cb.ExecuteIfRelevant(ed.aabb, ed.entity);
 			}
 		}
 	} else {
@@ -340,7 +342,10 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	_Internal_IntersectRay(cb, 1);
 	for (int32_t i = entitiesData.size() - bruteForceEntitiesAtEndCount;
 		 i < entitiesData.size(); ++i) {
-		cb.ExecuteIfRelevant(entitiesData[i].aabb, entitiesData[i].entity);
+		auto &ed = entitiesData[i];
+		if (ed.mask & cb.mask) {
+			cb.ExecuteIfRelevant(ed.aabb, ed.entity);
+		}
 	}
 }
 
@@ -353,9 +358,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	if (n >= entitiesPowerOfTwoCount) {
 		int32_t o = n - entitiesPowerOfTwoCount;
 		for (int i = 0; i <= 1 && o < entitiesData.size(); ++i, ++o) {
-			if ((entitiesData[o].mask & cb.mask) &&
-				entitiesData[o].entity != EMPTY_ENTITY) {
-				auto &ed = entitiesData[o];
+			auto &ed = entitiesData[o];
+			if ((ed.mask & cb.mask) && ed.entity != EMPTY_ENTITY) {
 				cb.ExecuteIfRelevant(ed.aabb, ed.entity);
 			}
 		}
@@ -366,9 +370,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 		const int32_t end = std::min<int32_t>(end_, entitiesData.size());
 		assert(start >= 0);
 		for (int32_t i = start; i < end; ++i) {
-			if ((entitiesData[i].mask & cb.mask) &&
-				entitiesData[i].entity != EMPTY_ENTITY) {
-				auto &ed = entitiesData[i];
+			auto &ed = entitiesData[i];
+			if ((ed.mask & cb.mask) && ed.entity != EMPTY_ENTITY) {
 				cb.ExecuteIfRelevant(ed.aabb, ed.entity);
 			}
 		}

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <random>
 
 #include "../../glm/glm/ext/vector_uint3_sized.hpp"
 
@@ -177,14 +178,15 @@ private:
 		Aabb globalAabbInner;
 		Aabb_i32 localAabb;
 		Aabb_i32 localAabbInner;
+		glm::vec3 globalCenter;
 
 		int32_t chunkId;
 
 		int changes = 0;
 
 		void Add(EntityType entity, Aabb aabb, MaskType mask);
-		void Update(EntityType entity, Aabb aabb, int32_t oldSegment);
-		void Remove(EntityType entity, int32_t segment);
+		void Update(EntityType entity, Aabb aabb);
+		void Remove(EntityType entity);
 
 		int32_t GetCount() const;
 
@@ -192,9 +194,8 @@ private:
 		void Rebuild();
 		void ShrinkToFit();
 		size_t GetMemoryUsage() const;
-		Aabb GetAabb(EntityType entity, int32_t segment, int32_t offset) const;
-		MaskType GetMask(EntityType entity, int32_t segment,
-						 int32_t offset) const;
+		Aabb GetAabb(EntityType entity, int32_t offset) const;
+		MaskType GetMask(EntityType entity, int32_t offset) const;
 
 		Aabb_i16 ToLocalAabb(Aabb aabb) const;
 		Aabb_i16 ToLocalAabbUnbound(Aabb aabb) const;
@@ -206,10 +207,8 @@ private:
 		void IntersectRay(RayCallbacks::InterChunkCb *cb);
 	};
 
-	Chunk *GetChunkOfEntity(EntityType entity, int32_t &segment,
-							int32_t &offset);
-	const Chunk *GetChunkOfEntity(EntityType entity, int32_t &segment,
-								  int32_t &offset) const;
+	Chunk *GetChunkOfEntity(EntityType entity, int32_t &offset);
+	const Chunk *GetChunkOfEntity(EntityType entity, int32_t &offset) const;
 	int32_t GetChunkIdOfEntity(EntityType entity, int32_t &offset);
 
 	int32_t GetChunkIdFromAabb(Aabb aabb) const;
@@ -219,20 +218,21 @@ private:
 	Chunk *GetChunkById(uint32_t chunkId);
 
 private:
-	float chunkSize = 64.0f;
-	float chunkSizeMultiplier = 256.0f;
-	float chunkSizeFactor = 4.0f;
+	float chunkSize = 40.0f;
+	float chunkSizeMultiplier = 32.0f;
 	float maxChunkedEntitySize = 32.0f;
 
 	int limitChunkOffset = 512 - 2;
+	
+	int32_t roundRobinCounter = 0;
+	std::mt19937_64 mt{std::random_device()()};
 
 	uint32_t entitiesCount = 0;
 
 	/*
 	 * Segment:
-	 *    lsb >> 1   -   chunk id (glm::i16vec3 serialized by 10 lower bits each
+	 *    lsb   -   chunk id (glm::i16vec3 serialized by 10 lower bits each
 	 *                       component)
-	 *    lsb & 1    -   which bvh inside chunk
 	 * Segment = -1  -   outer objects
 	 *
 	 */

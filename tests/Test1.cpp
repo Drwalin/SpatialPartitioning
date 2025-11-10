@@ -49,6 +49,22 @@ enum TestType {
 	TEST_MIXED = 4,
 };
 
+std::string SecondsToStr(double seconds) {
+	const size_t _mins = seconds / 60.0;
+	const double sec = seconds - _mins * 60.0;
+	const int hours = _mins / 60;
+	const int mins = _mins - hours * 60;
+	char str[64];
+	if (hours) {
+		snprintf(str, 63, "%.2i:%02.2i:%04.1f", hours, mins, sec);
+	} else if (mins) {
+		snprintf(str, 63, "%.2i:%04.1f", mins, sec);
+	} else {
+		snprintf(str, 63, "%4.1f s", seconds);
+	}
+	return str;
+}
+
 const char *testTypeNames[] = {"[NULL-NONE]", "TEST_AABB", "TEST_RAY_FIRST",
 							   "TEST_ALL_RAYS", "MIXED"};
 
@@ -490,8 +506,10 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 					}
 				} else {
 					spp::Aabb aabb = currentEntitiesAabbs[e];
-					aabb.min += vv[i];
-					aabb.max += vv[i];
+					glm::vec3 d = vv[i];
+					d *= glm::vec3(0.03f, 1.0f/60.0f, 0.03f);
+					aabb.min += d;
+					aabb.max += d;
 					TEST_TIMING(broadphase->Update(e, aabb), cbAabb);
 					_SetEntityAabb(currentEntitiesAabbs, e, aabb);
 				}
@@ -561,10 +579,9 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 		for (; i < aabbs.size(); ++i) {
 			spp::Aabb &aabb = aabbs[i];
 			glm::vec3 p = {distPos(mt), distPos(mt) / 8.0f, distPos(mt)};
-			glm::vec3 s = {distSize(mt), distSize(mt), distSize(mt)};
+			glm::vec3 s = {distSize(mt), distSize(mt) * 2.0f, distSize(mt)};
 			aabb = {p, p + s};
 		}
-		
 		
 		i = ee.size();
 		
@@ -597,14 +614,18 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 	auto start = std::chrono::steady_clock::now(); 
 	auto nextReport = std::chrono::steady_clock::now() + std::chrono::seconds(1);
 	
+	const size_t __total = tC * broadphases.size();
 	for (int k=0; k<tC; k += stride) {
+		size_t total = 0;
 		for (int i = 0; i < broadphases.size(); ++i) {
 			auto &it = broadphases[i];
-			broadphasePerformances[i].second = SingleTest(it, aabbs, tC, offsetOfPatch[i], testType,
+			const size_t c = SingleTest(it, aabbs, tC, offsetOfPatch[i], testType,
 								  hitPoints[i], currentEntitiesAabbs[i],
 								  broadphasePerformances[i].second, stride,
 								  testsResults[i], broadphasePerformances[i].first
 								  );
+			broadphasePerformances[i].second = c;
+			total += c;
 		}
 		auto now = std::chrono::steady_clock::now();
 		if (now >= nextReport) {
@@ -614,9 +635,10 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 			int64_t ns =
 				std::chrono::duration_cast<std::chrono::nanoseconds, int64_t>(diff)
 				.count();
-			double sec = double(ns) / 1000'000'000.0;
+			double sec = double(ns) / 1'000'000'000.0;
 			
-			printf("\r %6.3f %%     [%6.2f s]", (100.0 * k) / (double)tC, sec);
+// 			printf("\r %6.3f %%     [%6.2f s]", (100.0 * k) / (double)tC, sec);
+			printf("\r %6.3f %%     [%s]", (100.0 * total) / (double)__total, SecondsToStr(sec).c_str());
 			fflush(stdout);
 		}
 		if (broadphasePerformances[0].second >= tC) {
@@ -693,6 +715,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 			auto iti = bpi.RestartIterator();
 
 			if (bp0.GetCount() != bpi.GetCount()) {
+				// check if number of elements are equal
 				printf("0. CARDINAL ERROR: DIFFERENT NUMBER OF ELEMENTS IN "
 					   "BROADPHASES: %i != %i\n",
 					   bp0.GetCount(), bpi.GetCount());
@@ -702,6 +725,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 			int I = 0;
 			for (; it0->Valid(); it0->Next()) {
 				if (bpi.Exists(it0->entity) == false) {
+					// check if entity exists in another broadphase
 					++cardinalErrors;
 					if (I < 10) {
 						printf(
@@ -710,6 +734,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 					}
 					++I;
 				} else {
+					// check if entity aabb match to another broadphase
 					spp::Aabb aabb0 = it0->aabb;
 					spp::Aabb aabbi = currentEntitiesAabbs[i][it0->entity];
 					glm::vec3 a = aabb0.min - aabbi.min;
@@ -730,6 +755,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 			I = 0;
 			for (; iti->Valid(); iti->Next()) {
 				if (bp0.Exists(iti->entity) == false) {
+					// check if entity exists in another broadphase
 					++cardinalErrors;
 					if (I < 10) {
 						printf("3. CARDINAL ERROR: ENTITY SHOULD NOT EXIST BUT "
@@ -738,12 +764,13 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 					}
 					++I;
 				} else {
+					// check if entity aabb match to another broadphase
 					spp::Aabb aabb0 = currentEntitiesAabbs[0][iti->entity];
 					spp::Aabb aabbi = iti->aabb;
 					glm::vec3 a = aabb0.min - aabbi.min;
 					glm::vec3 b = aabb0.max - aabbi.max;
 					float sum = glm::length(a) + glm::length(b);
-					if (sum > 0.1) {
+					if (sum > 0.3) {
 						++cardinalErrors;
 						if (I < 10) {
 							printf("4. CARDINAL ERROR: ENTITY AABBS DOES NOT "
@@ -1468,7 +1495,7 @@ int main(int argc, char **argv)
 					diff)
 					.count();
 			double us = double(ns) / 1000.0;
-			printf("adding time: %10.3f us      %s\n", us, bp->GetName());
+			printf("adding time: %12.3f us      %s\n", us, bp->GetName());
 			fflush(stdout);
 		}
 		printf("\n");
@@ -1483,7 +1510,7 @@ int main(int argc, char **argv)
 					diff)
 					.count();
 			double us = double(ns) / 1000.0;
-			printf("build time: %10.3f us      %s\n", us, bp->GetName());
+			printf("build time: %12.3f us      %s\n", us, bp->GetName());
 			fflush(stdout);
 		}
 		printf("\n");
@@ -1777,8 +1804,10 @@ int main(int argc, char **argv)
 					diff)
 					.count();
 			double seconds = double(ns) / 1000'000'000.0;
-			double minutes = seconds / 60.0;
-			double hours = minutes / 60.0;
+// 			double minutes = seconds / 60.0;
+// 			double hours = minutes / 60.0;
+			printf("\n (elapsed: %s)", SecondsToStr(seconds).c_str());
+			/*
 			if (seconds < 200.0) {
 				printf("\n (elapsed: %8.2f seconds)", seconds);
 			} else if (minutes < 200.0) {
@@ -1786,6 +1815,7 @@ int main(int argc, char **argv)
 			} else {
 				printf("\n (elapsed: %8.2f hours)", hours);
 			}
+			*/
 			printf("   test %lu/%lu  (%.2f%%)\n", i + 1, mixedTestsCount,
 				   double((i + 1) * 100) / (double)mixedTestsCount);
 		}

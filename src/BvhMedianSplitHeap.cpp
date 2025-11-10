@@ -80,6 +80,7 @@ void BvhMedianSplitHeap<
 	rebuildTree = false;
 	entitiesCount = 0;
 	entitiesPowerOfTwoCount = 0;
+	bruteForceEntitiesAtEndCount = 0;
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
@@ -117,6 +118,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	if (bruteForceEntitiesAtEndCount > maxNumberOfBruteforceEntities) {
 		rebuildTree = true;
 	}
+	assert(bruteForceEntitiesAtEndCount <= entitiesData.size());
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
@@ -125,7 +127,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 {
 	uint32_t offset = entitiesOffsets[entity];
 	entitiesData[offset].aabb = aabb;
-	if (offset >= (entitiesData.size() - bruteForceEntitiesAtEndCount)) {
+	assert(bruteForceEntitiesAtEndCount <= entitiesData.size());
+	if ((offset + bruteForceEntitiesAtEndCount) >= entitiesData.size()) {
 		return;
 	}
 	if (updatePolicy == ON_UPDATE_EXTEND_AABB && rebuildTree == false) {
@@ -139,6 +142,7 @@ SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	SKIP_LOW_LAYERS, SegmentType)>::Remove(EntityType entity)
 {
+	assert(bruteForceEntitiesAtEndCount <= entitiesData.size());
 	auto it = entitiesOffsets.find(entity);
 	if (it == nullptr) {
 		return;
@@ -156,10 +160,11 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 	if (entitiesCount == 0) {
 		ClearWithoutOffsets();
+		assert(bruteForceEntitiesAtEndCount <= entitiesData.size());
 		return;
 	}
 
-	if (offset >= (entitiesData.size() - bruteForceEntitiesAtEndCount)) {
+	if ((offset + bruteForceEntitiesAtEndCount) >= entitiesData.size()) {
 		if (offset + 1 < entitiesData.size()) {
 			std::swap(entitiesData[offset],
 					  entitiesData[entitiesData.size() - 1]);
@@ -168,6 +173,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 		entitiesData.resize(entitiesData.size() - 1);
 		bruteForceEntitiesAtEndCount--;
 		PruneEmptyEntitiesAtEnd();
+		assert(bruteForceEntitiesAtEndCount <= entitiesData.size());
 		return;
 	}
 
@@ -176,6 +182,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	if (rebuildTree == false) {
 		UpdateAabb(offset);
 	}
+	assert(bruteForceEntitiesAtEndCount <= entitiesData.size());
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
@@ -194,10 +201,10 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	}
 
 	entitiesData[offset].mask = mask;
-	if (offset >= (entitiesData.size() - bruteForceEntitiesAtEndCount)) {
+	if ((offset + bruteForceEntitiesAtEndCount) >= entitiesData.size()) {
 		return;
 	}
-	if ((offset ^ 1) < (entitiesData.size() - bruteForceEntitiesAtEndCount)) {
+	if (((offset ^ 1) + bruteForceEntitiesAtEndCount) < entitiesData.size()) {
 		if (entitiesData[offset ^ 1].entity != EMPTY_ENTITY) {
 			mask |= entitiesData[offset ^ 1].mask;
 		}
@@ -570,7 +577,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	Aabb aabb = {{0, 0, 0}, {0, 0, 0}};
 	for (int32_t i = 0; i < (2 << SKIP_LOW_LAYERS); ++i) {
 		const int32_t o = offset ^ i;
-		if (o < (entitiesData.size() - bruteForceEntitiesAtEndCount)) {
+		if ((o + bruteForceEntitiesAtEndCount) < entitiesData.size()) {
 			const auto &ed = entitiesData[o];
 			if ((ed.entity != EMPTY_ENTITY) && (ed.mask != 0)) {
 				if (mask != 0) {

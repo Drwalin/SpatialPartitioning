@@ -51,7 +51,7 @@ SPP_TEMPLATE_DECL
 void BulletDbvt<SPP_TEMPLATE_ARGS>::SmallRebuildIfNeeded()
 {
 	if (requiresRebuild > 1000) {
-		IncrementalOptimize(requiresRebuild / 133 + 1);
+		IncrementalOptimize(requiresRebuild / 13 + 1);
 		requiresRebuild = 0;
 	}
 }

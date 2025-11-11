@@ -152,7 +152,11 @@ public:
 		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
 
 	BvhMedianSplitHeap(BvhMedianSplitHeap &&o) = default;
+	BvhMedianSplitHeap(BvhMedianSplitHeap &o) = delete;
+	BvhMedianSplitHeap(const BvhMedianSplitHeap &o) = delete;
 	BvhMedianSplitHeap &operator=(BvhMedianSplitHeap &&o) = default;
+	BvhMedianSplitHeap &operator=(BvhMedianSplitHeap &o) = delete;
+	BvhMedianSplitHeap &operator=(const BvhMedianSplitHeap &o) = delete;
 	BvhMedianSplitHeap(EntityType denseEntityRange);
 	BvhMedianSplitHeap(EntitiesOffsetsMapType &&entityIdsMap);
 	virtual ~BvhMedianSplitHeap();
@@ -229,6 +233,7 @@ private:
 
 	EntitiesOffsetsMapType entitiesOffsets;
 	// [0] - ignored, because heap works faster starting from 1
+public:
 	std::vector<NodeData> nodesHeapAabb;
 	std::vector<Data> entitiesData;
 

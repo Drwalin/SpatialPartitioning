@@ -60,7 +60,7 @@ SPP_TEMPLATE_DECL
 void BulletDbvh<SPP_TEMPLATE_ARGS>::SmallRebuildIfNeeded()
 {
 	if (requiresRebuild > 0) {
-		IncrementalOptimize(requiresRebuild / 100 + 1);
+		IncrementalOptimize(requiresRebuild / 13 + 1);
 		requiresRebuild = 0;
 	}
 }

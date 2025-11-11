@@ -11,6 +11,7 @@ namespace spp
 SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Chunk() {}
 
+/*
 SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Chunk(Chunk &&c)
 {
@@ -20,8 +21,9 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Chunk(Chunk &&c)
 	localAabbInner = c.localAabbInner;
 	globalAabb = c.globalAabb;
 	globalAabbInner = c.globalAabbInner;
-	bvh = c.bvh;
-	c.bvh = nullptr;
+	new (&bvh) InternalBvhHeap(std::move(c.bvh));
+	bp = c.bp;
+	c.bp = nullptr;
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -34,17 +36,24 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::operator=(Chunk &&c)
 	localAabbInner = c.localAabbInner;
 	globalAabb = c.globalAabb;
 	globalAabbInner = c.globalAabbInner;
-	bvh = c.bvh;
-	c.bvh = nullptr;
+	if (bp) {
+		bvh.~InternalBvhHeap();
+		bvh = std::move(c.bvh);
+	} else {
+		new (&bvh) InternalBvhHeap(std::move(c.bvh));
+	}
+	bp = c.bp;
+	c.bp = nullptr;
 	return *this;
 }
+*/
 
 SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::~Chunk()
 {
-	if (bvh) {
-		delete bvh;
-		bvh = nullptr;
+	if (bp) {
+		bvh.~InternalBvhHeap();
+		bp = nullptr;
 	}
 }
 
@@ -54,9 +63,12 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Init(ChunkedBvhDbvt *bp,
 															float chunkSize,
 															Aabb aabb)
 {
+	if (this->bp) {
+		bvh.~InternalBvhHeap();
+	}
 	this->chunkId = chunkId;
 	this->bp = bp;
-	bvh = new BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t>{
+	new (&bvh) InternalBvhHeap{
 		EntitiesOffsetsMapType_Reference(&(bp->entitiesOffsets), chunkId)};
 
 	glm::ivec3 chunkOffset = glm::floor(aabb.GetCenter() / chunkSize);
@@ -79,7 +91,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Add(EntityType entity,
 														   MaskType mask)
 {
 	Aabb_i16 b2 = ToLocalAabb(aabb);
-	bvh->Add(entity, b2, mask);
+	bvh.Add(entity, b2, mask);
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -87,20 +99,20 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Update(EntityType entity,
 															  Aabb _aabb)
 {
 	Aabb_i16 aabb = ToLocalAabb(_aabb);
-	bvh->Update(entity, aabb);
+	bvh.Update(entity, aabb);
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Remove(EntityType entity)
 {
 	changes++;
-	bvh->Remove(entity);
+	bvh.Remove(entity);
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::RebuildIfNeeded()
 {
-	if (bvh->GetCount() > 100 || changes > 50) {
+	if (bvh.GetCount() > 100 || changes > 50) {
 		Rebuild();
 	}
 }
@@ -108,27 +120,27 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::RebuildIfNeeded()
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Rebuild()
 {
-	bvh->Rebuild();
+	bvh.Rebuild();
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ShrinkToFit()
 {
-	bvh->ShrinkToFit();
+	bvh.ShrinkToFit();
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
 size_t ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::GetMemoryUsage() const
 {
-	assert(bvh != nullptr);
-	return bvh->GetMemoryUsage();
+	assert(bp != nullptr);
+	return bvh.GetMemoryUsage();
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
 Aabb ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::GetAabb(
 	EntityType entity, int32_t offset) const
 {
-	return ToGlobalAabb(bvh->GetAabb(entity));
+	return ToGlobalAabb(bvh.GetAabb(entity));
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -136,7 +148,7 @@ MaskType
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::GetMask(EntityType entity,
 														  int32_t offset) const
 {
-	return bvh->GetMask(entity);
+	return bvh.GetMask(entity);
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -190,7 +202,7 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalVec(glm::vec3 p) const
 SPP_TEMPLATE_DECL_NO_AABB
 int32_t ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::GetCount() const
 {
-	return bvh[0].GetCount();
+	return bvh.GetCount();
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -200,7 +212,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::IntersectAabb(
 	cb->intraCb.chunk = this;
 	cb->intraCb.aabb = ToLocalAabbUnbound(cb->aabb);
 
-	bvh->IntersectAabb(cb->intraCb);
+	bvh.IntersectAabb(cb->intraCb);
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -212,7 +224,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::IntersectRay(
 	cb->intraCb.start = ToLocalVec(cb->start);
 	cb->intraCb.end = ToLocalVec(cb->end);
 
-	bvh->IntersectRay(cb->intraCb);
+	bvh.IntersectRay(cb->intraCb);
 }
 
 // SPP_DEFINE_VARIANTS_NO_AABB(ChunkedBvhDbvt)

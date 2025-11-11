@@ -34,9 +34,11 @@ size_t TOTAL_MOVES_AND_TESTS = 1000000;
 size_t MAX_MOVING_ENTITIES = 2500;
 bool ENABLE_VERIFICATION = true;
 bool BENCHMARK = false;
+bool DISABLE_NODES_TEST_COUNT_PRINT = false;
 size_t MIXED_AABB_COUNT = 2;
 size_t MIXED_RAY_COUNT = 2;
 size_t MIXED_UPDATE_COUNT = 1;
+size_t SWITCH_MIXED_AABB_WITH_UPDATE_COUNTS_FOR_FIRST_N_TESTS = 0;
 
 bool disable_benchmark_report = false;
 
@@ -510,6 +512,21 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 					d *= glm::vec3(0.03f, 1.0f/60.0f, 0.03f);
 					aabb.min += d;
 					aabb.max += d;
+					if (glm::any(glm::greaterThanEqual(glm::abs(aabb.GetCenter()),
+									glm::vec3(1700.0f,1700.0f,1700.0f)))) {
+						aabb = aabbsToTest[i];
+						float y = aabb.min.y;
+						if (glm::abs(y) > 1000) {
+							aabb.min.y /= 5.0f;
+						} else {
+							y *= 0.001f;
+							aabb.min.y = (y * y) * 1000.0f;
+							if (y < 0.0f) {
+								aabb.min.y = -aabb.min.y;
+							}
+						}
+						aabb.max = aabb.min + (aabb.max-aabb.min) / 5.0f;
+					}
 					TEST_TIMING(broadphase->Update(e, aabb), cbAabb);
 					_SetEntityAabb(currentEntitiesAabbs, e, aabb);
 				}
@@ -650,8 +667,12 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 	
 	if (BENCHMARK == false || disable_benchmark_report == false) {
 		printf("intersection test [count: %lu]: \n", tC);
-		printf("    min      avg      p50      p75      p90      p99      p99.9       p99.99       p99.999          max  [us/op]"
-			   "    nodesTested   testedCount   resultCount     maxHits     name\n");
+		printf("    [us/op]\n");
+		printf("    min      avg      p50      p75      p90      p99      p99.9       p99.99       p99.999          max  ");
+		if (!DISABLE_NODES_TEST_COUNT_PRINT) {
+			printf("      nodesTested   testedCount   resultCount     maxHits");
+		}
+		printf("     name\n");
 	}
 	
 	for (int i = 0; i < broadphases.size(); ++i) {
@@ -674,9 +695,14 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 		if (BENCHMARK == false || disable_benchmark_report == false) {
 			printf("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %10.3f %13.3f %13.3f %13.3f ",
 				   _min, _avg, _p50, _p75, _p90, _p99, _p999, _p9999, _p99999,_max);
-			printf("%20lu  %12lu %13lu %11lu     %s\n",
-				   vec.nodesTestedCount, vec.testedCount, vec.hitCount,
-				   vec.maxHitCount,
+			if (!DISABLE_NODES_TEST_COUNT_PRINT) {
+				printf("%15lu  %12lu %13lu %11lu",
+					   vec.nodesTestedCount, vec.testedCount, vec.hitCount,
+					   vec.maxHitCount);
+			} else {
+				printf("");
+			}
+			printf("     %s\n",
 				   broadphases[i]->GetName());
 			fflush(stdout);
 		}
@@ -1271,6 +1297,8 @@ int main(int argc, char **argv)
 				   "\t-mixed-ray-count=\n"
 				   "\t-mixed-update-count=\n"
 				   "\t-benchmark\n"
+				   "\t-disable-nodes-test-count-print\n"
+				   "\t-switch-mixed-aabb-with-update-counts-for-first-n-tests=\n"
 				   "\tBF              - BruteForce\n"
 				   "\tBVH             - BvhMedianSplitHeap\n"
 				   "\tBVH1            - BvhMedianSplitHeap1\n"
@@ -1288,7 +1316,9 @@ int main(int argc, char **argv)
 				   "\tTSH_DBVH        - ThreeStageDbvh BvhMedian + Dbvh\n"
 				   "\tTSH_DBVT        - ThreeStageDbvh BvhMedian + Dbvt\n"
 				   "\tTSH_DBVT1       - ThreeStageDbvh BvhMedian1 + Dbvt\n"
-				   "\tTSH_BVH         - ThreeStageDbvh BvhMedian + BvhMedian\n"
+				   "\tTSH_BVH         - ThreeStageDbvh BvhMedian + BvhMedian (no schedule)\n"
+				   "\tTSH_BVH1s       - ThreeStageDbvh BvhMedian1 + BvhMedian1\n"
+				   "\tTSH_BVHs        - ThreeStageDbvh BvhMedian + BvhMedian\n"
 				   "\tTSH_BVH1        - ThreeStageDbvh BvhMedian1 + BvhMedian1 (no schedule)\n"
 				   "\tTSH_DBVT2       - ThreeStageDbvh Dbvt + Dbvt (no schedule)\n"
 				   "\tTSH_BTDBVT2     - ThreeStageDbvh BulletDbvt + BulletDbvt (no schedule)\n"
@@ -1310,6 +1340,10 @@ int main(int argc, char **argv)
 		} else if (std::string(argv[i]).starts_with("-mixed-update-count=")) {
 			MIXED_UPDATE_COUNT =
 				atoll(argv[i] + strlen("-mixed-update-count="));
+		} else if (std::string(argv[i]).starts_with("-disable-nodes-test-count-print")) {
+			DISABLE_NODES_TEST_COUNT_PRINT = true;
+		} else if (std::string(argv[i]).starts_with("-switch-mixed-aabb-with-update-counts-for-first-n-tests=")) {
+			SWITCH_MIXED_AABB_WITH_UPDATE_COUNTS_FOR_FIRST_N_TESTS = atoll(argv[i] + strlen("-switch-mixed-aabb-with-update-counts-for-first-n-tests="));
 		}
 	}
 
@@ -1433,6 +1467,20 @@ int main(int argc, char **argv)
 					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
 					nullptr,//std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
 					std::make_unique<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(0));
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_BVHs") == false) {
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(TOTAL_ENTITIES),
+					std::make_unique<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0>>(0));
+				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_BVH1s") == false) {
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
+					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
+					std::make_unique<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(0));
+				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "TSH_1_BVH1_DBVT") == false) {
 				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
@@ -1754,6 +1802,10 @@ int main(int argc, char **argv)
 	double timeDiff = 10.0;
 	disable_benchmark_report = false;
 	for (size_t i = 0; i < mixedTestsCount; ++i) {
+		if (i < SWITCH_MIXED_AABB_WITH_UPDATE_COUNTS_FOR_FIRST_N_TESTS) {
+			std::swap(MIXED_UPDATE_COUNT, MIXED_AABB_COUNT);
+		}
+		
 		if (BENCHMARK == false || disable_benchmark_report == false || i == 0 ||
 			i + 1 == mixedTestsCount) {
 			disable_benchmark_report = false;

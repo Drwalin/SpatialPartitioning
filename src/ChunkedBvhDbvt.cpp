@@ -14,7 +14,7 @@ namespace spp
 SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ChunkedBvhDbvt(
 	EntityType denseEntityRange)
-	: entitiesOffsets(denseEntityRange), chunksBvh(0),
+	: entitiesOffsets(denseEntityRange), chunksBvh(64*1024),
 	  outerObjects(EntitiesOffsetsMapType_Reference(&entitiesOffsets, -1)),
 	  iterator(*this)
 {
@@ -26,9 +26,25 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::~ChunkedBvhDbvt() {}
 SPP_TEMPLATE_DECL_NO_AABB
 const char *ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetName() const
 {
+	int32_t maxElemsInChunk = -1;
+	int32_t a=0, b=0;
+	Aabb aabb{{0,0,0},{0,0,0}};
+	for (const auto &c : chunks) {
+		int32_t d = c.second.GetCount();
+		if (c.second.bvh.nodesHeapAabb.size() >= 2) {
+			aabb = aabb + c.second.bvh.nodesHeapAabb[1].aabb;
+		}
+		if (d > maxElemsInChunk) {
+			maxElemsInChunk = d;;
+			a = c.second.bvh.nodesHeapAabb.capacity();
+			b = c.second.bvh.entitiesData.capacity();
+		}
+	}
+	glm::vec3 size = aabb.GetSizes();
 	static char _b[1024];
-	snprintf(_b, 1023, "ChunkedBvhDbvt [%i, %li]", outerObjects.GetCount(),
-			chunks.size());
+	snprintf(_b, 1023, "ChunkedBvhDbvt [%i, %li, %i, (%i, %i), {%.1f, %.1f, %.1f}]",
+			outerObjects.GetCount(),
+			chunks.size(), maxElemsInChunk, a, b, size.x, size.y, size.z);
 	return _b;
 }
 
@@ -326,7 +342,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::SetMask(EntityType entity,
 		outerObjects.SetMask(entity, mask);
 		return;
 	} else {
-		chunk->bvh->SetMask(entity, mask);
+		chunk->bvh.SetMask(entity, mask);
 		return;
 	}
 }

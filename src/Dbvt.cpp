@@ -44,7 +44,7 @@ SPP_TEMPLATE_DECL_OFFSET
 void Dbvt<SPP_TEMPLATE_ARGS_OFFSET>::SmallRebuildIfNeeded()
 {
 	if (requiresRebuild > 1000) {
-		IncrementalOptimize(requiresRebuild / 133 + 1);
+		IncrementalOptimize(requiresRebuild / 13 + 1);
 		requiresRebuild = 0;
 	}
 }

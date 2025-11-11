@@ -9,8 +9,9 @@
 
 #include "../../glm/glm/ext/vector_uint3_sized.hpp"
 
-#include "./BvhMedianSplitHeap.hpp"
 #include "./BroadPhaseBase.hpp"
+#include "./BvhMedianSplitHeap.hpp"
+#include "./BulletDbvt.hpp"
 
 template <> struct std::hash<glm::u16vec3> {
 	inline size_t operator()(const glm::i16vec3 &k) const
@@ -52,6 +53,8 @@ public:
 		DenseSparseSegmentOffsetMapReference<EntityType, int32_t, int32_t,
 											 true>;
 	using MapType = EntitiesOffsetsMapType_Reference::MapType;
+	using InternalBvhHeap =
+		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t>;
 
 	ChunkedBvhDbvt(EntityType denseEntityRange);
 	virtual ~ChunkedBvhDbvt();
@@ -168,9 +171,7 @@ private:
 				  Aabb aabb);
 
 		ChunkedBvhDbvt *bp = nullptr;
-
-		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t> *bvh =
-			nullptr;
+		
 		glm::vec3 scale;
 		glm::vec3 invScale;
 
@@ -205,6 +206,11 @@ private:
 
 		void IntersectAabb(AabbCallbacks::InterChunkCb *cb);
 		void IntersectRay(RayCallbacks::InterChunkCb *cb);
+		
+		union {
+			uint8_t __initializationPrevention = 0;
+   			InternalBvhHeap bvh;
+		};
 	};
 
 	Chunk *GetChunkOfEntity(EntityType entity, int32_t &offset);
@@ -218,14 +224,14 @@ private:
 	Chunk *GetChunkById(uint32_t chunkId);
 
 private:
-	float chunkSize = 40.0f;
+	float chunkSize = 64.0f;
 	float chunkSizeMultiplier = 32.0f;
 	float maxChunkedEntitySize = 32.0f;
 
 	int limitChunkOffset = 512 - 2;
-	
+
 	int32_t roundRobinCounter = 0;
-	std::mt19937_64 mt{std::random_device()()};
+	std::mt19937_64 mt{0};
 
 	uint32_t entitiesCount = 0;
 
@@ -240,7 +246,8 @@ private:
 
 	HashMap<int32_t, Chunk> chunks;
 
-	BvhMedianSplitHeap<Aabb, uint32_t, uint32_t, 0, 0> chunksBvh;
+// 	BulletDbvt<Aabb, uint32_t, uint32_t, 0> chunksBvh;
+	BvhMedianSplitHeap<Aabb, uint32_t, uint32_t, 0, 1> chunksBvh;
 	BvhMedianSplitHeap<Aabb, EntityType, MaskType, 0, 0, int32_t> outerObjects;
 
 	class Iterator final : public BroadphaseBaseIterator

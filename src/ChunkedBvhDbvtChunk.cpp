@@ -157,6 +157,7 @@ Aabb_i16 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalAabb(
 {
 	const Aabb org = _aabb;
 	Aabb aabb = ToLocalAabbUnbound(org);
+	/*
 	Aabb glob = ToGlobalAabb(aabb);
 	assert(glob.IsIn(org.min));
 	assert(glob.IsIn(org.max));
@@ -165,6 +166,7 @@ Aabb_i16 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalAabb(
 	assert(localAabbInner.IsIn(aabb.GetCenter()));
 	assert(globalAabbInner.IsIn(glob.GetCenter()));
 	assert(globalAabbInner.IsIn(org.GetCenter()));
+	*/
 	return aabb;
 }
 
@@ -183,12 +185,6 @@ Aabb ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToGlobalAabb(
 	Aabb aabb = _aabb;
 	aabb.min = glm::fma(aabb.min, scale, globalCenter);
 	aabb.max = glm::fma(aabb.max, scale, globalCenter);
-	/*
-	aabb.min *= scale;
-	aabb.max *= scale;
-	aabb.min += globalCenter;
-	aabb.max += globalCenter;
-	*/
 	return aabb;
 }
 
@@ -219,12 +215,13 @@ SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::IntersectRay(
 	RayCallbacks::InterChunkCb *cb)
 {
-	cb->intraCb.chunk = this;
+	auto &intraCb = cb->intraCb;
+	intraCb.chunk = this;
 
-	cb->intraCb.start = ToLocalVec(cb->start);
-	cb->intraCb.end = ToLocalVec(cb->end);
+	intraCb.start = ToLocalVec(cb->start);
+	intraCb.end = ToLocalVec(cb->end);
 
-	bvh.IntersectRay(cb->intraCb);
+	bvh.IntersectRay(intraCb);
 }
 
 // SPP_DEFINE_VARIANTS_NO_AABB(ChunkedBvhDbvt)

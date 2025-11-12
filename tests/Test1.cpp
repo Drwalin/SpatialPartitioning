@@ -25,6 +25,12 @@
 #include "../include/spatial_partitioning/ThreeStageDbvh.hpp"
 #include "../include/spatial_partitioning/ChunkedBvhDbvt.hpp"
 
+#define AppendPrintf(...) { \
+	char buf[4096]; \
+	snprintf(buf, sizeof(buf)-1, __VA_ARGS__); \
+	errorStrings[i] += buf; \
+}
+
 int32_t TOTAL_ENTITIES = 1000000;
 int32_t ADDITIONAL_ENTITIES = 10000;
 int32_t MAX_ENTITIES = TOTAL_ENTITIES + ADDITIONAL_ENTITIES;
@@ -585,6 +591,15 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 	broadphasePerformances.clear();
 	broadphasePerformances.resize(broadphases.size(), {{}, 0});
 	totalErrorsInBroadphase.resize(broadphases.size(), 0);
+	std::vector<size_t> _cardinalErrors(broadphases.size(), 0);
+	std::vector<size_t> _errs(broadphases.size(), 0);
+	
+	static std::vector<std::string> errorStrings;
+	errorStrings.resize(broadphases.size());
+	for (int i=0; i<broadphases.size(); ++i) {
+		errorStrings[i].clear();
+		errorStrings[i].reserve(1024);
+	}
 
 	std::uniform_real_distribution<float> distPos(-sqrt(MAX_ENTITIES)/2, sqrt(MAX_ENTITIES)/2);
 	std::uniform_real_distribution<float> distSize(1.0, 25.0);
@@ -631,9 +646,12 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 	auto nextReport = std::chrono::steady_clock::now() + std::chrono::seconds(1);
 	
 	const size_t __total = tC * broadphases.size();
-	for (int k=0; k<tC; k += stride) {
+	for (size_t k = 0; broadphasePerformances[0].second < tC && k < tC; k += stride) {
 		size_t total = 0;
 		for (int i = 0; i < broadphases.size(); ++i) {
+			offsetOfPatch[i].clear();
+			hitPoints[i].clear();
+			
 			auto &it = broadphases[i];
 			const size_t c = SingleTest(it, aabbs, tC, offsetOfPatch[i], testType,
 								  hitPoints[i], currentEntitiesAabbs[i],
@@ -653,25 +671,466 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 				.count();
 			double sec = double(ns) / 1'000'000'000.0;
 			
-// 			printf("\r %6.3f %%     [%6.2f s]", (100.0 * k) / (double)tC, sec);
 			printf("\r %6.3f %%     [%s]", (100.0 * total) / (double)__total, SecondsToStr(sec).c_str());
 			fflush(stdout);
 		}
-		if (broadphasePerformances[0].second >= tC) {
-			break;
+		
+		for (int i = 1; i < broadphases.size() && ENABLE_VERIFICATION; ++i) {
+#define printf(...) AppendPrintf(__VA_ARGS__)
+			size_t &errs = _errs[i];
+			size_t JJ = 0;
+
+			for (size_t patch = 0; patch < offsetOfPatch[i].size(); ++patch) {
+				const size_t patchStarti = offsetOfPatch[i][patch];
+				const size_t patchStart0 = offsetOfPatch[0][patch];
+				const size_t patchEndi = patch + 1 < offsetOfPatch[i].size()
+											 ? offsetOfPatch[i][patch + 1]
+											 : hitPoints[i].size();
+				const size_t patchEnd0 = patch + 1 < offsetOfPatch[0].size()
+											 ? offsetOfPatch[0][patch + 1]
+											 : hitPoints[0].size();
+				for (size_t entry = patchStarti; entry < patchEndi; ++entry) {
+					const size_t ji = entry;
+					auto pi = hitPoints[i][ji];
+					auto p0 = StartEndPoint{};
+
+					if ((patchEnd0 - patchStart0) == 1 &&
+						(patchEndi - patchStarti) == 1) {
+						p0 = hitPoints[0][patchStart0];
+					} else {
+						auto start = hitPoints[0].begin() + patchStart0;
+						auto end = hitPoints[0].begin() + patchEnd0;
+						const static auto comp =
+							+[](StartEndPoint a, StartEndPoint b) -> bool {
+							return a.e < b.e;
+						};
+						auto it = std::lower_bound(start, end, pi, comp);
+						if (it != end) {
+							p0 = *it;
+							if (p0.e != pi.e) {
+								continue;
+							}
+						} else {
+							continue;
+						}
+					}
+
+					if (p0.e <= 0 && pi.e <= 0) {
+						continue;
+					}
+
+					if (pi.isAabbTest == false && p0.isAabbTest == false) {
+						spp::Aabb aabb0 = p0.aabb.Expanded(0.0025);
+						spp::Aabb aabbi = pi.aabb.Expanded(0.0025);
+
+						bool er = true;
+						if (p0.e && pi.e) {
+							if ((aabb0 && p0.point) && (aabbi && p0.point) &&
+								(aabb0 && pi.point) && (aabbi && pi.point) &&
+								(aabb0 && aabbi)) {
+								if (glm::length(pi.point - p0.point) < 0.01) {
+									if (fabs(p0.n - pi.n) < 0.001) {
+										er = false;
+									}
+								}
+							}
+						}
+
+						if (er == true) {
+							aabb0 = p0.aabb;
+							aabbi = pi.aabb;
+
+							++JJ;
+							++errs;
+							if (JJ < 10) {
+								glm::vec3 a, b, c, d;
+								a = aabb0.min;
+								b = aabb0.max;
+								c = aabbi.min;
+								d = aabbi.max;
+								printf("ray (%li<>%li)   %7ld: %7u == %7u  ", 
+										patchEndi-patchStarti, patchEnd0-patchStart0,
+										ji, p0.e, pi.e);
+								printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+									   "%7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , "
+									   "{%7.2f, "
+									   "%7.2f, %7.2f}}",
+									   a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z,
+									   d.x, d.y, d.z);
+
+								a = p0.point;
+								b = pi.point;
+								printf("     hit points: {%7.2f, %7.2f, %7.2f} "
+									   "<-> "
+									   "{%7.2f, %7.2f, %7.2f}",
+									   a.x, a.y, a.z, b.x, b.y, b.z);
+
+								a = p0.start;
+								b = pi.start;
+								printf("     start: {%7.2f, %7.2f, %7.2f}  <->  {%7.2f, %7.2f, %7.2f}", a.x,
+									   a.y, a.z, b.x, b.y, b.z);
+
+								a = p0.end;
+								b = pi.end;
+								printf("     end: {%7.2f, %7.2f, %7.2f}  <->  {%7.2f, %7.2f, %7.2f}", a.x,
+									   a.y, a.z, b.x, b.y, b.z);
+
+								printf("     dist: %11.6f <-> %11.6f", p0.n, pi.n);
+
+								printf("\n");
+							}
+						}
+					} else {
+						// TODO: check aabb equality
+
+						bool er = false;
+
+						if (p0.e != pi.e) {
+							er = true;
+						} else {
+							if (glm::length(pi.aabb.min - p0.aabb.min) > 0.001 &&
+								glm::length(pi.aabb.max - p0.aabb.max) > 0.001) {
+								er = false;
+							}
+						}
+
+						if (er == true) {
+							spp::Aabb aabb0 = p0.aabb;
+							spp::Aabb aabbi = pi.aabb;
+
+							++JJ;
+							++errs;
+							glm::vec3 a, b, c, d;
+							a = aabb0.min;
+							b = aabb0.max;
+							c = aabbi.min;
+							d = aabbi.max;
+							if (JJ < 10) {
+								printf("aabb  %7ld: %7u == %7u  ", ji, p0.e,
+									   pi.e);
+								printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+									   "%7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , "
+									   "{%7.2f, "
+									   "%7.2f, %7.2f}}",
+									   a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z,
+									   d.x, d.y, d.z);
+
+								a = p0.aabb2.min;
+								b = p0.aabb2.max;
+								printf("      test: {{%7.2f, %7.2f, %7.2f} , "
+									   "{%7.2f, %7.2f, %7.2f}}",
+									   a.x, a.y, a.z, b.x, b.y, b.z);
+
+								printf("\n");
+							}
+						}
+					}
+				}
+
+				std::map<EntityType, size_t> e0, ei;
+				for (size_t entry = patchStarti; entry < patchEndi; ++entry) {
+					ei[hitPoints[i][entry].e] = entry;
+				}
+				for (size_t entry = patchStart0; entry < patchEnd0; ++entry) {
+					e0[hitPoints[0][entry].e] = entry;
+				}
+
+				if ((patchEnd0 - patchStart0) == 1 &&
+					(patchEndi - patchStarti) == 1) {
+					e0.clear();
+					ei.clear();
+				}
+
+				for (auto it : e0) {
+					if (ei.find(it.first) == ei.end()) {
+						++JJ;
+						++errs;
+						glm::vec3 a, b;
+						auto hp = hitPoints[0][it.second];
+						if (JJ < 10) {
+							if (hp.isAabbTest) {
+								a = hp.aabb.min;
+								b = hp.aabb.max;
+								printf("aabb missing       ji %7ld[%lu] (j0 "
+									   "%7ld[%lu]): "
+									   "%7u  ",
+									   patchStart0, patchEnd0 - patchStart0,
+									   it.second, patchEndi - patchStarti, hp.e);
+								printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+									   "%7.2f}}",
+									   a.x, a.y, a.z, b.x, b.y, b.z);
+
+								a = hp.aabb2.min;
+								b = hp.aabb2.max;
+								printf("      test: {{%7.2f, %7.2f, %7.2f} , "
+									   "{%7.2f, %7.2f, %7.2f}}",
+									   a.x, a.y, a.z, b.x, b.y, b.z);
+
+								printf("\n");
+							} else {
+								glm::vec3 a, b;
+								a = hp.aabb.min;
+								b = hp.aabb.max;
+								printf("ray missing        ji %7ld[%lu] (j0 "
+									   "%7ld[%lu]): "
+									   "%7u  ",
+									   patchStart0, patchEnd0 - patchStart0,
+									   it.second, patchEndi - patchStarti, hp.e);
+								printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+									   "%7.2f}}",
+									   a.x, a.y, a.z, b.x, b.y, b.z);
+
+								a = hp.point;
+								printf("     hit point: {%7.2f, %7.2f, %7.2f}", a.x,
+									   a.y, a.z);
+
+								a = hp.start;
+								printf("     start: {%7.2f, %7.2f, %7.2f}", a.x,
+									   a.y, a.z);
+
+								a = hp.end;
+								printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
+									   a.z);
+
+								printf("     dist: %11.9f", hp.n);
+
+								printf("\n");
+							}
+						}
+					}
+				}
+
+				for (auto it : ei) {
+					if (e0.find(it.first) == e0.end()) {
+						++JJ;
+						++errs;
+						glm::vec3 a, b;
+						auto hp = hitPoints[i][it.second];
+						if (JJ < 10) {
+							if (hp.isAabbTest) {
+								a = hp.aabb.min;
+								b = hp.aabb.max;
+								printf("aabb shouldn't be  ji %7ld[%lu] (j0 "
+									   "%7ld[%lu]): "
+									   "%7u  ",
+									   patchStart0, patchEnd0 - patchStart0,
+									   it.second, patchEndi - patchStarti, hp.e);
+								printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+									   "%7.2f}}",
+									   a.x, a.y, a.z, b.x, b.y, b.z);
+
+								a = hp.aabb2.min;
+								b = hp.aabb2.max;
+								printf("      test: {{%7.2f, %7.2f, %7.2f} , "
+									   "{%7.2f, %7.2f, %7.2f}}",
+									   a.x, a.y, a.z, b.x, b.y, b.z);
+
+								printf("\n");
+							} else {
+								glm::vec3 a, b;
+								a = hp.aabb.min;
+								b = hp.aabb.max;
+								printf("ray shouldn't be   ji %7ld[%lu] (j0 "
+									   "%7ld[%lu]): "
+									   "%7u  ",
+									   patchStart0, patchEnd0 - patchStart0,
+									   it.second, patchEndi - patchStarti, hp.e);
+								printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
+									   "%7.2f}}",
+									   a.x, a.y, a.z, b.x, b.y, b.z);
+
+								a = hp.point;
+								printf("     hit point: {%7.2f, %7.2f, %7.2f}", a.x,
+									   a.y, a.z);
+
+								a = hp.start;
+								printf("     start: {%7.2f, %7.2f, %7.2f}", a.x,
+									   a.y, a.z);
+
+								a = hp.end;
+								printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
+									   a.z);
+
+								printf("     dist: %11.9f", hp.n);
+
+								printf("\n");
+							}
+						}
+					}
+				}
+			}
+#undef printf
 		}
 	}
 	printf("\r                                    \r");
 	fflush(stdout);
 	
+	for (int i = 1; i < broadphases.size() && ENABLE_VERIFICATION; ++i) {
+		size_t &cardinalErrors = _cardinalErrors[i];
+#define printf(...) AppendPrintf(__VA_ARGS__)
+		auto &bp0 = *(broadphases[0]);
+		auto &bpi = *(broadphases[i]);
+		auto it0 = bp0.RestartIterator();
+		auto iti = bpi.RestartIterator();
+
+		if (bp0.GetCount() != bpi.GetCount()) {
+			// check if number of elements are equal
+			printf("0. CARDINAL ERROR: DIFFERENT NUMBER OF ELEMENTS IN "
+				   "BROADPHASES: %i != %i\n",
+				   bp0.GetCount(), bpi.GetCount());
+			++cardinalErrors;
+		}
+
+		int I = 0;
+		for (; it0->Valid(); it0->Next()) {
+			if (bpi.Exists(it0->entity) == false) {
+				// check if entity exists in another broadphase
+				++cardinalErrors;
+				if (I < 10) {
+					printf(
+						"1. CARDINAL ERROR: ENTITY DOES NOT EXIST: %u\n",
+						it0->entity);
+				}
+				++I;
+			} else {
+				// check if entity aabb match to another broadphase
+				spp::Aabb aabb0 = it0->aabb;
+				spp::Aabb aabbi = currentEntitiesAabbs[i][it0->entity];
+				glm::vec3 a = aabb0.min - aabbi.min;
+				glm::vec3 b = aabb0.max - aabbi.max;
+				float sum = glm::length(a) + glm::length(b);
+				if (sum > 0.1) {
+					++cardinalErrors;
+					if (I < 10) {
+						printf("2. CARDINAL ERROR: ENTITY AABBS DOES NOT "
+							   "MATCH: %u (sum diff dist corners: %.1f)\n",
+							   it0->entity, sum);
+					}
+					++I;
+				}
+			}
+		}
+
+		I = 0;
+		for (; iti->Valid(); iti->Next()) {
+			if (bp0.Exists(iti->entity) == false) {
+				// check if entity exists in another broadphase
+				++cardinalErrors;
+				if (I < 10) {
+					printf("3. CARDINAL ERROR: ENTITY SHOULD NOT EXIST BUT "
+						   "DOES: %u\n",
+						   iti->entity);
+				}
+				++I;
+			} else {
+				// check if entity aabb match to another broadphase
+				spp::Aabb aabb0 = currentEntitiesAabbs[0][iti->entity];
+				spp::Aabb aabbi = iti->aabb;
+				glm::vec3 a = aabb0.min - aabbi.min;
+				glm::vec3 b = aabb0.max - aabbi.max;
+				float sum = glm::length(a) + glm::length(b);
+				if (sum > 0.3) {
+					++cardinalErrors;
+					if (I < 10) {
+						printf("4. CARDINAL ERROR: ENTITY AABBS DOES NOT "
+							   "MATCH: %u (sum diff dist corners: %.1f)\n",
+							   iti->entity, sum);
+					}
+					++I;
+				}
+			}
+		}
+
+		for (int j = 0; j < hitPoints[i].size(); ++j) {
+			auto hp = hitPoints[i][j];
+			if (hp.e <= 0) {
+				continue;
+			}
+			if (!hp.isAabbTest && !(hp.aabb.Expanded(0.01f) && hp.point)) {
+				++cardinalErrors;
+				if (I < 10) {
+
+					float near;
+					float far;
+					bool r = hp.aabb.SlowRayTestCenter(hp.start, hp.end,
+													   near, far);
+
+					printf("5. CARDINAL ERROR: AABB RAY TEST ERROR VALUE, "
+						   "HITPOINT OUTSIDE AABB");
+
+					glm::vec3 a, b;
+					a = hp.aabb.min;
+					b = hp.aabb.max;
+
+					printf("  %7i: %7u    :     ", j, hp.e);
+					printf(
+						"{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}",
+						a.x, a.y, a.z, b.x, b.y, b.z);
+
+					a = hp.point;
+					printf("     hit point: {%7.2f, %7.2f, %7.2f}", a.x,
+						   a.y, a.z);
+
+					a = hp.start;
+					printf("     start: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
+						   a.z);
+
+					a = hp.end;
+					printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
+						   a.z);
+
+					printf("     dist: %11.6f", hp.n);
+
+					printf("     second result %s     near: %f   far: %f",
+						   r ? "HIT" : "MISS", near, far);
+
+					printf("\n");
+					++I;
+				}
+			} else if (hp.isAabbTest &&
+					   (!(hp.aabb.Expanded(0.01f) && hp.aabb2))) {
+				++cardinalErrors;
+				if (I < 10) {
+					printf("6. CARDINAL ERROR: AABB TEST ERROR VALUE, "
+						   "AABBS DOES NOT INTERSECT");
+
+					glm::vec3 a, b;
+					a = hp.aabb.min;
+					b = hp.aabb.max;
+
+					printf("  %7i: %7u    :     ", j, hp.e);
+					printf(
+						"{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}",
+						a.x, a.y, a.z, b.x, b.y, b.z);
+
+					a = hp.aabb2.min;
+					b = hp.aabb2.max;
+					printf("     aabb2: {{%7.2f, %7.2f, %7.2f} , {%7.2f, "
+						   "%7.2f, %7.2f}}",
+						   a.x, a.y, a.z, b.x, b.y, b.z);
+
+					printf("\n");
+					++I;
+				}
+			}
+		}
+#undef printf
+	}
+	
+	for (int i = 1; i < broadphases.size(); ++i) {
+		_errs[i] += _cardinalErrors[i];
+		totalErrorsInBroadphase[i] += _errs[i];
+	}
+	
 	if (BENCHMARK == false || disable_benchmark_report == false) {
 		printf("intersection test [count: %lu]: \n", tC);
 		printf("    [us/op]\n");
-		printf("    min      avg      p50      p75      p90      p99      p99.9       p99.99       p99.999          max  ");
+		printf("    min      avg      p50      p75      p90      p99      p99.9       p99.99       p99.999      p99.9999     p99.99999         max  ");
 		if (!DISABLE_NODES_TEST_COUNT_PRINT) {
 			printf("      nodesTested   testedCount   resultCount     maxHits");
 		}
 		printf("     name\n");
+		fflush(stdout);
 	}
 	
 	for (int i = 0; i < broadphases.size(); ++i) {
@@ -680,20 +1139,23 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 		
 		auto vec = testsResults[i];
 		
-		float _min = t.front();
-		float _max = t[t.size()-1];
-		float _avg = vec.totalTime / double(tC);
-		float _p50 = t[(t.size() * 500) / 1000];
-		float _p75 = t[(t.size() * 750) / 1000];
-		float _p90 = t[(t.size() * 900) / 1000];
-		float _p99 = t[(t.size() * 990) / 1000];
-		float _p999 = t[(t.size() * 999) / 1000];
-		float _p9999 = t[(t.size() * 9999) / 10000];
-		float _p99999 = t[(t.size() * 99999) / 100000];
+		float _min =      t.front();
+		float _max =      t[t.size()-1];
+		float _avg =      vec.totalTime / double(tC);
+		float _p50 =      t[(t.size() * 50)      / 100];
+		float _p75 =      t[(t.size() * 75)      / 100];
+		float _p90 =      t[(t.size() * 90)      / 100];
+		float _p99 =      t[(t.size() * 99)      / 100];
+		float _p999 =     t[(t.size() * 999)     / 1000];
+		float _p9999 =    t[(t.size() * 9999)    / 10000];
+		float _p99999 =   t[(t.size() * 99999)   / 100000];
+		float _p999999 =  t[(t.size() * 999999)  / 1000000];
+		float _p9999999 = t[(t.size() * 9999999) / 10000000];
 		
 		if (BENCHMARK == false || disable_benchmark_report == false) {
-			printf("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %10.3f %13.3f %13.3f %13.3f ",
-				   _min, _avg, _p50, _p75, _p90, _p99, _p999, _p9999, _p99999,_max);
+			
+			printf("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %10.3f %13.3f %13.3f %13.3f %13.3f %13.3f ",
+				   _min, _avg, _p50, _p75, _p90, _p99, _p999, _p9999, _p9999, _p9999999, _p9999999, _max);
 			if (!DISABLE_NODES_TEST_COUNT_PRINT) {
 				printf("%15lu  %12lu %13lu %11lu",
 					   vec.nodesTestedCount, vec.testedCount, vec.hitCount,
@@ -731,450 +1193,18 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 	}
 
 	printf("\n");
+	
 	for (int i = 1; i < broadphases.size(); ++i) {
-		size_t cardinalErrors = 0;
-		{
-			auto &bp0 = *(broadphases[0]);
-			auto &bpi = *(broadphases[i]);
-			auto it0 = bp0.RestartIterator();
-			auto iti = bpi.RestartIterator();
-
-			if (bp0.GetCount() != bpi.GetCount()) {
-				// check if number of elements are equal
-				printf("0. CARDINAL ERROR: DIFFERENT NUMBER OF ELEMENTS IN "
-					   "BROADPHASES: %i != %i\n",
-					   bp0.GetCount(), bpi.GetCount());
-				++cardinalErrors;
-			}
-
-			int I = 0;
-			for (; it0->Valid(); it0->Next()) {
-				if (bpi.Exists(it0->entity) == false) {
-					// check if entity exists in another broadphase
-					++cardinalErrors;
-					if (I < 10) {
-						printf(
-							"1. CARDINAL ERROR: ENTITY DOES NOT EXIST: %u\n",
-							it0->entity);
-					}
-					++I;
-				} else {
-					// check if entity aabb match to another broadphase
-					spp::Aabb aabb0 = it0->aabb;
-					spp::Aabb aabbi = currentEntitiesAabbs[i][it0->entity];
-					glm::vec3 a = aabb0.min - aabbi.min;
-					glm::vec3 b = aabb0.max - aabbi.max;
-					float sum = glm::length(a) + glm::length(b);
-					if (sum > 0.1) {
-						++cardinalErrors;
-						if (I < 10) {
-							printf("2. CARDINAL ERROR: ENTITY AABBS DOES NOT "
-								   "MATCH: %u (sum diff dist corners: %.1f)\n",
-								   it0->entity, sum);
-						}
-						++I;
-					}
-				}
-			}
-
-			I = 0;
-			for (; iti->Valid(); iti->Next()) {
-				if (bp0.Exists(iti->entity) == false) {
-					// check if entity exists in another broadphase
-					++cardinalErrors;
-					if (I < 10) {
-						printf("3. CARDINAL ERROR: ENTITY SHOULD NOT EXIST BUT "
-							   "DOES: %u\n",
-							   iti->entity);
-					}
-					++I;
-				} else {
-					// check if entity aabb match to another broadphase
-					spp::Aabb aabb0 = currentEntitiesAabbs[0][iti->entity];
-					spp::Aabb aabbi = iti->aabb;
-					glm::vec3 a = aabb0.min - aabbi.min;
-					glm::vec3 b = aabb0.max - aabbi.max;
-					float sum = glm::length(a) + glm::length(b);
-					if (sum > 0.3) {
-						++cardinalErrors;
-						if (I < 10) {
-							printf("4. CARDINAL ERROR: ENTITY AABBS DOES NOT "
-								   "MATCH: %u (sum diff dist corners: %.1f)\n",
-								   iti->entity, sum);
-						}
-						++I;
-					}
-				}
-			}
-
-			for (int j = 0; j < hitPoints[i].size(); ++j) {
-				auto hp = hitPoints[i][j];
-				if (hp.e <= 0) {
-					continue;
-				}
-				if (!hp.isAabbTest && !(hp.aabb.Expanded(0.01f) && hp.point)) {
-					++cardinalErrors;
-					if (I < 10) {
-
-						float near;
-						float far;
-						bool r = hp.aabb.SlowRayTestCenter(hp.start, hp.end,
-														   near, far);
-
-						printf("5. CARDINAL ERROR: AABB RAY TEST ERROR VALUE, "
-							   "HITPOINT OUTSIDE AABB");
-
-						glm::vec3 a, b;
-						a = hp.aabb.min;
-						b = hp.aabb.max;
-
-						printf("  %7i: %7u    :     ", j, hp.e);
-						printf(
-							"{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}",
-							a.x, a.y, a.z, b.x, b.y, b.z);
-
-						a = hp.point;
-						printf("     hit point: {%7.2f, %7.2f, %7.2f}", a.x,
-							   a.y, a.z);
-
-						a = hp.start;
-						printf("     start: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
-							   a.z);
-
-						a = hp.end;
-						printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
-							   a.z);
-
-						printf("     dist: %11.6f", hp.n);
-
-						printf("     second result %s     near: %f   far: %f",
-							   r ? "HIT" : "MISS", near, far);
-
-						printf("\n");
-						++I;
-					}
-				} else if (hp.isAabbTest &&
-						   (!(hp.aabb.Expanded(0.01f) && hp.aabb2))) {
-					++cardinalErrors;
-					if (I < 10) {
-						printf("6. CARDINAL ERROR: AABB TEST ERROR VALUE, "
-							   "AABBS DOES NOT INTERSECT");
-
-						glm::vec3 a, b;
-						a = hp.aabb.min;
-						b = hp.aabb.max;
-
-						printf("  %7i: %7u    :     ", j, hp.e);
-						printf(
-							"{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, %7.2f}}",
-							a.x, a.y, a.z, b.x, b.y, b.z);
-
-						a = hp.aabb2.min;
-						b = hp.aabb2.max;
-						printf("     aabb2: {{%7.2f, %7.2f, %7.2f} , {%7.2f, "
-							   "%7.2f, %7.2f}}",
-							   a.x, a.y, a.z, b.x, b.y, b.z);
-
-						printf("\n");
-						++I;
-					}
-				}
-			}
-		}
-
-		size_t errs = 0;
-		int JJ = 0;
-
-		for (size_t patch = 0; patch < offsetOfPatch[i].size(); ++patch) {
-			const size_t patchStarti = offsetOfPatch[i][patch];
-			const size_t patchStart0 = offsetOfPatch[0][patch];
-			const size_t patchEndi = patch + 1 < offsetOfPatch[i].size()
-										 ? offsetOfPatch[i][patch + 1]
-										 : hitPoints[i].size();
-			const size_t patchEnd0 = patch + 1 < offsetOfPatch[0].size()
-										 ? offsetOfPatch[0][patch + 1]
-										 : hitPoints[0].size();
-			for (size_t entry = patchStarti; entry < patchEndi; ++entry) {
-				const size_t ji = entry;
-				auto pi = hitPoints[i][ji];
-				auto p0 = StartEndPoint{};
-
-				if ((patchEnd0 - patchStart0) == 1 &&
-					(patchEndi - patchStarti) == 1) {
-					p0 = hitPoints[0][patchStart0];
-				} else {
-					auto start = hitPoints[0].begin() + patchStart0;
-					auto end = hitPoints[0].begin() + patchEnd0;
-					const static auto comp =
-						+[](StartEndPoint a, StartEndPoint b) -> bool {
-						return a.e < b.e;
-					};
-					auto it = std::lower_bound(start, end, pi, comp);
-					if (it != end) {
-						p0 = *it;
-						if (p0.e != pi.e) {
-							continue;
-						}
-					} else {
-						continue;
-					}
-				}
-
-				if (p0.e <= 0 && pi.e <= 0) {
-					continue;
-				}
-
-				if (pi.isAabbTest == false && p0.isAabbTest == false) {
-					spp::Aabb aabb0 = p0.aabb.Expanded(0.0025);
-					spp::Aabb aabbi = pi.aabb.Expanded(0.0025);
-
-					bool er = true;
-					if (p0.e && pi.e) {
-						if ((aabb0 && p0.point) && (aabbi && p0.point) &&
-							(aabb0 && pi.point) && (aabbi && pi.point) &&
-							(aabb0 && aabbi)) {
-							if (glm::length(pi.point - p0.point) < 0.01) {
-								if (fabs(p0.n - pi.n) < 0.001) {
-									er = false;
-								}
-							}
-						}
-					}
-
-					if (er == true) {
-						aabb0 = p0.aabb;
-						aabbi = pi.aabb;
-
-						++JJ;
-						++errs;
-						if (JJ < 10) {
-							glm::vec3 a, b, c, d;
-							a = aabb0.min;
-							b = aabb0.max;
-							c = aabbi.min;
-							d = aabbi.max;
-							printf("ray (%li<>%li)   %7ld: %7u == %7u  ", 
-									patchEndi-patchStarti, patchEnd0-patchStart0,
-									ji, p0.e, pi.e);
-							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
-								   "%7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , "
-								   "{%7.2f, "
-								   "%7.2f, %7.2f}}",
-								   a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z,
-								   d.x, d.y, d.z);
-
-							a = p0.point;
-							b = pi.point;
-							printf("     hit points: {%7.2f, %7.2f, %7.2f} "
-								   "<-> "
-								   "{%7.2f, %7.2f, %7.2f}",
-								   a.x, a.y, a.z, b.x, b.y, b.z);
-
-							a = p0.start;
-							b = pi.start;
-							printf("     start: {%7.2f, %7.2f, %7.2f}  <->  {%7.2f, %7.2f, %7.2f}", a.x,
-								   a.y, a.z, b.x, b.y, b.z);
-
-							a = p0.end;
-							b = pi.end;
-							printf("     end: {%7.2f, %7.2f, %7.2f}  <->  {%7.2f, %7.2f, %7.2f}", a.x,
-								   a.y, a.z, b.x, b.y, b.z);
-
-							printf("     dist: %11.6f <-> %11.6f", p0.n, pi.n);
-
-							printf("\n");
-						}
-					}
-				} else {
-					// TODO: check aabb equality
-
-					bool er = false;
-
-					if (p0.e != pi.e) {
-						er = true;
-					} else {
-						if (glm::length(pi.aabb.min - p0.aabb.min) > 0.001 &&
-							glm::length(pi.aabb.max - p0.aabb.max) > 0.001) {
-							er = false;
-						}
-					}
-
-					if (er == true) {
-						spp::Aabb aabb0 = p0.aabb;
-						spp::Aabb aabbi = pi.aabb;
-
-						++JJ;
-						++errs;
-						glm::vec3 a, b, c, d;
-						a = aabb0.min;
-						b = aabb0.max;
-						c = aabbi.min;
-						d = aabbi.max;
-						if (JJ < 10) {
-							printf("aabb  %7ld: %7u == %7u  ", ji, p0.e,
-								   pi.e);
-							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
-								   "%7.2f}} <-> {{%7.2f, %7.2f, %7.2f} , "
-								   "{%7.2f, "
-								   "%7.2f, %7.2f}}",
-								   a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z,
-								   d.x, d.y, d.z);
-
-							a = p0.aabb2.min;
-							b = p0.aabb2.max;
-							printf("      test: {{%7.2f, %7.2f, %7.2f} , "
-								   "{%7.2f, %7.2f, %7.2f}}",
-								   a.x, a.y, a.z, b.x, b.y, b.z);
-
-							printf("\n");
-						}
-					}
-				}
-			}
-
-			std::map<EntityType, size_t> e0, ei;
-			for (size_t entry = patchStarti; entry < patchEndi; ++entry) {
-				ei[hitPoints[i][entry].e] = entry;
-			}
-			for (size_t entry = patchStart0; entry < patchEnd0; ++entry) {
-				e0[hitPoints[0][entry].e] = entry;
-			}
-
-			if ((patchEnd0 - patchStart0) == 1 &&
-				(patchEndi - patchStarti) == 1) {
-				e0.clear();
-				ei.clear();
-			}
-
-			for (auto it : e0) {
-				if (ei.find(it.first) == ei.end()) {
-					++JJ;
-					++errs;
-					glm::vec3 a, b;
-					auto hp = hitPoints[0][it.second];
-					if (JJ < 10) {
-						if (hp.isAabbTest) {
-							a = hp.aabb.min;
-							b = hp.aabb.max;
-							printf("aabb missing       ji %7ld[%lu] (j0 "
-								   "%7ld[%lu]): "
-								   "%7u  ",
-								   patchStart0, patchEnd0 - patchStart0,
-								   it.second, patchEndi - patchStarti, hp.e);
-							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
-								   "%7.2f}}",
-								   a.x, a.y, a.z, b.x, b.y, b.z);
-
-							a = hp.aabb2.min;
-							b = hp.aabb2.max;
-							printf("      test: {{%7.2f, %7.2f, %7.2f} , "
-								   "{%7.2f, %7.2f, %7.2f}}",
-								   a.x, a.y, a.z, b.x, b.y, b.z);
-
-							printf("\n");
-						} else {
-							glm::vec3 a, b;
-							a = hp.aabb.min;
-							b = hp.aabb.max;
-							printf("ray missing        ji %7ld[%lu] (j0 "
-								   "%7ld[%lu]): "
-								   "%7u  ",
-								   patchStart0, patchEnd0 - patchStart0,
-								   it.second, patchEndi - patchStarti, hp.e);
-							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
-								   "%7.2f}}",
-								   a.x, a.y, a.z, b.x, b.y, b.z);
-
-							a = hp.point;
-							printf("     hit point: {%7.2f, %7.2f, %7.2f}", a.x,
-								   a.y, a.z);
-
-							a = hp.start;
-							printf("     start: {%7.2f, %7.2f, %7.2f}", a.x,
-								   a.y, a.z);
-
-							a = hp.end;
-							printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
-								   a.z);
-
-							printf("     dist: %11.9f", hp.n);
-
-							printf("\n");
-						}
-					}
-				}
-			}
-
-			for (auto it : ei) {
-				if (e0.find(it.first) == e0.end()) {
-					++JJ;
-					++errs;
-					glm::vec3 a, b;
-					auto hp = hitPoints[i][it.second];
-					if (JJ < 10) {
-						if (hp.isAabbTest) {
-							a = hp.aabb.min;
-							b = hp.aabb.max;
-							printf("aabb shouldn't be  ji %7ld[%lu] (j0 "
-								   "%7ld[%lu]): "
-								   "%7u  ",
-								   patchStart0, patchEnd0 - patchStart0,
-								   it.second, patchEndi - patchStarti, hp.e);
-							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
-								   "%7.2f}}",
-								   a.x, a.y, a.z, b.x, b.y, b.z);
-
-							a = hp.aabb2.min;
-							b = hp.aabb2.max;
-							printf("      test: {{%7.2f, %7.2f, %7.2f} , "
-								   "{%7.2f, %7.2f, %7.2f}}",
-								   a.x, a.y, a.z, b.x, b.y, b.z);
-
-							printf("\n");
-						} else {
-							glm::vec3 a, b;
-							a = hp.aabb.min;
-							b = hp.aabb.max;
-							printf("ray shouldn't be   ji %7ld[%lu] (j0 "
-								   "%7ld[%lu]): "
-								   "%7u  ",
-								   patchStart0, patchEnd0 - patchStart0,
-								   it.second, patchEndi - patchStarti, hp.e);
-							printf("{{%7.2f, %7.2f, %7.2f} , {%7.2f, %7.2f, "
-								   "%7.2f}}",
-								   a.x, a.y, a.z, b.x, b.y, b.z);
-
-							a = hp.point;
-							printf("     hit point: {%7.2f, %7.2f, %7.2f}", a.x,
-								   a.y, a.z);
-
-							a = hp.start;
-							printf("     start: {%7.2f, %7.2f, %7.2f}", a.x,
-								   a.y, a.z);
-
-							a = hp.end;
-							printf("     end: {%7.2f, %7.2f, %7.2f}", a.x, a.y,
-								   a.z);
-
-							printf("     dist: %11.9f", hp.n);
-
-							printf("\n");
-						}
-					}
-				}
-			}
-		}
-		errs += cardinalErrors;
-		totalErrorsInBroadphase[i] += errs;
+		printf("%s", errorStrings[i].c_str());
 		printf(" %s: (cardinal err: %lu) errors count: %lu ... %s",
-			   broadphases[i]->GetName(), cardinalErrors, errs,
-			   errs ? "ERRORS" : "OK");
+			   broadphases[i]->GetName(), _cardinalErrors[i], _errs[i],
+			   _errs[i] ? "ERRORS" : "OK");
 		if (totalErrorsInBroadphase[i] > 0) {
 			printf("    TOTAL ERRORS: %lu", totalErrorsInBroadphase[i]);
 		}
 		printf("\n");
-		fflush(stdout);
 	}
+	fflush(stdout);
 }
 
 void EnqueueRebuildThreaded(std::shared_ptr<std::atomic<bool>> fin,
@@ -1306,6 +1336,7 @@ int main(int argc, char **argv)
 				   "\tDBVH            - Dbvh (DynamicBoundingVolumeHierarchy)\n"
 				   "\tBTDBVH          - BulletDbvh (Bullet dbvh - two stages)\n"
 				   "\tBTDBVT          - BulletDbvt (Bullet dbvt one stage)\n"
+				   "\tCHUNKBVHBTDBVT  - BVH of chunks and two stage BtDbvt and Bvh within chunk\n" // ChunkedBvhDbvt
 				   "\tCHUNKBVHDBVT    - BVH of chunks and two stage Dbvt and Bvh within chunk\n" // ChunkedBvhDbvt
 				   "\tCHUNKBVHBVH     - BVH of chunks and two stage Bvh within chunk\n" // ChunkedBvhDbvt
 				   "\tTSH_BF          - ThreeStageDbvh BvhMedian + BruteForce\n"
@@ -1398,8 +1429,10 @@ int main(int argc, char **argv)
 			} else if (strcmp(str, "BTDBVT") == false) {
 				broadphases.push_back(new spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>);
 				
-			} else if (strcmp(str, "CHUNKBVHDBVT") == false) {
+			} else if (strcmp(str, "CHUNKBVHBTDBVT") == false) {
 				broadphases.push_back(new spp::ChunkedBvhDbvt<EntityType, uint32_t, 0>(TOTAL_ENTITIES, new spp::BulletDbvt<spp::Aabb, uint32_t, uint32_t, 0>()));
+			} else if (strcmp(str, "CHUNKBVHDBVT") == false) {
+				broadphases.push_back(new spp::ChunkedBvhDbvt<EntityType, uint32_t, 0>(TOTAL_ENTITIES, new spp::Dbvt<spp::Aabb, uint32_t, uint32_t, 0, uint32_t>()));
 			} else if (strcmp(str, "CHUNKBVHBVH") == false) {
 				broadphases.push_back(new spp::ChunkedBvhDbvt<EntityType, uint32_t, 0>(TOTAL_ENTITIES, new spp::BvhMedianSplitHeap<spp::Aabb, uint32_t, uint32_t, 0>(64*1024)));
 				

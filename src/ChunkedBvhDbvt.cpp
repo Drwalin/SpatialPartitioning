@@ -17,6 +17,7 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ChunkedBvhDbvt(int32_t denseEntityRan
 	  outerObjects(EntitiesOffsetsMapType_Reference(&entitiesOffsets, -1)),
 	  iterator(*this)
 {
+	chunks.reserve(10000);
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -41,7 +42,8 @@ const char *ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetName() const
 	}
 	glm::vec3 size = aabb.GetSizes();
 	static char _b[1024];
-	snprintf(_b, 1023, "ChunkedBvhDbvt [%i, %li, %i, (%i, %i), {%.1f, %.1f, %.1f}]",
+	snprintf(_b, 1023, "ChunkedBvhDbvt(%s) [%i, %li, %i, (%i, %i), {%.1f, %.1f, %.1f}]",
+			chunksBvh->GetName(),
 			outerObjects.GetCount(),
 			chunks.size(), maxElemsInChunk, a, b, size.x, size.y, size.z);
 	return _b;
@@ -143,6 +145,11 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 				   "Updating entity within chunk that does not exist.");
 			it->second.Update(entity, aabb);
 		}
+		
+		++roundRobinCounter;
+		if ((roundRobinCounter & 511) == 0) {
+			ShrinkToFitIncremental();
+		}
 	} else {
 		MaskType mask = 0;
 
@@ -158,8 +165,9 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 			mask = oldChunk->GetMask(entity, offset);
 			oldChunk->Remove(entity);
 			if (oldChunk->GetCount() == 0) {
-				chunksBvh->Remove(oldChunkId);
-				chunks.erase(it);
+				oldChunk->ShrinkToFit();
+// 				chunksBvh->Remove(oldChunkId);
+// 				chunks.erase(it);
 			}
 		}
 
@@ -168,11 +176,6 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 		} else {
 			GetOrInitChunk(newChunkId, aabb)->Add(entity, aabb, mask);
 		}
-	}
-
-	++roundRobinCounter;
-	if ((roundRobinCounter & 255) == 0) {
-		ShrinkToFitIncremental();
 	}
 }
 
@@ -219,6 +222,11 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Remove(EntityType entity)
 	}
 
 	--entitiesCount;
+
+	++roundRobinCounter;
+	if ((roundRobinCounter & 2048) == 0) {
+		ShrinkToFitIncremental();
+	}
 }
 
 SPP_TEMPLATE_DECL_NO_AABB

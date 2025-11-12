@@ -584,7 +584,6 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 {
 	broadphasePerformances.clear();
 	broadphasePerformances.resize(broadphases.size(), {{}, 0});
-	totalErrorsInBroadphase.clear();
 	totalErrorsInBroadphase.resize(broadphases.size(), 0);
 
 	std::uniform_real_distribution<float> distPos(-sqrt(MAX_ENTITIES)/2, sqrt(MAX_ENTITIES)/2);
@@ -605,7 +604,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 		ee.reserve(testsCount);
 		vv.reserve(testsCount);
 		for (; i < testsCount; ++i) {
-			ee.push_back(((mt() % MAX_MOVING_ENTITIES) % TOTAL_ENTITIES) + 1);
+			ee.push_back((((size_t)mt() % (size_t)MAX_MOVING_ENTITIES) % (TOTAL_ENTITIES-2)) + 2);
 			vv.push_back({distSize(mt)*60.0 - 30.0f, distSize(mt) * 60.0f - 30.0f, distSize(mt) * 60.0f - 30.0f});
 		}
 	}
@@ -1307,12 +1306,14 @@ int main(int argc, char **argv)
 				   "\tDBVH            - Dbvh (DynamicBoundingVolumeHierarchy)\n"
 				   "\tBTDBVH          - BulletDbvh (Bullet dbvh - two stages)\n"
 				   "\tBTDBVT          - BulletDbvt (Bullet dbvt one stage)\n"
-				   "\tCHUNKBVHDBVT    - BVH of chunks and two stage Bvh within chunk\n" // ChunkedBvhDbvt
+				   "\tCHUNKBVHDBVT    - BVH of chunks and two stage Dbvt and Bvh within chunk\n" // ChunkedBvhDbvt
+				   "\tCHUNKBVHBVH     - BVH of chunks and two stage Bvh within chunk\n" // ChunkedBvhDbvt
 				   "\tTSH_BF          - ThreeStageDbvh BvhMedian + BruteForce\n"
 				   "\tTSH_BTDBVT      - ThreeStageDbvh BvhMedian + BulletDbvt\n"
 				   "\tTSH_BTDBVT1     - ThreeStageDbvh BvhMedian1 + BulletDbvt\n"
-				   "\tTSH_BTDBVT1_NOR - ThreeStageDbvh (no rebuild) BvhMedian1 + BulletDbvt\n"
+				   "\tTSH_BTDBVT1_NOR - ThreeStageDbvh BvhMedian1 + BulletDbvt (no schedule)\n"
 				   "\tTSH_BTDBVT3     - ThreeStageDbvh BulletDbvt + BulletDbvt\n"
+				   "\tTSH_BTDBVT2     - ThreeStageDbvh BulletDbvt + BulletDbvt (no schedule)\n"
 				   "\tTSH_DBVH        - ThreeStageDbvh BvhMedian + Dbvh\n"
 				   "\tTSH_DBVT        - ThreeStageDbvh BvhMedian + Dbvt\n"
 				   "\tTSH_DBVT1       - ThreeStageDbvh BvhMedian1 + Dbvt\n"
@@ -1398,7 +1399,9 @@ int main(int argc, char **argv)
 				broadphases.push_back(new spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>);
 				
 			} else if (strcmp(str, "CHUNKBVHDBVT") == false) {
-				broadphases.push_back(new spp::ChunkedBvhDbvt<EntityType, uint32_t, 0>(TOTAL_ENTITIES));
+				broadphases.push_back(new spp::ChunkedBvhDbvt<EntityType, uint32_t, 0>(TOTAL_ENTITIES, new spp::BulletDbvt<spp::Aabb, uint32_t, uint32_t, 0>()));
+			} else if (strcmp(str, "CHUNKBVHBVH") == false) {
+				broadphases.push_back(new spp::ChunkedBvhDbvt<EntityType, uint32_t, 0>(TOTAL_ENTITIES, new spp::BvhMedianSplitHeap<spp::Aabb, uint32_t, uint32_t, 0>(64*1024)));
 				
 			} else if (strcmp(str, "TSH_BF") == false) {
 				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
@@ -1424,9 +1427,8 @@ int main(int argc, char **argv)
 			} else if (strcmp(str, "TSH_BTDBVT1_NOR") == false) {
 				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
 					std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
-					nullptr, // std::make_shared<spp::BvhMedianSplitHeap<spp::Aabb, EntityType, uint32_t, 0, 1>>(TOTAL_ENTITIES),
+					nullptr,
 					std::make_unique<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>());
-				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "TSH_BTDBVT3") == false) {
 				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
@@ -1434,6 +1436,12 @@ int main(int argc, char **argv)
 					std::make_shared<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>(),
 					std::make_unique<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>());
 				tsdbvh->SetRebuildSchedulerFunction(EnqueueRebuildThreaded);
+				broadphases.push_back(tsdbvh);
+			} else if (strcmp(str, "TSH_BTDBVT2") == false) {
+				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(
+					std::make_shared<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>(),
+					nullptr,
+					std::make_unique<spp::BulletDbvt<spp::Aabb, EntityType, uint32_t, 0>>());
 				broadphases.push_back(tsdbvh);
 			} else if (strcmp(str, "TSH_DBVH") == false) {
 				spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0> *tsdbvh = new spp::ThreeStageDbvh<spp::Aabb, EntityType, uint32_t, 0>(

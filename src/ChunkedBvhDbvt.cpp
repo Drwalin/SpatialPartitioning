@@ -12,9 +12,8 @@
 namespace spp
 {
 SPP_TEMPLATE_DECL_NO_AABB
-ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ChunkedBvhDbvt(
-	EntityType denseEntityRange)
-	: entitiesOffsets(denseEntityRange), chunksBvh(64*1024),
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ChunkedBvhDbvt(int32_t denseEntityRange, BroadphaseBase<Aabb, uint32_t, uint32_t, 0> *glob)
+	: entitiesOffsets(denseEntityRange), chunksBvh(glob),
 	  outerObjects(EntitiesOffsetsMapType_Reference(&entitiesOffsets, -1)),
 	  iterator(*this)
 {
@@ -52,7 +51,7 @@ SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Clear()
 {
 	chunks.clear();
-	chunksBvh.Clear();
+	chunksBvh->Clear();
 	entitiesOffsets.Clear();
 	entitiesCount = 0;
 }
@@ -60,7 +59,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Clear()
 SPP_TEMPLATE_DECL_NO_AABB
 size_t ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetMemoryUsage() const
 {
-	size_t size = chunksBvh.GetMemoryUsage() + chunks.GetMemoryUsage() +
+	size_t size = chunksBvh->GetMemoryUsage() + chunks.GetMemoryUsage() +
 				  entitiesOffsets.GetMemoryUsage();
 	for (const auto &c : chunks) {
 		size += c.second.GetMemoryUsage();
@@ -71,7 +70,7 @@ size_t ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetMemoryUsage() const
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ShrinkToFit()
 {
-	chunksBvh.ShrinkToFit();
+	chunksBvh->ShrinkToFit();
 	entitiesOffsets.ShrinkToFit();
 	std::vector<int32_t> toRemove;
 	for (auto &c : chunks) {
@@ -83,11 +82,11 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ShrinkToFit()
 	}
 
 	for (auto &c : toRemove) {
-		assert(chunksBvh.Exists(c));
-		chunksBvh.Remove(c);
+		assert(chunksBvh->Exists(c));
+		chunksBvh->Remove(c);
 		chunks.erase(c);
 	}
-	chunksBvh.Rebuild();
+	chunksBvh->Rebuild();
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -159,7 +158,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 			mask = oldChunk->GetMask(entity, offset);
 			oldChunk->Remove(entity);
 			if (oldChunk->GetCount() == 0) {
-				chunksBvh.Remove(oldChunkId);
+				chunksBvh->Remove(oldChunkId);
 				chunks.erase(it);
 			}
 		}
@@ -169,11 +168,11 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 		} else {
 			GetOrInitChunk(newChunkId, aabb)->Add(entity, aabb, mask);
 		}
-		
-		++roundRobinCounter;
-		if ((roundRobinCounter & 255) == 0) {
-			ShrinkToFitIncremental();
-		}
+	}
+
+	++roundRobinCounter;
+	if ((roundRobinCounter & 255) == 0) {
+		ShrinkToFitIncremental();
 	}
 }
 
@@ -212,7 +211,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Remove(EntityType entity)
 		if (chunk->GetCount() == 0) {
 			[[unlikely]];
 			uint32_t id = chunk->chunkId;
-			chunksBvh.Remove(id);
+			chunksBvh->Remove(id);
 			chunks.erase(id);
 		}
 	} else {
@@ -315,7 +314,7 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetOrInitChunk(int32_t chunkId,
 		//                         Chunk(this, chunkId, chunkSize, aabb));
 		Chunk *chunk = &(chunks[chunkId]);
 		chunk->Init(this, chunkId, chunkSize, aabb);
-		chunksBvh.Add(chunkId, chunk->globalAabb, ~0);
+		chunksBvh->Add(chunkId, chunk->globalAabb, ~0);
 		return chunk;
 	}
 	return &(it->second);
@@ -400,7 +399,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectAabb(AabbCallback &cb)
 	typename AabbCallbacks::InterChunkCb interChunkCb;
 	interChunkCb.InitFrom(cb, this);
 
-	chunksBvh.IntersectAabb(interChunkCb);
+	chunksBvh->IntersectAabb(interChunkCb);
 
 	cb.testedCount += interChunkCb.testedCount;
 	cb.testedCount += interChunkCb.intraCb.testedCount;
@@ -428,7 +427,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 	interChunkCb.dbvt = this;
 	interChunkCb.orgCb = &cb;
 
-	chunksBvh.IntersectRay(interChunkCb);
+	chunksBvh->IntersectRay(interChunkCb);
 
 	cb.testedCount += interChunkCb.testedCount;
 	cb.testedCount += interChunkCb.intraCb.testedCount;
@@ -443,7 +442,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Rebuild()
 {
-	chunksBvh.ShrinkToFit();
+	chunksBvh->ShrinkToFit();
 	entitiesOffsets.ShrinkToFit();
 	std::vector<int32_t> toRemove;
 	for (auto &c : chunks) {
@@ -456,11 +455,11 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Rebuild()
 	}
 
 	for (auto &c : toRemove) {
-		assert(chunksBvh.Exists(c));
-		chunksBvh.Remove(c);
+		assert(chunksBvh->Exists(c));
+		chunksBvh->Remove(c);
 		chunks.erase(c);
 	}
-	chunksBvh.Rebuild();
+	chunksBvh->Rebuild();
 	
 	// TODO: Implement round robin rebuild / optimize / shrink to fit / delete
 	//         empty

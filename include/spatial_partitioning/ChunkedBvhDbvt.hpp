@@ -11,7 +11,7 @@
 
 #include "./BroadPhaseBase.hpp"
 #include "./BvhMedianSplitHeap.hpp"
-#include "./BulletDbvt.hpp"
+// #include "./BulletDbvt.hpp"
 
 template <> struct std::hash<glm::u16vec3> {
 	inline size_t operator()(const glm::i16vec3 &k) const
@@ -56,7 +56,7 @@ public:
 	using InternalBvhHeap =
 		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t>;
 
-	ChunkedBvhDbvt(EntityType denseEntityRange);
+	ChunkedBvhDbvt(int32_t denseEntityRange, BroadphaseBase<Aabb, uint32_t, uint32_t, 0> *glob);
 	virtual ~ChunkedBvhDbvt();
 
 	virtual const char *GetName() const override;
@@ -245,9 +245,12 @@ private:
 	MapType entitiesOffsets;
 
 	HashMap<int32_t, Chunk> chunks;
+	
+	
 
+	BroadphaseBase<Aabb, uint32_t, uint32_t, 0> *chunksBvh;
 // 	BulletDbvt<Aabb, uint32_t, uint32_t, 0> chunksBvh;
-	BvhMedianSplitHeap<Aabb, uint32_t, uint32_t, 0, 1> chunksBvh;
+// 	BvhMedianSplitHeap<Aabb, uint32_t, uint32_t, 0, 1> chunksBvh;
 	BvhMedianSplitHeap<Aabb, EntityType, MaskType, 0, 0, int32_t> outerObjects;
 
 	class Iterator final : public BroadphaseBaseIterator

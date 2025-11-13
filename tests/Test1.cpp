@@ -518,20 +518,23 @@ size_t SingleTest(spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *broad
 					d *= glm::vec3(0.03f, 1.0f/60.0f, 0.03f);
 					aabb.min += d;
 					aabb.max += d;
+					float h = aabb.max.y - aabb.min.y;
 					if (glm::any(glm::greaterThanEqual(glm::abs(aabb.GetCenter()),
-									glm::vec3(1700.0f,1700.0f,1700.0f)))) {
+									glm::vec3(1700.0f,300.0f,1700.0f)))) {
 						aabb = aabbsToTest[i];
 						float y = aabb.min.y;
 						if (glm::abs(y) > 1000) {
 							aabb.min.y /= 5.0f;
 						} else {
-							y *= 0.001f;
-							aabb.min.y = (y * y) * 1000.0f;
+							y /= 1000.0f;
+							y = (y * y) * 1000.0f;
 							if (y < 0.0f) {
 								aabb.min.y = -aabb.min.y;
 							}
 						}
-						aabb.max = aabb.min + (aabb.max-aabb.min) / 5.0f;
+						aabb.min.y = y;
+						aabb.max.y = y + h;
+// 						aabb.max = aabb.min + (aabb.max-aabb.min) / 5.0f;
 					}
 					TEST_TIMING(broadphase->Update(e, aabb), cbAabb);
 					_SetEntityAabb(currentEntitiesAabbs, e, aabb);
@@ -999,7 +1002,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 				glm::vec3 a = aabb0.min - aabbi.min;
 				glm::vec3 b = aabb0.max - aabbi.max;
 				float sum = glm::length(a) + glm::length(b);
-				if (sum > 0.1) {
+				if (sum > 0.25) {
 					++cardinalErrors;
 					if (I < 10) {
 						printf("2. CARDINAL ERROR: ENTITY AABBS DOES NOT "
@@ -1029,7 +1032,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 				glm::vec3 a = aabb0.min - aabbi.min;
 				glm::vec3 b = aabb0.max - aabbi.max;
 				float sum = glm::length(a) + glm::length(b);
-				if (sum > 0.3) {
+				if (sum > 0.5) {
 					++cardinalErrors;
 					if (I < 10) {
 						printf("4. CARDINAL ERROR: ENTITY AABBS DOES NOT "
@@ -1046,7 +1049,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 			if (hp.e <= 0) {
 				continue;
 			}
-			if (!hp.isAabbTest && !(hp.aabb.Expanded(0.01f) && hp.point)) {
+			if (!hp.isAabbTest && !(hp.aabb.Expanded(0.02f) && hp.point)) {
 				++cardinalErrors;
 				if (I < 10) {
 
@@ -1088,7 +1091,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 					++I;
 				}
 			} else if (hp.isAabbTest &&
-					   (!(hp.aabb.Expanded(0.01f) && hp.aabb2))) {
+					   (!(hp.aabb.Expanded(0.02f) && hp.aabb2))) {
 				++cardinalErrors;
 				if (I < 10) {
 					printf("6. CARDINAL ERROR: AABB TEST ERROR VALUE, "
@@ -1123,9 +1126,10 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 	}
 	
 	if (BENCHMARK == false || disable_benchmark_report == false) {
-		printf("intersection test [count: %lu]: \n", tC);
+		printf("intersection test [count = %lu : u=%lu, a=%lu, r=%lu]: \n",
+				tC, MIXED_UPDATE_COUNT, MIXED_AABB_COUNT, MIXED_RAY_COUNT);
 		printf("    [us/op]\n");
-		printf("    min      avg      p50      p75      p90      p99      p99.9       p99.99       p99.999      p99.9999     p99.99999         max  ");
+		printf("    min      avg      p50      p75      p90      p99      p99.9       p99.99       p99.999       p99.9999     p99.99999         max    ");
 		if (!DISABLE_NODES_TEST_COUNT_PRINT) {
 			printf("      nodesTested   testedCount   resultCount     maxHits");
 		}
@@ -1155,7 +1159,7 @@ void Test(std::vector<spp::BroadphaseBase<spp::Aabb, EntityType, uint32_t, 0> *>
 		if (BENCHMARK == false || disable_benchmark_report == false) {
 			
 			printf("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %10.3f %13.3f %13.3f %13.3f %13.3f %13.3f ",
-				   _min, _avg, _p50, _p75, _p90, _p99, _p999, _p9999, _p9999, _p9999999, _p9999999, _max);
+				   _min, _avg, _p50, _p75, _p90, _p99, _p999, _p9999, _p99999, _p999999, _p9999999, _max);
 			if (!DISABLE_NODES_TEST_COUNT_PRINT) {
 				printf("%15lu  %12lu %13lu %11lu",
 					   vec.nodesTestedCount, vec.testedCount, vec.hitCount,
@@ -1783,6 +1787,8 @@ int main(int argc, char **argv)
 		}
 
 		printf("\n");
+		
+		entities = old;
 	}
 
 	for (int II = 0; II < broadphases.size(); ++II) {

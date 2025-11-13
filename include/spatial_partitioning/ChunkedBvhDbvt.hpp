@@ -172,13 +172,16 @@ private:
 
 		ChunkedBvhDbvt *bp = nullptr;
 		
-		glm::vec3 scale;
-		glm::vec3 invScale;
+		inline const static glm::vec3 invScale = glm::vec3(ChunkedBvhDbvt::chunkSizeMultiplier);
+		inline const static glm::vec3 scale = glm::vec3(1.0f) / invScale;
+		inline const static Aabb_i32 localAabbInner =
+			{-glm::ivec3(ChunkedBvhDbvt::chunkSize * ChunkedBvhDbvt::chunkSizeMultiplier),
+					  glm::ivec3(ChunkedBvhDbvt::chunkSize * ChunkedBvhDbvt::chunkSizeMultiplier)};
+		inline const static Aabb_i32 localAabb = 
+			{(localAabbInner.min * 3 / 2), (localAabbInner.max * 3) / 2};
 
 		Aabb globalAabb;
 		Aabb globalAabbInner;
-		Aabb_i32 localAabb;
-		Aabb_i32 localAabbInner;
 		glm::vec3 globalCenter;
 
 		int32_t chunkId;
@@ -224,12 +227,13 @@ private:
 	Chunk *GetChunkById(uint32_t chunkId);
 
 private:
-	float chunkSize = 64.0f;
-	float chunkSizeMultiplier = 32.0f;
-	float maxChunkedEntitySize = 32.0f;
+	inline const static float chunkSize = 64.0f;
+	inline const static float chunkSizeMultiplier = 32.0f;
+	inline const static float maxChunkedEntitySize = 32.0f;
 
-	int limitChunkOffset = 512 - 2;
+	inline const static int limitChunkOffset = 512 - 2;
 
+	size_t incrementalIterator1 = 0, incrementalIterator2 = 0;
 	int32_t roundRobinCounter = 0;
 	std::mt19937_64 mt{0};
 

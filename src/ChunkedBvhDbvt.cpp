@@ -29,23 +29,33 @@ const char *ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetName() const
 	int32_t maxElemsInChunk = -1;
 	int32_t a=0, b=0;
 	Aabb aabb{{0,0,0},{0,0,0}};
-	for (const auto &c : chunks) {
-		int32_t d = c.second.GetCount();
-		if (c.second.bvh.nodesHeapAabb.size() >= 2) {
-			aabb = aabb + c.second.bvh.nodesHeapAabb[1].aabb;
+	
+	if (false) {
+		for (auto it = ((ChunkedBvhDbvt*)this)->RestartIterator(); it->Valid(); it->Next()) {
+			aabb = aabb + (it->aabb);
 		}
-		if (d > maxElemsInChunk) {
-			maxElemsInChunk = d;;
-			a = c.second.bvh.nodesHeapAabb.capacity();
-			b = c.second.bvh.entitiesData.capacity();
+	} else {
+		for (const auto &c : chunks) {
+			int32_t d = c.second.GetCount();
+			if (c.second.bvh.nodesHeapAabb.size() >= 2) {
+				aabb = aabb + c.second.ToGlobalAabb(c.second.bvh.nodesHeapAabb[1].aabb);
+			}
+			if (d > maxElemsInChunk) {
+				maxElemsInChunk = d;
+				a = c.second.bvh.nodesHeapAabb.capacity();
+				b = c.second.bvh.entitiesData.capacity();
+			}
+		}
+		for (auto it = (((ChunkedBvhDbvt*)this)->outerObjects).RestartIterator(); it->Valid(); it->Next()) {
+			aabb = aabb + (it->aabb);
 		}
 	}
 	glm::vec3 size = aabb.GetSizes();
 	static char _b[1024];
-	snprintf(_b, 1023, "ChunkedBvhDbvt(%s) [%i, %li, %i, (%i, %i), {%.1f, %.1f, %.1f}]",
-			chunksBvh->GetName(),
+	snprintf(_b, 1023, "ChunkedBvhDbvt [%i, %li, %i, (%i, %i), {%.1f, %.1f, %.1f}] (%s)",
 			outerObjects.GetCount(),
-			chunks.size(), maxElemsInChunk, a, b, size.x, size.y, size.z);
+			chunks.size(), maxElemsInChunk, a, b, size.x, size.y, size.z,
+			chunksBvh->GetName());
 	return _b;
 }
 
@@ -135,7 +145,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 	int32_t offset = 0;
 	int32_t oldChunkId = GetChunkIdOfEntity(entity, offset);
 	int32_t newChunkId = GetChunkIdFromAabb(aabb);
-
+	
 	if (oldChunkId == newChunkId) {
 		if (oldChunkId == -1) {
 			outerObjects.Update(entity, aabb);
@@ -144,11 +154,6 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 			assert(it != chunks.end() &&
 				   "Updating entity within chunk that does not exist.");
 			it->second.Update(entity, aabb);
-		}
-		
-		++roundRobinCounter;
-		if ((roundRobinCounter & 511) == 0) {
-			ShrinkToFitIncremental();
 		}
 	} else {
 		MaskType mask = 0;
@@ -165,9 +170,9 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 			mask = oldChunk->GetMask(entity, offset);
 			oldChunk->Remove(entity);
 			if (oldChunk->GetCount() == 0) {
-				oldChunk->ShrinkToFit();
-// 				chunksBvh->Remove(oldChunkId);
-// 				chunks.erase(it);
+// 				oldChunk->ShrinkToFit();
+				chunksBvh->Remove(oldChunkId);
+				chunks.erase(it);
 			}
 		}
 
@@ -177,29 +182,51 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 			GetOrInitChunk(newChunkId, aabb)->Add(entity, aabb, mask);
 		}
 	}
+	
+	++roundRobinCounter;
+	if ((roundRobinCounter & 255) == 0) {
+		ShrinkToFitIncremental();
+	}
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ShrinkToFitIncremental()
 {
-	size_t c = chunks.bucket_count();
-	if (c == 0) {
+	const size_t chunkCount = chunks.bucket_count();
+	if (chunkCount == 0) {
 		[[unlikely]];
 		return;
 	}
-	size_t bucket = mt() % c;
-	size_t e = chunks.bucket_size(bucket);
-	if (e == 0) {
+	const size_t bucket = (incrementalIterator1 %= chunkCount);
+	const size_t bucketSize = chunks.bucket_size(bucket);
+	if (incrementalIterator2 >= bucketSize) {
 		[[unlikely]];
+		++incrementalIterator1;
+		incrementalIterator2 = 0;
 		return;
 	}
-	size_t g = mt() % e;
+	
 	auto it = chunks.begin(bucket);
-	for (size_t i=0; i<g; ++i) {
+	for (size_t i=0; i<incrementalIterator2; ++i) {
 		++it;
 	}
-	it->second.Rebuild();
-	it->second.ShrinkToFit();
+	auto chunkId = it->second.chunkId;
+	if (it->second.GetCount() != 0) {
+		[[likely]]
+		it->second.Rebuild();
+		it->second.ShrinkToFit();
+	} else if (chunkId > 0) {
+		[[likely]]
+		chunksBvh->Remove(chunkId);
+		chunks.erase(chunkId);
+	}
+	
+	++incrementalIterator2;
+	if (incrementalIterator2 >= bucketSize) {
+		[[likely]]
+		incrementalIterator2 = 0;
+		++incrementalIterator1;
+	}
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -222,9 +249,9 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Remove(EntityType entity)
 	}
 
 	--entitiesCount;
-
+	
 	++roundRobinCounter;
-	if ((roundRobinCounter & 2048) == 0) {
+	if ((roundRobinCounter & 255) == 0) {
 		ShrinkToFitIncremental();
 	}
 }

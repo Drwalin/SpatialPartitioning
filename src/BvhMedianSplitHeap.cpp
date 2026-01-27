@@ -64,6 +64,29 @@ BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+Aabb BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::GetTotalAabb() const
+{
+	Aabb aabb;
+	bool inited = false;
+	if (nodesHeapAabb.size() > 1) {
+		aabb = nodesHeapAabb[1].aabb;
+		inited = true;
+	}
+	for (int32_t i = entitiesData.size() - bruteForceEntitiesAtEndCount;
+		 i < entitiesData.size(); ++i) {
+		auto &ed = entitiesData[i];
+		if (inited == false) {
+			aabb = ed.aabb;
+			inited = true;
+		} else {
+			aabb = aabb + ed.aabb;
+		}
+	}
+	return aabb;
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
 											   SegmentType)>::Clear()
 {
@@ -282,6 +305,17 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 	cb.broadphase = this;
 
+	IntersectAabb_const(cb);
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
+	SKIP_LOW_LAYERS, SegmentType)>::IntersectAabb_const(AabbCallback &cb) const
+{
+	if (cb.callback == nullptr) {
+		return;
+	}
+
 	_Internal_IntersectAabb(cb, 1);
 	for (int32_t i = entitiesData.size() - bruteForceEntitiesAtEndCount;
 		 i < entitiesData.size(); ++i) {
@@ -294,7 +328,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
-	_Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId)
+	_Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId) const
 {
 	const int32_t n = nodeId << 1;
 
@@ -344,6 +378,18 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	}
 
 	cb.broadphase = this;
+
+	IntersectRay_const(cb);
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
+	SKIP_LOW_LAYERS, SegmentType)>::IntersectRay_const(RayCallback &cb) const
+{
+	if (cb.callback == nullptr) {
+		return;
+	}
+
 	cb.InitVariables();
 
 	_Internal_IntersectRay(cb, 1);
@@ -357,9 +403,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::_Internal_IntersectRay(RayCallback &cb,
-														   const int32_t nodeId)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
+	_Internal_IntersectRay(RayCallback &cb, const int32_t nodeId) const
 {
 	const int32_t n = nodeId << 1;
 	if (n >= entitiesPowerOfTwoCount) {
@@ -708,19 +753,19 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 	SplitLatterHalfToEmpty(BvhMedianSplitHeap &other)
 {
 	assert(!"Untested");
-	
+
 	const int32_t startIndex = entitiesPowerOfTwoCount / 2;
 	const int32_t endIndex = entitiesData.size();
-	
+
 	other.entitiesData.resize(endIndex - startIndex);
 	other.bruteForceEntitiesAtEndCount = bruteForceEntitiesAtEndCount;
 	for (int32_t i = 0; i < endIndex - startIndex; ++i) {
-		other.entitiesData[i] = entitiesData[i+startIndex];
+		other.entitiesData[i] = entitiesData[i + startIndex];
 		entitiesOffsets.Remove(other.entitiesData[i].entity);
 		other.entitiesOffsets.Set(other.entitiesData[i].entity, i);
 	}
 	other.RecalcTreeStructureForValidEnttiesData();
-	
+
 	bruteForceEntitiesAtEndCount = 0;
 	entitiesCount = startIndex;
 	entitiesData.resize(entitiesCount);
@@ -728,14 +773,15 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
-	RecalcTreeStructureForValidEnttiesData()
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
+	SKIP_LOW_LAYERS, SegmentType)>::RecalcTreeStructureForValidEnttiesData()
 {
 	assert(!"Untested");
-	
-	const int32_t linearCount = entitiesData.size() - bruteForceEntitiesAtEndCount;
+
+	const int32_t linearCount =
+		entitiesData.size() - bruteForceEntitiesAtEndCount;
 	entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)linearCount);
-	
+
 	int32_t start = entitiesPowerOfTwoCount >> (1 + SKIP_LOW_LAYERS);
 	int32_t n = start;
 	for (int32_t i = 0; i < linearCount; ++n) {
@@ -750,22 +796,23 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 		nodesHeapAabb[n].aabb = aabb;
 		nodesHeapAabb[n].mask = mask;
 	}
-	
-	int32_t count = (linearCount + (1<<(1 + SKIP_LOW_LAYERS)) - 1) >> (1 + SKIP_LOW_LAYERS);
-	for (;count > 1; n /= 2, count = (count | 1) / 2) {
+
+	int32_t count = (linearCount + (1 << (1 + SKIP_LOW_LAYERS)) - 1) >>
+					(1 + SKIP_LOW_LAYERS);
+	for (; count > 1; n /= 2, count = (count | 1) / 2) {
 		n = start;
 		int32_t end = n + count;
 		for (; n < end; n++) {
 			MaskType mask = nodesHeapAabb[n].mask;
 			Aabb aabb = nodesHeapAabb[n].aabb;
-			if (n+1 < end) {
+			if (n + 1 < end) {
 				++n;
 				mask |= nodesHeapAabb[n].mask;
 				aabb = aabb + nodesHeapAabb[n].aabb;
 			}
 			aabb = aabb.Expanded(BIG_EPSILON);
-			nodesHeapAabb[n>>1].aabb = aabb;
-			nodesHeapAabb[n>>1].mask = mask;
+			nodesHeapAabb[n >> 1].aabb = aabb;
+			nodesHeapAabb[n >> 1].mask = mask;
 		}
 	}
 }

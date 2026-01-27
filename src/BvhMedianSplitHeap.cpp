@@ -348,8 +348,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 		assert(start >= 0);
 		for (int32_t i = start; i < end; ++i) {
 			auto &ed = entitiesData[i];
-			if ((ed.mask & cb.mask) &&
-				ed.entity != EMPTY_ENTITY) {
+			if ((ed.mask & cb.mask) && ed.entity != EMPTY_ENTITY) {
 				cb.ExecuteIfRelevant(ed.aabb, ed.entity);
 			}
 		}

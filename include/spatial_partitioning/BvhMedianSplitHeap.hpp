@@ -218,6 +218,11 @@ public:
 	virtual void IntersectAabb(AabbCallback &callback) override;
 	virtual void IntersectRay(RayCallback &callback) override;
 
+	// both require setting value of callback.broadphase to this
+	void IntersectAabb_const(AabbCallback &callback) const;
+	void IntersectRay_const(RayCallback &callback) const;
+	Aabb GetTotalAabb() const;
+
 	enum AabbUpdatePolicy : uint8_t {
 		ON_UPDATE_EXTEND_AABB,
 		ON_UPDATE_QUEUE_FULL_REBUILD_ON_NEXT_READ,
@@ -248,8 +253,8 @@ private:
 	void RebuildNode(int32_t nodeId);
 	int32_t RebuildNodePartial(int32_t nodeId, int32_t *tcount);
 
-	void _Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId);
-	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
+	void _Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId) const;
+	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId) const;
 
 	void RecalcTreeStructureForValidEnttiesData();
 

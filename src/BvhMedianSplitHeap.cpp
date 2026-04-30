@@ -103,6 +103,29 @@ BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+Aabb BvhMedianSplitHeap<
+	SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::GetTotalAabb() const
+{
+	Aabb aabb;
+	bool inited = false;
+	if (nodesHeapAabb.size() > 1) {
+		aabb = nodesHeapAabb[1].aabb;
+		inited = true;
+	}
+	for (int32_t i = entitiesData.size() - bruteForceEntitiesAtEndCount;
+		 i < entitiesData.size(); ++i) {
+		auto &ed = entitiesData[i];
+		if (inited == false) {
+			aabb = ed.aabb;
+			inited = true;
+		} else {
+			aabb = aabb + ed.aabb;
+		}
+	}
+	return aabb;
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
 											   SegmentType)>::Clear()
 {
@@ -321,6 +344,17 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 	cb.broadphase = this;
 
+	IntersectAabb_const(cb);
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
+	SKIP_LOW_LAYERS, SegmentType)>::IntersectAabb_const(AabbCallback &cb) const
+{
+	if (cb.callback == nullptr) {
+		return;
+	}
+
 	_Internal_IntersectAabb(cb, 1);
 	for (int32_t i = entitiesData.size() - bruteForceEntitiesAtEndCount;
 		 i < entitiesData.size(); ++i) {
@@ -333,7 +367,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
-	_Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId)
+	_Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId) const
 {
 	const int32_t n = nodeId << 1;
 
@@ -382,6 +416,18 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 	}
 
 	cb.broadphase = this;
+
+	IntersectRay_const(cb);
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
+	SKIP_LOW_LAYERS, SegmentType)>::IntersectRay_const(RayCallback &cb) const
+{
+	if (cb.callback == nullptr) {
+		return;
+	}
+
 	cb.InitVariables();
 
 	_Internal_IntersectRay(cb, 1);
@@ -395,9 +441,8 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
-	SKIP_LOW_LAYERS, SegmentType)>::_Internal_IntersectRay(RayCallback &cb,
-														   const int32_t nodeId)
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
+	_Internal_IntersectRay(RayCallback &cb, const int32_t nodeId) const
 {
 	const int32_t n = nodeId << 1;
 	if (n >= entitiesPowerOfTwoCount) {

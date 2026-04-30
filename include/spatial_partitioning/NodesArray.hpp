@@ -30,7 +30,7 @@ public:
 			data[offset] = std::move(value);
 		} else {
 			offset = data.size();
-			data.push_back(value);
+			data.push_back(std::move(value));
 		}
 		return offset;
 	}
@@ -51,8 +51,7 @@ public:
 		data.resize(1);
 	}
 
-	__attribute__((noinline))
-	void ShrinkToFit()
+	__attribute__((noinline)) void ShrinkToFit()
 	{
 		data.shrink_to_fit();
 		freeOffsets.shrink_to_fit();

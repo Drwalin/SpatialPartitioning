@@ -55,8 +55,7 @@ public:
 		data.Clear();
 	}
 
-	__attribute__((noinline))
-	void ShrinkToFit()
+	__attribute__((noinline)) void ShrinkToFit()
 	{
 		offsets.ShrinkToFit();
 		data.ShrinkToFit();
@@ -65,7 +64,7 @@ public:
 	inline void Reserve(OffsetType capacity)
 	{
 		offsets.Reserve(capacity);
-		data.reserve(capacity);
+		data.Reserve(capacity);
 	}
 
 	inline OffsetType Size() const { return offsets.Size(); }
@@ -98,7 +97,12 @@ public:
 	{
 		return offsets;
 	}
+	const DenseSparseIntMap<KeyType, OffsetType, enableDense> &_Offsets() const
+	{
+		return offsets;
+	}
 	NodesArray<OffsetType, ValueType> &_Data() { return data; }
+	const NodesArray<OffsetType, ValueType> &_Data() const { return data; }
 
 private:
 	DenseSparseIntMap<KeyType, OffsetType, enableDense> offsets;

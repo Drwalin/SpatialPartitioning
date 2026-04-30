@@ -13,6 +13,45 @@ namespace spp
 {
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
+	BvhMedianSplitHeap(
+		BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>
+			&&other)
+	: entitiesOffsets(std::move(other.entitiesOffsets)),
+	  nodesHeapAabb(std::move(other.nodesHeapAabb)),
+	  entitiesData(std::move(other.entitiesData)),
+	  iterator(std::move(other.iterator))
+{
+	maxNumberOfBruteforceEntities = other.maxNumberOfBruteforceEntities;
+	bruteForceEntitiesAtEndCount = other.bruteForceEntitiesAtEndCount;
+	entitiesCount = other.entitiesCount;
+	entitiesPowerOfTwoCount = other.entitiesPowerOfTwoCount;
+	rebuildTree = other.rebuildTree;
+	updatePolicy = other.updatePolicy;
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)> &
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
+operator=(BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
+													SegmentType)> &&other)
+{
+	entitiesOffsets = std::move(other.entitiesOffsets);
+	nodesHeapAabb = std::move(other.nodesHeapAabb);
+	entitiesData = std::move(other.entitiesData);
+	iterator = std::move(other.iterator);
+
+	maxNumberOfBruteforceEntities = other.maxNumberOfBruteforceEntities;
+	bruteForceEntitiesAtEndCount = other.bruteForceEntitiesAtEndCount;
+	entitiesCount = other.entitiesCount;
+	entitiesPowerOfTwoCount = other.entitiesPowerOfTwoCount;
+	rebuildTree = other.rebuildTree;
+	updatePolicy = other.updatePolicy;
+
+	return *this;
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 	BvhMedianSplitHeap(EntityType denseEntityRange)
 	: entitiesOffsets(denseEntityRange), iterator(*this)
 {
@@ -314,8 +353,7 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 		assert(start >= 0);
 		for (int32_t i = start; i < end; ++i) {
 			auto &ed = entitiesData[i];
-			if ((ed.mask & cb.mask) &&
-				ed.entity != EMPTY_ENTITY) {
+			if ((ed.mask & cb.mask) && ed.entity != EMPTY_ENTITY) {
 				cb.ExecuteIfRelevant(ed.aabb, ed.entity);
 			}
 		}
@@ -708,19 +746,19 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 	SplitLatterHalfToEmpty(BvhMedianSplitHeap &other)
 {
 	assert(!"Untested");
-	
+
 	const int32_t startIndex = entitiesPowerOfTwoCount / 2;
 	const int32_t endIndex = entitiesData.size();
-	
+
 	other.entitiesData.resize(endIndex - startIndex);
 	other.bruteForceEntitiesAtEndCount = bruteForceEntitiesAtEndCount;
 	for (int32_t i = 0; i < endIndex - startIndex; ++i) {
-		other.entitiesData[i] = entitiesData[i+startIndex];
+		other.entitiesData[i] = entitiesData[i + startIndex];
 		entitiesOffsets.Remove(other.entitiesData[i].entity);
 		other.entitiesOffsets.Set(other.entitiesData[i].entity, i);
 	}
 	other.RecalcTreeStructureForValidEnttiesData();
-	
+
 	bruteForceEntitiesAtEndCount = 0;
 	entitiesCount = startIndex;
 	entitiesData.resize(entitiesCount);
@@ -728,14 +766,15 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 }
 
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
-void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
-	RecalcTreeStructureForValidEnttiesData()
+void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(
+	SKIP_LOW_LAYERS, SegmentType)>::RecalcTreeStructureForValidEnttiesData()
 {
 	assert(!"Untested");
-	
-	const int32_t linearCount = entitiesData.size() - bruteForceEntitiesAtEndCount;
+
+	const int32_t linearCount =
+		entitiesData.size() - bruteForceEntitiesAtEndCount;
 	entitiesPowerOfTwoCount = std::bit_ceil((uint32_t)linearCount);
-	
+
 	int32_t start = entitiesPowerOfTwoCount >> (1 + SKIP_LOW_LAYERS);
 	int32_t n = start;
 	for (int32_t i = 0; i < linearCount; ++n) {
@@ -750,22 +789,23 @@ void BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 		nodesHeapAabb[n].aabb = aabb;
 		nodesHeapAabb[n].mask = mask;
 	}
-	
-	int32_t count = (linearCount + (1<<(1 + SKIP_LOW_LAYERS)) - 1) >> (1 + SKIP_LOW_LAYERS);
-	for (;count > 1; n /= 2, count = (count | 1) / 2) {
+
+	int32_t count = (linearCount + (1 << (1 + SKIP_LOW_LAYERS)) - 1) >>
+					(1 + SKIP_LOW_LAYERS);
+	for (; count > 1; n /= 2, count = (count | 1) / 2) {
 		n = start;
 		int32_t end = n + count;
 		for (; n < end; n++) {
 			MaskType mask = nodesHeapAabb[n].mask;
 			Aabb aabb = nodesHeapAabb[n].aabb;
-			if (n+1 < end) {
+			if (n + 1 < end) {
 				++n;
 				mask |= nodesHeapAabb[n].mask;
 				aabb = aabb + nodesHeapAabb[n].aabb;
 			}
 			aabb = aabb.Expanded(BIG_EPSILON);
-			nodesHeapAabb[n>>1].aabb = aabb;
-			nodesHeapAabb[n>>1].mask = mask;
+			nodesHeapAabb[n >> 1].aabb = aabb;
+			nodesHeapAabb[n >> 1].mask = mask;
 		}
 	}
 }

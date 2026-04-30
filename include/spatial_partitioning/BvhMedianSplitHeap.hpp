@@ -47,6 +47,17 @@ public:
 	{
 	}
 
+	DenseSparseSegmentOffsetMapReference &
+	operator=(DenseSparseSegmentOffsetMapReference &&other)
+	{
+		map = other.map;
+		owning = other.owning;
+		segment = other.segment;
+		other.map = nullptr;
+		other.owning = false;
+		other.segment = -1;
+	}
+
 	DenseSparseSegmentOffsetMapReference(
 		DenseSparseSegmentOffsetMapReference &&other)
 		: map(other.map), owning(other.owning), segment(other.segment)
@@ -105,9 +116,9 @@ public:
 	}
 
 public:
-	MapType *map;
-	bool owning;
-	SegmentType segment;
+	MapType *map = nullptr;
+	bool owning = false;
+	SegmentType segment = -1;
 };
 
 template <typename EntityType, typename OffsetType, bool enableDense>
@@ -115,7 +126,30 @@ struct DenseSparseSegmentOffsetMapReference<EntityType, void, OffsetType,
 											enableDense>
 	: public DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> {
 public:
-	const bool owning = true;
+	const static inline bool owning = true;
+
+	DenseSparseSegmentOffsetMapReference(
+		DenseSparseSegmentOffsetMapReference &&other)
+		: DenseSparseIntMap<EntityType, OffsetType, enableDense, -1>(
+			  std::move(other))
+	{
+	}
+
+	DenseSparseSegmentOffsetMapReference &
+	operator=(DenseSparseSegmentOffsetMapReference &&other)
+	{
+		DenseSparseIntMap<EntityType, OffsetType, enableDense, -1>::operator=(
+			std::move(
+				(DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> &)
+					other));
+		return *this;
+	}
+
+	DenseSparseSegmentOffsetMapReference(OffsetType denseEntityRange)
+		: DenseSparseIntMap<EntityType, OffsetType, enableDense, -1>(
+			  denseEntityRange)
+	{
+	}
 
 	using MapType = DenseSparseIntMap<EntityType, OffsetType, enableDense, -1>;
 
@@ -151,10 +185,10 @@ public:
 	using BroadphaseBaseIterator =
 		spp::BroadphaseBaseIterator<SPP_TEMPLATE_ARGS>;
 
-	BvhMedianSplitHeap(BvhMedianSplitHeap &&o) = default;
+	BvhMedianSplitHeap(BvhMedianSplitHeap &&o);
 	BvhMedianSplitHeap(BvhMedianSplitHeap &o) = delete;
 	BvhMedianSplitHeap(const BvhMedianSplitHeap &o) = delete;
-	BvhMedianSplitHeap &operator=(BvhMedianSplitHeap &&o) = default;
+	BvhMedianSplitHeap &operator=(BvhMedianSplitHeap &&o);
 	BvhMedianSplitHeap &operator=(BvhMedianSplitHeap &o) = delete;
 	BvhMedianSplitHeap &operator=(const BvhMedianSplitHeap &o) = delete;
 	BvhMedianSplitHeap(EntityType denseEntityRange);
@@ -216,7 +250,7 @@ private:
 
 	void _Internal_IntersectAabb(AabbCallback &cb, const int32_t nodeId);
 	void _Internal_IntersectRay(RayCallback &cb, const int32_t nodeId);
-	
+
 	void RecalcTreeStructureForValidEnttiesData();
 
 private:
@@ -248,6 +282,7 @@ public:
 	class Iterator final : public BroadphaseBaseIterator
 	{
 	public:
+		Iterator(Iterator &&bp) = default;
 		Iterator(BvhMedianSplitHeap &bp);
 		virtual ~Iterator();
 

@@ -26,9 +26,13 @@ public:
 	}
 	inline ~DenseSparseIntMap() {}
 
-	inline DenseSparseIntMap(const DenseSparseIntMap &) = default;
-	inline DenseSparseIntMap(DenseSparseIntMap &) = default;
+// 	inline DenseSparseIntMap(const DenseSparseIntMap &) = default;
+// 	inline DenseSparseIntMap(DenseSparseIntMap &) = default;
 	inline DenseSparseIntMap(DenseSparseIntMap &&) = default;
+
+// 	inline DenseSparseIntMap &operator=(const DenseSparseIntMap &) = default;
+// 	inline DenseSparseIntMap &operator=(DenseSparseIntMap &) = default;
+	inline DenseSparseIntMap &operator=(DenseSparseIntMap &&) = default;
 
 	inline void Reserve(KeyUIntType capacity)
 	{
@@ -155,8 +159,7 @@ public:
 
 	inline ValueType operator[](KeyUIntType key) const { return Get(key); }
 
-	__attribute__((noinline))
-	void ShrinkToFit() { sparse.rehash(0); }
+	__attribute__((noinline)) void ShrinkToFit() { sparse.rehash(0); }
 
 	inline KeyUIntType Size() const { return size; }
 
@@ -166,15 +169,97 @@ public:
 	}
 
 public:
+	struct ConstIterator {
+		ConstIterator(ConstIterator &&it) = default;
+		ConstIterator(ConstIterator &it) = default;
+		ConstIterator(const ConstIterator &it) = default;
+
+		ConstIterator &operator=(ConstIterator &&it) = default;
+		ConstIterator &operator=(ConstIterator &it) = default;
+		ConstIterator &operator=(const ConstIterator &it) = default;
+
+		ConstIterator(const DenseSparseIntMap *map) : map(map)
+		{
+			if (map) {
+				first = 0;
+				Next();
+			} else {
+				first = -1;
+			}
+		}
+
+		bool operator==(ConstIterator o) const
+		{
+			if (o.end && end) {
+				return true;
+			}
+			return it2 == o.it2 && first == o.first;
+		}
+
+		bool operator!=(ConstIterator o) const { return !((*this) == o); }
+
+		ConstIterator SetEnd()
+		{
+			end = true;
+			first = map->denseRange;
+			it2 = map->sparse.end();
+			return *this;
+		}
+
+		bool end = false;
+		DenseSparseIntMap const *map;
+		KeyUIntType first;
+		ValueType second;
+		std::unordered_map<KeyUIntType, ValueType>::const_iterator it2;
+
+		void operator++(int) { Next(); }
+		void operator++() { Next(); }
+
+		std::pair<KeyUIntType, ValueType> operator*()
+		{
+			return {first, second};
+		}
+
+		void Next()
+		{
+			if (first < map->denseRange) {
+				do {
+					++first;
+				} while (first < map->denseRange &&
+						 !(map->dense[first] != NULL_VALUE));
+				if (first < map->denseRange) {
+					second = map->dense[first];
+					return;
+				}
+				it2 = map->sparse.begin();
+				if (it2 != map->sparse.end()) {
+					first = it2->first;
+					second = it2->second;
+				} else {
+					end = true;
+				}
+				return;
+			}
+			++it2;
+			if (it2 != map->sparse.end()) {
+				first = it2->first;
+				second = it2->second;
+			} else {
+				end = true;
+			}
+			return;
+		}
+	};
+
 	struct Iterator {
 		Iterator(Iterator &&it) = default;
 		Iterator(Iterator &it) = default;
 		Iterator(const Iterator &it) = default;
-		
+
 		Iterator &operator=(Iterator &&it) = default;
 		Iterator &operator=(Iterator &it) = default;
 		Iterator &operator=(const Iterator &it) = default;
-		
+
 		Iterator(DenseSparseIntMap *map) : map(map)
 		{
 			if (map) {
@@ -249,10 +334,12 @@ public:
 	};
 
 	Iterator begin() { return Iterator(this); }
-
 	Iterator end() { return Iterator(this).SetEnd(); }
 
-private:
+	ConstIterator begin() const { return ConstIterator(this); }
+	ConstIterator end() const { return ConstIterator(this).SetEnd(); }
+
+public:
 	HashMap<KeyUIntType, ValueType> sparse;
 	std::vector<ValueType> dense;
 	const KeyUIntType denseRange;

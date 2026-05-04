@@ -1,0 +1,4 @@
+CompileFlags:
+  Add: 
+    - -Ithirdparty/glm
+    - -std=c++23

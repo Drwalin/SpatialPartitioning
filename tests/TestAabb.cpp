@@ -4,7 +4,7 @@
 
 #include "../include/spatial_partitioning/Aabb.hpp"
 #include "../src/bullet/btAabbUtil2.h"
-#include "glm/geometric.hpp"
+#include "../glm/glm/geometric.hpp"
 
 float INF = 3.0 / 0.0;
 

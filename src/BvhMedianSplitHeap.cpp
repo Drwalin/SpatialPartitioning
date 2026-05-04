@@ -13,6 +13,45 @@ namespace spp
 {
 SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
 BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
+	BvhMedianSplitHeap(
+		BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>
+			&&other)
+	: entitiesOffsets(std::move(other.entitiesOffsets)),
+	  nodesHeapAabb(std::move(other.nodesHeapAabb)),
+	  entitiesData(std::move(other.entitiesData)),
+	  iterator(std::move(other.iterator))
+{
+	maxNumberOfBruteforceEntities = other.maxNumberOfBruteforceEntities;
+	bruteForceEntitiesAtEndCount = other.bruteForceEntitiesAtEndCount;
+	entitiesCount = other.entitiesCount;
+	entitiesPowerOfTwoCount = other.entitiesPowerOfTwoCount;
+	rebuildTree = other.rebuildTree;
+	updatePolicy = other.updatePolicy;
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)> &
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
+operator=(BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
+													SegmentType)> &&other)
+{
+	entitiesOffsets = std::move(other.entitiesOffsets);
+	nodesHeapAabb = std::move(other.nodesHeapAabb);
+	entitiesData = std::move(other.entitiesData);
+	iterator = std::move(other.iterator);
+
+	maxNumberOfBruteforceEntities = other.maxNumberOfBruteforceEntities;
+	bruteForceEntitiesAtEndCount = other.bruteForceEntitiesAtEndCount;
+	entitiesCount = other.entitiesCount;
+	entitiesPowerOfTwoCount = other.entitiesPowerOfTwoCount;
+	rebuildTree = other.rebuildTree;
+	updatePolicy = other.updatePolicy;
+
+	return *this;
+}
+
+SPP_TEMPLATE_DECL_MORE(int SKIP_LOW_LAYERS, typename SegmentType)
+BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 	BvhMedianSplitHeap(EntityType denseEntityRange)
 	: entitiesOffsets(denseEntityRange), iterator(*this)
 {

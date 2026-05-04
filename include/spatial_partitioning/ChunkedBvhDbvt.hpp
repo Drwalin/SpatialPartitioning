@@ -11,7 +11,7 @@
 
 #include "./BroadPhaseBase.hpp"
 #include "./BvhMedianSplitHeap.hpp"
-// #include "./BulletDbvt.hpp"
+#include "./BulletDbvt.hpp"
 
 template <> struct std::hash<glm::u16vec3> {
 	inline size_t operator()(const glm::i16vec3 &k) const
@@ -56,7 +56,8 @@ public:
 	using InternalBvhHeap =
 		BvhMedianSplitHeap<Aabb_i16, EntityType, MaskType, 0, 1, int32_t>;
 
-	ChunkedBvhDbvt(int32_t denseEntityRange, BroadphaseBase<Aabb, uint32_t, uint32_t, 0> *glob);
+	ChunkedBvhDbvt(int32_t denseEntityRange,
+				   BroadphaseBase<Aabb, uint32_t, uint32_t, 0> *glob);
 	virtual ~ChunkedBvhDbvt();
 
 	virtual const char *GetName() const override;
@@ -171,14 +172,17 @@ private:
 				  Aabb aabb);
 
 		ChunkedBvhDbvt *bp = nullptr;
-		
-		inline const static glm::vec3 invScale = glm::vec3(ChunkedBvhDbvt::chunkSizeMultiplier);
+
+		inline const static glm::vec3 invScale =
+			glm::vec3(ChunkedBvhDbvt::chunkSizeMultiplier);
 		inline const static glm::vec3 scale = glm::vec3(1.0f) / invScale;
-		inline const static Aabb_i32 localAabbInner =
-			{-glm::ivec3(ChunkedBvhDbvt::chunkSize * ChunkedBvhDbvt::chunkSizeMultiplier),
-					  glm::ivec3(ChunkedBvhDbvt::chunkSize * ChunkedBvhDbvt::chunkSizeMultiplier)};
-		inline const static Aabb_i32 localAabb = 
-			{(localAabbInner.min * 3 / 2), (localAabbInner.max * 3) / 2};
+		inline const static Aabb_i32 localAabbInner = {
+			-glm::ivec3(ChunkedBvhDbvt::chunkSize *
+						ChunkedBvhDbvt::chunkSizeMultiplier),
+			glm::ivec3(ChunkedBvhDbvt::chunkSize
+						   *ChunkedBvhDbvt::chunkSizeMultiplier)};
+		inline const static Aabb_i32 localAabb = {(localAabbInner.min * 3 / 2),
+												  (localAabbInner.max * 3) / 2};
 
 		Aabb globalAabb;
 		Aabb globalAabbInner;
@@ -209,10 +213,10 @@ private:
 
 		void IntersectAabb(AabbCallbacks::InterChunkCb *cb);
 		void IntersectRay(RayCallbacks::InterChunkCb *cb);
-		
+
 		union {
 			uint8_t __initializationPrevention = 0;
-   			InternalBvhHeap bvh;
+			InternalBvhHeap bvh;
 		};
 	};
 
@@ -248,14 +252,13 @@ private:
 	 */
 	MapType entitiesOffsets;
 
-	HashMap<int32_t, Chunk> chunks;
-	
-	
+	// 	HashMap<int32_t, Chunk> chunks;
+	AssociativeArray<int32_t, int32_t, Chunk, false> chunks;
 
-	BroadphaseBase<Aabb, uint32_t, uint32_t, 0> *chunksBvh;
-// 	BulletDbvt<Aabb, uint32_t, uint32_t, 0> chunksBvh;
-// 	BvhMedianSplitHeap<Aabb, uint32_t, uint32_t, 0, 1> chunksBvh;
 	BvhMedianSplitHeap<Aabb, EntityType, MaskType, 0, 0, int32_t> outerObjects;
+	// 	BroadphaseBase<Aabb, uint32_t, uint32_t, 0> *chunksBvh;
+	BulletDbvt<Aabb, uint32_t, uint32_t, 0> chunksBvh;
+	// 	BvhMedianSplitHeap<Aabb, uint32_t, uint32_t, 0, 1> chunksBvh;
 
 	class Iterator final : public BroadphaseBaseIterator
 	{

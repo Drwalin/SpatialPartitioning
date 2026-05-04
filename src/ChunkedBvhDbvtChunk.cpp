@@ -11,14 +11,9 @@ namespace spp
 SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Chunk() {}
 
-/*
 SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Chunk(Chunk &&c)
 {
-	scale = c.scale;
-	invScale = c.invScale;
-	localAabb = c.localAabb;
-	localAabbInner = c.localAabbInner;
 	globalAabb = c.globalAabb;
 	globalAabbInner = c.globalAabbInner;
 	new (&bvh) InternalBvhHeap(std::move(c.bvh));
@@ -30,10 +25,6 @@ SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk &
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::operator=(Chunk &&c)
 {
-	scale = c.scale;
-	invScale = c.invScale;
-	localAabb = c.localAabb;
-	localAabbInner = c.localAabbInner;
 	globalAabb = c.globalAabb;
 	globalAabbInner = c.globalAabbInner;
 	if (bp) {
@@ -46,7 +37,6 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::operator=(Chunk &&c)
 	c.bp = nullptr;
 	return *this;
 }
-*/
 
 SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::~Chunk()
@@ -73,15 +63,15 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Init(ChunkedBvhDbvt *bp,
 
 	glm::ivec3 chunkOffset = glm::floor(aabb.GetCenter() / chunkSize);
 	glm::vec3 minGlobalOffset = ((glm::vec3)chunkOffset) * chunkSize;
-// 	localAabbInner = {-glm::ivec3(chunkSize * bp->chunkSizeMultiplier),
-// 					  glm::ivec3(chunkSize * bp->chunkSizeMultiplier)};
-// 	localAabb = {localAabbInner.min * 2, localAabbInner.max * 2};
+	// 	localAabbInner = {-glm::ivec3(chunkSize * bp->chunkSizeMultiplier),
+	// 					  glm::ivec3(chunkSize * bp->chunkSizeMultiplier)};
+	// 	localAabb = {localAabbInner.min * 2, localAabbInner.max * 2};
 	globalAabbInner.min = minGlobalOffset;
 	globalAabbInner.max = minGlobalOffset + chunkSize;
 	globalAabb.min = minGlobalOffset - chunkSize * 0.25f;
 	globalAabb.max = minGlobalOffset + chunkSize * 1.25f;
-// 	invScale = glm::vec3(bp->chunkSizeMultiplier);
-// 	scale = glm::vec3(1.0f) / invScale;
+	// 	invScale = glm::vec3(bp->chunkSizeMultiplier);
+	// 	scale = glm::vec3(1.0f) / invScale;
 	globalCenter = globalAabb.GetCenter();
 }
 
@@ -175,7 +165,7 @@ Aabb_i16 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::ToLocalAabbUnbound(
 	Aabb aabb) const
 {
 	return Aabb{glm::floor(ToLocalVec(aabb.min)) - 2.0f,
-				 glm::ceil(ToLocalVec(aabb.max)) + 2.0f};
+				glm::ceil(ToLocalVec(aabb.max)) + 2.0f};
 }
 
 SPP_TEMPLATE_DECL_NO_AABB

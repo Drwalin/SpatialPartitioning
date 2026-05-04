@@ -12,12 +12,14 @@
 namespace spp
 {
 SPP_TEMPLATE_DECL_NO_AABB
-ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ChunkedBvhDbvt(int32_t denseEntityRange, BroadphaseBase<Aabb, uint32_t, uint32_t, 0> *glob)
-	: entitiesOffsets(denseEntityRange), chunksBvh(glob),
+ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ChunkedBvhDbvt(
+	int32_t denseEntityRange, BroadphaseBase<Aabb, uint32_t, uint32_t, 0> *glob)
+	: entitiesOffsets(denseEntityRange),
 	  outerObjects(EntitiesOffsetsMapType_Reference(&entitiesOffsets, -1)),
+	  chunksBvh(), // glob),,
 	  iterator(*this)
 {
-	chunks.reserve(10000);
+	chunks.Reserve(10000);
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -27,43 +29,47 @@ SPP_TEMPLATE_DECL_NO_AABB
 const char *ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetName() const
 {
 	int32_t maxElemsInChunk = -1;
-	int32_t a=0, b=0;
-	Aabb aabb{{0,0,0},{0,0,0}};
-	
+	int32_t a = 0, b = 0;
+	Aabb aabb{{0, 0, 0}, {0, 0, 0}};
+
 	if (false) {
-		for (auto it = ((ChunkedBvhDbvt*)this)->RestartIterator(); it->Valid(); it->Next()) {
+		for (auto it = ((ChunkedBvhDbvt *)this)->RestartIterator(); it->Valid();
+			 it->Next()) {
 			aabb = aabb + (it->aabb);
 		}
 	} else {
-		for (const auto &c : chunks) {
-			int32_t d = c.second.GetCount();
-			if (c.second.bvh.nodesHeapAabb.size() >= 2) {
-				aabb = aabb + c.second.ToGlobalAabb(c.second.bvh.nodesHeapAabb[1].aabb);
+		for (const auto &o : chunks._Offsets()) {
+			const auto &c = chunks[o.second];
+			int32_t d = c.GetCount();
+			if (c.bvh.nodesHeapAabb.size() >= 2) {
+				aabb = aabb + c.ToGlobalAabb(c.bvh.nodesHeapAabb[1].aabb);
 			}
 			if (d > maxElemsInChunk) {
 				maxElemsInChunk = d;
-				a = c.second.bvh.nodesHeapAabb.capacity();
-				b = c.second.bvh.entitiesData.capacity();
+				a = c.bvh.nodesHeapAabb.capacity();
+				b = c.bvh.entitiesData.capacity();
 			}
 		}
-		for (auto it = (((ChunkedBvhDbvt*)this)->outerObjects).RestartIterator(); it->Valid(); it->Next()) {
+		for (auto it =
+				 (((ChunkedBvhDbvt *)this)->outerObjects).RestartIterator();
+			 it->Valid(); it->Next()) {
 			aabb = aabb + (it->aabb);
 		}
 	}
 	glm::vec3 size = aabb.GetSizes();
 	static char _b[1024];
-	snprintf(_b, 1023, "ChunkedBvhDbvt [%i, %li, %i, (%i, %i), {%.1f, %.1f, %.1f}] (%s)",
-			outerObjects.GetCount(),
-			chunks.size(), maxElemsInChunk, a, b, size.x, size.y, size.z,
-			chunksBvh->GetName());
+	snprintf(_b, 1023,
+			 "ChunkedBvhDbvt [%i, %li, %i, (%i, %i), {%.1f, %.1f, %.1f}] (%s)",
+			 outerObjects.GetCount(), (size_t)chunks.Size(), maxElemsInChunk, a,
+			 b, size.x, size.y, size.z, chunksBvh.GetName());
 	return _b;
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Clear()
 {
-	chunks.clear();
-	chunksBvh->Clear();
+	chunks.Clear();
+	chunksBvh.Clear();
 	entitiesOffsets.Clear();
 	entitiesCount = 0;
 }
@@ -71,10 +77,11 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Clear()
 SPP_TEMPLATE_DECL_NO_AABB
 size_t ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetMemoryUsage() const
 {
-	size_t size = chunksBvh->GetMemoryUsage() + chunks.GetMemoryUsage() +
+	size_t size = chunksBvh.GetMemoryUsage() + chunks.GetMemoryUsage() +
 				  entitiesOffsets.GetMemoryUsage();
-	for (const auto &c : chunks) {
-		size += c.second.GetMemoryUsage();
+	for (const auto &o : chunks._Offsets()) {
+		const auto &c = chunks[o.second];
+		size += c.GetMemoryUsage();
 	}
 	return size;
 }
@@ -82,23 +89,24 @@ size_t ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetMemoryUsage() const
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ShrinkToFit()
 {
-	chunksBvh->ShrinkToFit();
+	chunksBvh.ShrinkToFit();
 	entitiesOffsets.ShrinkToFit();
 	std::vector<int32_t> toRemove;
-	for (auto &c : chunks) {
-		if (c.second.GetCount() == 0) {
-			toRemove.push_back(c.first);
+	for (const auto &o : chunks._Offsets()) {
+		auto &c = chunks[o.second];
+		if (c.GetCount() == 0) {
+			toRemove.push_back(o.first);
 		} else {
-			c.second.ShrinkToFit();
+			c.ShrinkToFit();
 		}
 	}
 
 	for (auto &c : toRemove) {
-		assert(chunksBvh->Exists(c));
-		chunksBvh->Remove(c);
-		chunks.erase(c);
+		assert(chunksBvh.Exists(c));
+		chunksBvh.Remove(c);
+		chunks.RemoveByKey(c);
 	}
-	chunksBvh->Rebuild();
+	chunksBvh.Rebuild();
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -145,15 +153,15 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 	int32_t offset = 0;
 	int32_t oldChunkId = GetChunkIdOfEntity(entity, offset);
 	int32_t newChunkId = GetChunkIdFromAabb(aabb);
-	
+
 	if (oldChunkId == newChunkId) {
 		if (oldChunkId == -1) {
 			outerObjects.Update(entity, aabb);
 		} else {
-			auto it = chunks.find(oldChunkId);
-			assert(it != chunks.end() &&
+			auto offset = chunks.GetOffset(oldChunkId);
+			assert(offset != 0 &&
 				   "Updating entity within chunk that does not exist.");
-			it->second.Update(entity, aabb);
+			chunks[offset].Update(entity, aabb);
 		}
 	} else {
 		MaskType mask = 0;
@@ -162,17 +170,18 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 			mask = outerObjects.GetMask(entity);
 			outerObjects.Remove(entity);
 		} else {
-			auto it = chunks.find(oldChunkId);
-			assert(it != chunks.end() &&
+			auto offset = chunks.GetOffset(oldChunkId);
+			assert(offset != 0 &&
 				   "While updating entity trying to remove it from it's old "
 				   "chunk but that chunk does not exist.");
-			Chunk *oldChunk = &(it->second);
+			auto &chunk = chunks[offset];
+			Chunk *oldChunk = &(chunk);
 			mask = oldChunk->GetMask(entity, offset);
 			oldChunk->Remove(entity);
 			if (oldChunk->GetCount() == 0) {
-// 				oldChunk->ShrinkToFit();
-				chunksBvh->Remove(oldChunkId);
-				chunks.erase(it);
+				// 				oldChunk->ShrinkToFit();
+				chunksBvh.Remove(oldChunkId);
+				chunks.RemoveByKey(oldChunkId);
 			}
 		}
 
@@ -182,7 +191,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 			GetOrInitChunk(newChunkId, aabb)->Add(entity, aabb, mask);
 		}
 	}
-	
+
 	++roundRobinCounter;
 	if ((roundRobinCounter & 255) == 0) {
 		ShrinkToFitIncremental();
@@ -192,39 +201,38 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Update(EntityType entity,
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::ShrinkToFitIncremental()
 {
-	const size_t chunkCount = chunks.bucket_count();
+	const size_t chunkCount = chunks._Offsets().sparse.bucket_count();
 	if (chunkCount == 0) {
 		[[unlikely]];
 		return;
 	}
 	const size_t bucket = (incrementalIterator1 %= chunkCount);
-	const size_t bucketSize = chunks.bucket_size(bucket);
+	const size_t bucketSize = chunks._Offsets().sparse.bucket_size(bucket);
 	if (incrementalIterator2 >= bucketSize) {
 		[[unlikely]];
 		++incrementalIterator1;
 		incrementalIterator2 = 0;
 		return;
 	}
-	
-	auto it = chunks.begin(bucket);
-	for (size_t i=0; i<incrementalIterator2; ++i) {
+
+	auto it = chunks._Offsets().sparse.begin(bucket);
+	for (size_t i = 0; i < incrementalIterator2; ++i) {
 		++it;
 	}
-	auto chunkId = it->second.chunkId;
-	if (it->second.GetCount() != 0) {
-		[[likely]]
-		it->second.Rebuild();
-		it->second.ShrinkToFit();
+	auto offset = it->second;
+	auto &chunk = chunks[offset];
+	auto chunkId = chunk.chunkId;
+	if (chunk.GetCount() != 0) {
+		[[likely]] chunk.Rebuild();
+		chunk.ShrinkToFit();
 	} else if (chunkId > 0) {
-		[[likely]]
-		chunksBvh->Remove(chunkId);
-		chunks.erase(chunkId);
+		[[likely]] chunksBvh.Remove(chunkId);
+		chunks.RemoveByKey(chunkId);
 	}
-	
+
 	++incrementalIterator2;
 	if (incrementalIterator2 >= bucketSize) {
-		[[likely]]
-		incrementalIterator2 = 0;
+		[[likely]] incrementalIterator2 = 0;
 		++incrementalIterator1;
 	}
 }
@@ -240,16 +248,16 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Remove(EntityType entity)
 		chunk->Remove(entity);
 		if (chunk->GetCount() == 0) {
 			[[unlikely]];
-			uint32_t id = chunk->chunkId;
-			chunksBvh->Remove(id);
-			chunks.erase(id);
+			uint32_t chunkId = chunk->chunkId;
+			chunksBvh.Remove(chunkId);
+			chunks.RemoveByKey(chunkId);
 		}
 	} else {
 		outerObjects.Remove(entity);
 	}
 
 	--entitiesCount;
-	
+
 	++roundRobinCounter;
 	if ((roundRobinCounter & 255) == 0) {
 		ShrinkToFitIncremental();
@@ -305,8 +313,8 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk *
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkOfEntity(EntityType entity,
 															int32_t &offset)
 {
-	const Chunk *chunk = ((const ChunkedBvhDbvt *)this)
-							 ->GetChunkOfEntity(entity, offset);
+	const Chunk *chunk =
+		((const ChunkedBvhDbvt *)this)->GetChunkOfEntity(entity, offset);
 	return (Chunk *)chunk;
 }
 
@@ -326,13 +334,12 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkOfEntity(
 		if (segment == -1 || segment == 0) {
 			return nullptr;
 		}
-		auto it2 = chunks.find(segment);
-		if (it2 == chunks.end()) {
+		if (segment) {
 			assert(!"Should not happen: entity exists and is assigned to a "
 					"chunk that does not exist.");
 			return nullptr;
 		}
-		return &(it2->second);
+		return &(chunks[segment]);
 	}
 }
 
@@ -341,29 +348,31 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk *
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetOrInitChunk(int32_t chunkId,
 														  Aabb aabb)
 {
-	auto it = chunks.find(chunkId);
-	if (it == chunks.end()) {
+	auto offset = chunks.GetOffset(chunkId);
+	if (offset) {
 		// auto e = chunks.insert_or_assign(chunkId, std::move(Chunk(this,
 		//                                  chunkId, chunkSize, aabb)));
 		// auto e = chunks.emplace(chunkId,
 		//                         Chunk(this, chunkId, chunkSize, aabb));
-		Chunk *chunk = &(chunks[chunkId]);
+
+		auto offset = chunks.Add(chunkId, {});
+		Chunk *chunk = &(chunks[offset]);
 		chunk->Init(this, chunkId, chunkSize, aabb);
-		chunksBvh->Add(chunkId, chunk->globalAabb, ~0);
+		chunksBvh.Add(chunkId, chunk->globalAabb, ~0);
 		return chunk;
 	}
-	return &(it->second);
+	return &(chunks[offset]);
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk *
 ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkById(uint32_t chunkId)
 {
-	auto it = chunks.find(chunkId);
-	if (it != chunks.end()) {
-		return &(it->second);
+	auto offset = chunks.GetOffset(chunkId);
+	if (offset) {
+		return &(chunks[offset]);
 	}
-	return &(it->second);
+	return nullptr;
 }
 
 SPP_TEMPLATE_DECL_NO_AABB
@@ -434,7 +443,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectAabb(AabbCallback &cb)
 	typename AabbCallbacks::InterChunkCb interChunkCb;
 	interChunkCb.InitFrom(cb, this);
 
-	chunksBvh->IntersectAabb(interChunkCb);
+	chunksBvh.IntersectAabb(interChunkCb);
 
 	cb.testedCount += interChunkCb.testedCount;
 	cb.testedCount += interChunkCb.intraCb.testedCount;
@@ -462,7 +471,7 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 	interChunkCb.dbvt = this;
 	interChunkCb.orgCb = &cb;
 
-	chunksBvh->IntersectRay(interChunkCb);
+	chunksBvh.IntersectRay(interChunkCb);
 
 	cb.testedCount += interChunkCb.testedCount;
 	cb.testedCount += interChunkCb.intraCb.testedCount;
@@ -477,25 +486,26 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::IntersectRay(RayCallback &cb)
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Rebuild()
 {
-	chunksBvh->ShrinkToFit();
+	chunksBvh.ShrinkToFit();
 	entitiesOffsets.ShrinkToFit();
 	std::vector<int32_t> toRemove;
-	for (auto &c : chunks) {
-		if (c.second.GetCount() == 0) {
-			toRemove.push_back(c.first);
+	for (auto o : chunks._Offsets()) {
+		auto &c = chunks[o.second];
+		if (c.GetCount() == 0) {
+			toRemove.push_back(o.first);
 		} else {
-			c.second.Rebuild();
-			c.second.ShrinkToFit();
+			c.Rebuild();
+			c.ShrinkToFit();
 		}
 	}
 
 	for (auto &c : toRemove) {
-		assert(chunksBvh->Exists(c));
-		chunksBvh->Remove(c);
-		chunks.erase(c);
+		assert(chunksBvh.Exists(c));
+		chunksBvh.Remove(c);
+		chunks.RemoveByKey(c);
 	}
-	chunksBvh->Rebuild();
-	
+	chunksBvh.Rebuild();
+
 	// TODO: Implement round robin rebuild / optimize / shrink to fit / delete
 	//         empty
 }
@@ -545,7 +555,7 @@ bool ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Iterator::Valid()
 	return it != end;
 }
 
-}
+} // namespace spp
 
 #include "ChunkedBvhDbvtCallbacks.cpp"
 #include "ChunkedBvhDbvtChunk.cpp"

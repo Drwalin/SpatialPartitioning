@@ -50,6 +50,7 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::~Chunk()
 SPP_TEMPLATE_DECL_NO_AABB
 void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Init(ChunkedBvhDbvt *bp,
 															int32_t chunkId,
+															uint32_t chunkSegment,
 															float chunkSize,
 															Aabb aabb)
 {
@@ -57,9 +58,10 @@ void ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::Chunk::Init(ChunkedBvhDbvt *bp,
 		bvh.~InternalBvhHeap();
 	}
 	this->chunkId = chunkId;
+	this->chunkSegment = chunkSegment;
 	this->bp = bp;
 	new (&bvh) InternalBvhHeap{
-		EntitiesOffsetsMapType_Reference(&(bp->entitiesOffsets), chunkId)};
+		EntitiesOffsetsMapType_Reference(&(bp->entitiesOffsets), chunkSegment)};
 
 	glm::ivec3 chunkOffset = glm::floor(aabb.GetCenter() / chunkSize);
 	glm::vec3 minGlobalOffset = ((glm::vec3)chunkOffset) * chunkSize;

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstdio>
 
 #include <vector>
 
@@ -48,7 +49,23 @@ public:
 	}
 
 	DenseSparseSegmentOffsetMapReference &
+	operator=(const DenseSparseSegmentOffsetMapReference &other) = delete;
+	DenseSparseSegmentOffsetMapReference &
+	operator=(DenseSparseSegmentOffsetMapReference &other) = delete;
+
+	DenseSparseSegmentOffsetMapReference &
 	operator=(DenseSparseSegmentOffsetMapReference &&other)
+	{
+		map = other.map;
+		owning = other.owning;
+		segment = other.segment;
+		other.map = nullptr;
+		other.owning = false;
+		other.segment = -1;
+		return *this;
+	}
+
+	void MoveIntoFrom(DenseSparseSegmentOffsetMapReference &&other)
 	{
 		map = other.map;
 		owning = other.owning;
@@ -136,13 +153,35 @@ public:
 	}
 
 	DenseSparseSegmentOffsetMapReference &
+	operator=(const DenseSparseSegmentOffsetMapReference &) = delete;
+	DenseSparseSegmentOffsetMapReference &
+	operator=(DenseSparseSegmentOffsetMapReference &) = delete;
+
+// 	DenseSparseSegmentOffsetMapReference &
+// 	operator=(DenseSparseSegmentOffsetMapReference &&other) = default;
+
+	DenseSparseSegmentOffsetMapReference &
 	operator=(DenseSparseSegmentOffsetMapReference &&other)
 	{
-		DenseSparseIntMap<EntityType, OffsetType, enableDense, -1>::operator=(
-			std::move(
-				(DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> &)
-					other));
+		DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> *self = this;
+		DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> *o = &other;
+		(*self) = std::move(*o);
+// 		this->DenseSparseIntMap<EntityType, OffsetType, enableDense, -1>::operator=(
+// 			std::move(
+// 				(DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> &&)
+// 					other));
 		return *this;
+	}
+
+	void MoveIntoFrom(DenseSparseSegmentOffsetMapReference &&other)
+	{
+		DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> *self = this;
+		DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> *o = &other;
+		self->MoveIntoFrom(std::move(*o));
+// 		this->DenseSparseIntMap<EntityType, OffsetType, enableDense, -1>::operator=(
+// 			std::move(
+// 				(DenseSparseIntMap<EntityType, OffsetType, enableDense, -1> &&)
+// 					other));
 	}
 
 	DenseSparseSegmentOffsetMapReference(OffsetType denseEntityRange)

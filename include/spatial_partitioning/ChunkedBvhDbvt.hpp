@@ -168,8 +168,8 @@ private:
 		Chunk &operator=(Chunk &&chunk);
 		~Chunk();
 
-		void Init(ChunkedBvhDbvt *bp, int32_t chunkId, float chunkSize,
-				  Aabb aabb);
+		void Init(ChunkedBvhDbvt *bp, int32_t chunkId, uint32_t chunkSegment,
+				  float chunkSize, Aabb aabb);
 
 		ChunkedBvhDbvt *bp = nullptr;
 
@@ -188,7 +188,8 @@ private:
 		Aabb globalAabbInner;
 		glm::vec3 globalCenter;
 
-		int32_t chunkId;
+		int32_t chunkId = -1;
+		uint32_t chunkSegment = 0;
 
 		int changes = 0;
 

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstring>
+#include <cassert>
 
 #include <vector>
 
@@ -33,6 +34,14 @@ public:
 // 	inline DenseSparseIntMap &operator=(const DenseSparseIntMap &) = default;
 // 	inline DenseSparseIntMap &operator=(DenseSparseIntMap &) = default;
 	inline DenseSparseIntMap &operator=(DenseSparseIntMap &&) = default;
+
+	void MoveIntoFrom(DenseSparseIntMap &&other)
+	{
+		sparse = std::move(other.sparse);
+		dense = std::move(other.dense);
+		assert(denseRange == other.denseRange);
+		size = other.size;
+	}
 
 	inline void Reserve(KeyUIntType capacity)
 	{

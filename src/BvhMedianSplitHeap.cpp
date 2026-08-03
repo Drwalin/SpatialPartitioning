@@ -35,7 +35,7 @@ BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS, SegmentType)>::
 operator=(BvhMedianSplitHeap<SPP_TEMPLATE_ARGS_MORE(SKIP_LOW_LAYERS,
 													SegmentType)> &&other)
 {
-	entitiesOffsets = std::move(other.entitiesOffsets);
+	entitiesOffsets.MoveIntoFrom(std::move(other.entitiesOffsets));
 	nodesHeapAabb = std::move(other.nodesHeapAabb);
 	entitiesData = std::move(other.entitiesData);
 	iterator = std::move(other.iterator);

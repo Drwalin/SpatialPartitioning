@@ -304,7 +304,11 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkIdOfEntity(EntityType entity,
 		return 0;
 	} else {
 		offset = it->offset;
-		return it->segment;
+		if (it->segment > 0) {
+			return chunks[it->segment].chunkId;
+		} else {
+			return -1;
+		}
 	}
 }
 
@@ -334,11 +338,11 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetChunkOfEntity(
 		if (segment == -1 || segment == 0) {
 			return nullptr;
 		}
-		if (segment) {
-			assert(!"Should not happen: entity exists and is assigned to a "
-					"chunk that does not exist.");
-			return nullptr;
-		}
+// 		if (segment) {
+// 			assert(!"Should not happen: entity exists and is assigned to a "
+// 					"chunk that does not exist.");
+// 			return nullptr;
+// 		}
 		return &(chunks[segment]);
 	}
 }
@@ -349,19 +353,22 @@ ChunkedBvhDbvt<SPP_TEMPLATE_ARGS_NO_AABB>::GetOrInitChunk(int32_t chunkId,
 														  Aabb aabb)
 {
 	auto offset = chunks.GetOffset(chunkId);
-	if (offset) {
+	if (offset == 0) {
+		assert(offset == 0);
 		// auto e = chunks.insert_or_assign(chunkId, std::move(Chunk(this,
 		//                                  chunkId, chunkSize, aabb)));
 		// auto e = chunks.emplace(chunkId,
 		//                         Chunk(this, chunkId, chunkSize, aabb));
 
-		auto offset = chunks.Add(chunkId, {});
+		offset = chunks.Add(chunkId, {});
 		Chunk *chunk = &(chunks[offset]);
-		chunk->Init(this, chunkId, chunkSize, aabb);
+		chunk->Init(this, chunkId, offset, chunkSize, aabb);
 		chunksBvh.Add(chunkId, chunk->globalAabb, ~0);
 		return chunk;
+	} else {
+		assert(offset != 0);
+		return &(chunks[offset]);
 	}
-	return &(chunks[offset]);
 }
 
 SPP_TEMPLATE_DECL_NO_AABB

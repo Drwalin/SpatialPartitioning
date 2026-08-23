@@ -1,3 +1,6 @@
 [submodule "thirdparty/glm"]
 	path = glm
 	url = https://github.com/g-truc/glm.git
+[submodule "VecSIMD"]
+	path = VecSIMD
+	url = https://github.com/Drwalin/VecSIMD.git
